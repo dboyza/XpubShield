@@ -1,12 +1,14 @@
+use crate::alert_engine::{generate_wallet_alerts, psbt_quarantine_alert};
 use crate::blockchain_backend::BlockchainBackend;
 use crate::bitcoin_core_backend::BitcoinCoreBackend;
 use crate::database::{
-    initialize_database, load_current_wallet_report, merge_persisted_utxo_metadata,
-    save_wallet_report, wallet_totals_from_utxos,
+    acknowledge_alert as acknowledge_alert_in_database, initialize_database, load_alerts,
+    load_current_wallet_report, merge_persisted_utxo_metadata, save_alerts, save_wallet_report,
+    wallet_totals_from_utxos,
 };
 use crate::descriptor_diff::{compare_descriptor_inputs, DescriptorDiffSummary};
 use crate::mock_backend::{build_demo_import, MockBackend};
-use crate::models::{Network, QuarantineStatus, SourceCategory, UtxoStatus, WalletReport};
+use crate::models::{Alert, Network, QuarantineStatus, SourceCategory, UtxoStatus, WalletReport};
 use crate::psbt_linter::{analyze_psbt_text, PsbtAnalysisResult};
 use crate::wallet_import::{validate_import, ImportKind, ImportRequest};
 use rusqlite::Connection;
@@ -79,6 +81,8 @@ pub fn import_wallet(
             .lock()
             .map_err(|_| "Database lock poisoned".to_string())?;
         save_wallet_report(&mut database, &report).map_err(|error| error.to_string())?;
+        save_alerts(&database, &report.wallet.id, &generate_wallet_alerts(&report))
+            .map_err(|error| error.to_string())?;
     }
     *state
         .report
@@ -103,6 +107,8 @@ pub fn load_demo_wallet(state: State<'_, AppState>) -> Result<WalletReport, Stri
             .lock()
             .map_err(|_| "Database lock poisoned".to_string())?;
         save_wallet_report(&mut database, &report).map_err(|error| error.to_string())?;
+        save_alerts(&database, &report.wallet.id, &generate_wallet_alerts(&report))
+            .map_err(|error| error.to_string())?;
     }
     *state
         .report
@@ -221,7 +227,54 @@ pub fn analyze_psbt(
         .map_err(|_| "State lock poisoned".to_string())?
         .clone()
         .ok_or_else(|| "No wallet loaded".to_string())?;
-    analyze_psbt_text(&psbt, &report)
+    let analysis = analyze_psbt_text(&psbt, &report)?;
+    if analysis
+        .warnings
+        .iter()
+        .any(|warning| warning.id == "quarantined_input")
+    {
+        let database = state
+            .database
+            .lock()
+            .map_err(|_| "Database lock poisoned".to_string())?;
+        save_alerts(&database, &report.wallet.id, &[psbt_quarantine_alert(&report.wallet.id)])
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(analysis)
+}
+
+#[tauri::command]
+pub fn get_alerts(state: State<'_, AppState>) -> Result<Vec<Alert>, String> {
+    let report = state
+        .report
+        .lock()
+        .map_err(|_| "State lock poisoned".to_string())?
+        .clone()
+        .ok_or_else(|| "No wallet loaded".to_string())?;
+    let database = state
+        .database
+        .lock()
+        .map_err(|_| "Database lock poisoned".to_string())?;
+    load_alerts(&database, &report.wallet.id).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn acknowledge_alert(
+    alert_id: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<Alert>, String> {
+    let report = state
+        .report
+        .lock()
+        .map_err(|_| "State lock poisoned".to_string())?
+        .clone()
+        .ok_or_else(|| "No wallet loaded".to_string())?;
+    let database = state
+        .database
+        .lock()
+        .map_err(|_| "Database lock poisoned".to_string())?;
+    acknowledge_alert_in_database(&database, &alert_id).map_err(|error| error.to_string())?;
+    load_alerts(&database, &report.wallet.id).map_err(|error| error.to_string())
 }
 
 #[allow(dead_code)]

@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Bell,
   Combine,
   FileSearch,
   GitBranch,
@@ -15,6 +16,7 @@ import {
 import { useEffect, useState } from "react";
 import { getCurrentWallet, updateUtxos as persistUtxos } from "./api/tauri";
 import { ConsolidationPlanner } from "./pages/ConsolidationPlanner";
+import { Alerts } from "./pages/Alerts";
 import { Dashboard } from "./pages/Dashboard";
 import { DescriptorDiff } from "./pages/DescriptorDiff";
 import { FeeStressTest } from "./pages/FeeStressTest";
@@ -38,7 +40,8 @@ type Page =
   | "recovery"
   | "descriptor_diff"
   | "explanations"
-  | "graph";
+  | "graph"
+  | "alerts";
 
 export default function App() {
   const [report, setReport] = useState<WalletReport | null>(null);
@@ -143,6 +146,9 @@ export default function App() {
           <button className={page === "graph" ? "active" : ""} onClick={() => setPage("graph")} disabled={!report}>
             <GitBranch size={18} /> Graph
           </button>
+          <button className={page === "alerts" ? "active" : ""} onClick={() => setPage("alerts")} disabled={!report}>
+            <Bell size={18} /> Alerts
+          </button>
         </nav>
       </aside>
       <div className="content-shell">
@@ -162,6 +168,7 @@ export default function App() {
         {page === "descriptor_diff" && report ? <DescriptorDiff report={report} /> : null}
         {page === "explanations" && report ? <TransactionExplanations report={report} /> : null}
         {page === "graph" && report ? <GraphView report={report} /> : null}
+        {page === "alerts" && report ? <Alerts report={report} /> : null}
       </div>
     </div>
   );

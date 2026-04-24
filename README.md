@@ -103,11 +103,13 @@ Frontend:
 - `src/pages/DescriptorDiff.tsx`: descriptor/xpub identity comparison tool.
 - `src/pages/TransactionExplanations.tsx`: deterministic transaction explanation templates.
 - `src/pages/GraphView.tsx`: interactive wallet, lifecycle, label, privacy-risk, and fee heatmap views.
+- `src/pages/Alerts.tsx`: local alert list with acknowledgement controls.
 - `src/api/tauri.ts`: Tauri command bridge plus browser demo fallback.
 - `src/types/domain.ts`: TypeScript domain model mirror of Rust structs.
 
 Rust backend:
 
+- `src-tauri/src/alert_engine.rs`: deterministic local alert generation.
 - `src-tauri/src/wallet_import.rs`: descriptor/xpub validation and private-material rejection.
 - `src-tauri/src/descriptor_parser.rs`: descriptor metadata extraction and miniscript-backed public descriptor validation.
 - `src-tauri/src/address_derivation.rs`: mock demo derivation plus miniscript-backed descriptor address derivation.
@@ -207,7 +209,10 @@ Phase 6:
 
 - Graph visualization: implemented with wallet, lifecycle, label cluster, privacy risk, and fee heatmap views
 
+Phase 7:
+
+- Local-only alerts: implemented for wallet state, public API mode, address reuse, gap/unconfirmed findings, and quarantined PSBT attempts
+
 Next:
 
-- Local-only alerts
 - Esplora-compatible backend

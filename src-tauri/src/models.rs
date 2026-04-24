@@ -320,5 +320,6 @@ pub struct Alert {
     pub severity: Severity,
     pub title: String,
     pub message: String,
+    pub acknowledged: bool,
     pub created_at: String,
 }

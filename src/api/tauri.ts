@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { DescriptorDiffResult, PsbtAnalysisResult } from "../lib/phase3";
-import type { ImportRequest, UtxoUpdate, WalletReport } from "../types/domain";
+import type { Alert, ImportRequest, UtxoUpdate, WalletReport } from "../types/domain";
 
 export async function importWallet(request: ImportRequest): Promise<WalletReport> {
   return invoke<WalletReport>("import_wallet", { request });
@@ -36,6 +36,14 @@ export async function compareDescriptors(
 
 export async function analyzePsbt(psbt: string): Promise<PsbtAnalysisResult> {
   return invoke<PsbtAnalysisResult>("analyze_psbt", { psbt });
+}
+
+export async function getAlerts(): Promise<Alert[]> {
+  return invoke<Alert[]>("get_alerts");
+}
+
+export async function acknowledgeAlert(alertId: string): Promise<Alert[]> {
+  return invoke<Alert[]>("acknowledge_alert", { alertId });
 }
 
 export function looksLikePrivateMaterial(input: string): boolean {

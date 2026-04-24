@@ -165,6 +165,15 @@ export interface BackendPrivacyScore {
   warnings: string[];
 }
 
+export interface Alert {
+  id: string;
+  severity: Severity;
+  title: string;
+  message: string;
+  acknowledged: boolean;
+  created_at: string;
+}
+
 export interface WalletTotals {
   balance_sats: number;
   utxo_count: number;
