@@ -1,5 +1,6 @@
-pub mod alert_engine;
+pub mod action_engine;
 pub mod address_derivation;
+pub mod alert_engine;
 pub mod audit_engine;
 pub mod bitcoin_core_backend;
 pub mod blockchain_backend;
@@ -13,6 +14,7 @@ pub mod graph_builder;
 pub mod mock_backend;
 pub mod models;
 pub mod privacy_simulator;
+pub mod provenance_engine;
 pub mod psbt_linter;
 pub mod recovery_report;
 pub mod tauri_commands;
@@ -20,9 +22,10 @@ pub mod wallet_import;
 
 use tauri::Manager;
 use tauri_commands::{
-    acknowledge_alert, analyze_psbt, clear_local_cache, compare_descriptors, get_alerts,
-    get_current_wallet, get_local_data_path, import_wallet, list_labels, load_demo_wallet,
-    simulate_consolidation, simulate_spend, update_utxos, upsert_label, AppState,
+    acknowledge_alert, analyze_psbt, clear_local_cache, compare_descriptors, delete_coin_set,
+    dismiss_action, get_alerts, get_current_wallet, get_local_data_path, import_wallet,
+    list_coin_sets, list_labels, load_demo_wallet, save_coin_set, simulate_consolidation,
+    simulate_spend, update_utxos, upsert_label, AppState,
 };
 
 pub fn run() {
@@ -46,6 +49,10 @@ pub fn run() {
             clear_local_cache,
             list_labels,
             upsert_label,
+            list_coin_sets,
+            save_coin_set,
+            delete_coin_set,
+            dismiss_action,
             simulate_spend,
             simulate_consolidation
         ])

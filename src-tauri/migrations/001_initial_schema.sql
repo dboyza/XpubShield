@@ -106,6 +106,41 @@ CREATE TABLE IF NOT EXISTS labels (
   UNIQUE(wallet_id, target_type, target_id)
 );
 
+CREATE TABLE IF NOT EXISTS provenance_assessments (
+  outpoint TEXT PRIMARY KEY REFERENCES utxos(outpoint) ON DELETE CASCADE,
+  wallet_id TEXT NOT NULL REFERENCES wallets(id) ON DELETE CASCADE,
+  source_kind TEXT NOT NULL,
+  entity_label TEXT,
+  category TEXT NOT NULL,
+  confidence_level TEXT NOT NULL,
+  evidence_json TEXT NOT NULL DEFAULT '[]',
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS coin_sets (
+  id TEXT PRIMARY KEY,
+  wallet_id TEXT NOT NULL REFERENCES wallets(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  intent TEXT NOT NULL,
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS coin_set_members (
+  coin_set_id TEXT NOT NULL REFERENCES coin_sets(id) ON DELETE CASCADE,
+  outpoint TEXT NOT NULL,
+  PRIMARY KEY (coin_set_id, outpoint)
+);
+
+CREATE TABLE IF NOT EXISTS dismissed_actions (
+  id TEXT PRIMARY KEY,
+  wallet_id TEXT NOT NULL REFERENCES wallets(id) ON DELETE CASCADE,
+  action_id TEXT NOT NULL,
+  dismissed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(wallet_id, action_id)
+);
+
 CREATE TABLE IF NOT EXISTS audit_findings (
   id TEXT PRIMARY KEY,
   wallet_id TEXT NOT NULL REFERENCES wallets(id) ON DELETE CASCADE,
@@ -190,5 +225,7 @@ CREATE INDEX IF NOT EXISTS idx_utxos_source_category ON utxos(source_category);
 CREATE INDEX IF NOT EXISTS idx_utxos_quarantine ON utxos(quarantine_status);
 CREATE INDEX IF NOT EXISTS idx_addresses_wallet_used ON derived_addresses(wallet_id, used);
 CREATE INDEX IF NOT EXISTS idx_findings_wallet_severity ON audit_findings(wallet_id, severity);
+CREATE INDEX IF NOT EXISTS idx_provenance_wallet ON provenance_assessments(wallet_id);
+CREATE INDEX IF NOT EXISTS idx_coin_sets_wallet ON coin_sets(wallet_id);
 
 PRAGMA user_version = 1;

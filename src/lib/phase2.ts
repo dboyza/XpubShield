@@ -66,6 +66,8 @@ export interface SpendPreview {
   createsChange: boolean;
   privacyRisk: "low" | "medium" | "high";
   labelMixingRisk: "low" | "medium" | "high";
+  provenanceMixingRisk: "low" | "medium" | "high";
+  observerNotes: string[];
   quarantineWarnings: string[];
   betterUtxoSuggestions: string[];
   feeCosts: Array<{ feeRate: number; estimatedFeeSats: number; changeAmountSats: number }>;
@@ -118,11 +120,20 @@ export function buildSpendPreview(
   const changeAmountSats = createsChange ? Math.max(0, rawChange) : 0;
   const labels = distinctValues(selected.map((utxo) => utxo.label || "Unlabeled"));
   const categories = distinctValues(selected.map((utxo) => utxo.source_category));
+  const provenanceContexts = distinctValues(selected.map(provenanceContext));
   const quarantineWarnings = selected
     .filter((utxo) => utxo.quarantine_status !== "none")
     .map((utxo) => `${utxo.outpoint} is marked ${utxo.quarantine_status}.`);
   const labelMixingRisk = riskFromCounts(labels.length, categories.length, quarantineWarnings.length > 0);
-  const privacyRisk = createsChange && labelMixingRisk !== "low" ? "high" : labelMixingRisk;
+  const provenanceMixingRisk = riskFromCounts(
+    provenanceContexts.length,
+    selected.some(isKycLike) && selected.some(isNonKycLike) ? 3 : 1,
+    quarantineWarnings.length > 0
+  );
+  const privacyRisk = maxRisk(
+    createsChange && labelMixingRisk !== "low" ? "high" : labelMixingRisk,
+    provenanceMixingRisk
+  );
 
   return {
     selectedOutpoints: selected.map((utxo) => utxo.outpoint),
@@ -136,6 +147,8 @@ export function buildSpendPreview(
     createsChange,
     privacyRisk,
     labelMixingRisk,
+    provenanceMixingRisk,
+    observerNotes: buildObserverNotes(selected, createsChange, provenanceMixingRisk),
     quarantineWarnings,
     betterUtxoSuggestions: betterSpendSuggestions(selected, allUtxos, normalizedAmount, normalizedFeeRate),
     feeCosts: STRESS_FEE_RATES.map((rate) => {
@@ -346,6 +359,7 @@ function betterSpendSuggestions(
   const suggestions: string[] = [];
   const selectedCategories = distinctValues(selected.map((utxo) => utxo.source_category));
   const selectedLabels = distinctValues(selected.map((utxo) => utxo.label || "Unlabeled"));
+  const selectedProvenance = distinctValues(selected.map(provenanceContext));
   const cleanCandidates = allUtxos
     .filter((utxo) => utxo.quarantine_status === "none" && utxo.spendability_status === "spendable")
     .sort((a, b) => a.amount_sats - b.amount_sats);
@@ -357,6 +371,17 @@ function betterSpendSuggestions(
 
   if (selectedCategories.length > 1 || selectedLabels.length > 1) {
     suggestions.push("Try selecting UTXOs from one label and source category to reduce common-input linkage.");
+  }
+
+  if (selectedProvenance.length > 1) {
+    suggestions.push("Prefer a set with one provenance context when the spend does not require merging histories.");
+  }
+
+  const sameProvenance = firstCoveringGroup(cleanCandidates, destinationAmountSats, feeRate);
+  if (sameProvenance) {
+    suggestions.push(
+      `A ${sameProvenance.key} group can cover the amount with ${sameProvenance.count} coin${sameProvenance.count === 1 ? "" : "s"}.`
+    );
   }
 
   if (selected.some((utxo) => utxo.quarantine_status !== "none")) {
@@ -390,4 +415,77 @@ function buildSpendSummary(
 
 function distinctValues<T extends string>(values: T[]): T[] {
   return Array.from(new Set(values)).sort();
+}
+
+function buildObserverNotes(
+  selected: Utxo[],
+  createsChange: boolean,
+  provenanceMixingRisk: SpendPreview["provenanceMixingRisk"]
+): string[] {
+  if (selected.length === 0) return ["Select coins to model common-input, change, provenance, and fee leakage."];
+
+  const notes = [
+    selected.length > 1
+      ? "A common-input observer may treat the selected inputs as controlled by one wallet."
+      : "A single-input spend avoids new common-input linkage from this selection."
+  ];
+
+  if (selected.some(isKycLike) && selected.some(isNonKycLike)) {
+    notes.push("This selection mixes exchange-like and non-exchange-like contexts, which can bridge separate identity surfaces.");
+  }
+
+  if (createsChange) {
+    notes.push("Any change output may inherit the combined history of the selected inputs.");
+  }
+
+  if (selected.some((utxo) => utxo.quarantine_status !== "none")) {
+    notes.push("Quarantined or dust-like coins in this spend can contaminate otherwise clean clusters.");
+  }
+
+  if (provenanceMixingRisk === "low" && notes.length === 1) {
+    notes.push("No obvious provenance mixing is visible, but recipient behavior and exact wallet change handling still matter.");
+  }
+
+  return notes;
+}
+
+function provenanceContext(utxo: Utxo): string {
+  return `${utxo.provenance.category}:${utxo.provenance.entity_label ?? utxo.source_label ?? utxo.label ?? "unknown"}`;
+}
+
+function isKycLike(utxo: Utxo): boolean {
+  return utxo.source_category === "exchange" || utxo.provenance.category === "exchange";
+}
+
+function isNonKycLike(utxo: Utxo): boolean {
+  return ["p2p", "mining", "gift", "donation"].includes(utxo.source_category) ||
+    ["p2p", "mining", "gift", "donation"].includes(utxo.provenance.category);
+}
+
+function maxRisk(...levels: SpendPreview["privacyRisk"][]): SpendPreview["privacyRisk"] {
+  if (levels.includes("high")) return "high";
+  if (levels.includes("medium")) return "medium";
+  return "low";
+}
+
+function firstCoveringGroup(
+  utxos: Utxo[],
+  destinationAmountSats: number,
+  feeRate: number
+): { key: string; count: number } | null {
+  const groups = new Map<string, Utxo[]>();
+  for (const utxo of utxos) {
+    const key = provenanceContext(utxo);
+    groups.set(key, [...(groups.get(key) ?? []), utxo]);
+  }
+
+  for (const [key, group] of groups) {
+    const amount = group.reduce((sum, utxo) => sum + utxo.amount_sats, 0);
+    const fee = group.reduce((sum, utxo) => sum + spendCostAtRate(utxo, feeRate), 0);
+    if (amount >= destinationAmountSats + fee) {
+      return { key, count: group.length };
+    }
+  }
+
+  return null;
 }

@@ -494,6 +494,7 @@ mod tests {
             audit_flags: Vec::new(),
             quarantine_status: QuarantineStatus::None,
             spendability_status: UtxoStatus::Spendable,
+            provenance: Default::default(),
         }
     }
 }

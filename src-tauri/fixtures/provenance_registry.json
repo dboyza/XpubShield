@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "river-demo-withdrawal",
+      "entity_label": "River",
+      "category": "exchange",
+      "confidence_level": "high",
+      "keywords": ["river", "river withdrawal"],
+      "txid_prefixes": ["65b6726e"],
+      "evidence_label": "Bundled exchange withdrawal pattern",
+      "evidence_detail": "The local registry recognizes this as a River-like withdrawal pattern in the bundled demo data."
+    },
+    {
+      "id": "cold-storage-change",
+      "entity_label": "Self-custody change",
+      "category": "change",
+      "confidence_level": "medium",
+      "keywords": ["change from hardware wallet", "change"],
+      "txid_prefixes": ["ec331fe6"],
+      "evidence_label": "Wallet change context",
+      "evidence_detail": "The output is labeled as wallet change and matches the local demo change pattern."
+    },
+    {
+      "id": "local-trade-p2p",
+      "entity_label": "Local trade",
+      "category": "p2p",
+      "confidence_level": "medium",
+      "keywords": ["local trade", "p2p sale"],
+      "txid_prefixes": ["b2f31aa8"],
+      "evidence_label": "P2P context pattern",
+      "evidence_detail": "The local registry recognizes this as a P2P-labelled receive pattern in the bundled demo data."
+    }
+  ]
+}

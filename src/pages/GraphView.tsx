@@ -4,7 +4,7 @@ import { StatusPill } from "../components/StatusPill";
 import { compactSats, humanize, txidPrefix } from "../lib/format";
 import type { ScriptType, SourceCategory, Utxo, WalletReport } from "../types/domain";
 
-type GraphMode = "wallet" | "lifecycle" | "labels" | "privacy" | "fees";
+type GraphMode = "lineage" | "wallet" | "lifecycle" | "labels" | "privacy" | "fees";
 
 interface ViewNode {
   id: string;
@@ -42,7 +42,7 @@ const NODE_LIMIT = 90;
 const FEE_RATES = [5, 10, 25, 50, 100, 200, 300];
 
 export function GraphView({ report }: GraphViewProps) {
-  const [mode, setMode] = useState<GraphMode>("wallet");
+  const [mode, setMode] = useState<GraphMode>("lineage");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filters, setFilters] = useState<GraphFilters>({
     label: "all",
@@ -62,7 +62,7 @@ export function GraphView({ report }: GraphViewProps) {
       <section className="page-header">
         <div>
           <p>{report.wallet.name}</p>
-          <h1>Graph view</h1>
+          <h1>Transaction lineage</h1>
         </div>
         <StatusPill
           label={visibleGraph.limited ? `${visibleGraph.nodes.length}/${graph.nodes.length} nodes` : `${graph.nodes.length} nodes`}
@@ -74,6 +74,7 @@ export function GraphView({ report }: GraphViewProps) {
         <label>
           View
           <select value={mode} onChange={(event) => setMode(event.target.value as GraphMode)}>
+            <option value="lineage">Lineage map</option>
             <option value="wallet">Wallet graph</option>
             <option value="lifecycle">UTXO lifecycle</option>
             <option value="labels">Label clusters</option>
@@ -203,6 +204,8 @@ function DetailPanel({ node }: { node: ViewNode | null }) {
             <SummaryRow label="Amount" value={`${compactSats(node.utxo.amount_sats)} sats`} />
             <SummaryRow label="Label" value={node.utxo.label ?? "Unlabeled"} />
             <SummaryRow label="Category" value={humanize(node.utxo.source_category)} />
+            <SummaryRow label="Provenance" value={node.utxo.provenance.entity_label ?? humanize(node.utxo.provenance.category)} />
+            <SummaryRow label="Confidence" value={humanize(node.utxo.provenance.confidence_level)} />
             <SummaryRow label="Status" value={humanize(node.utxo.spendability_status)} />
           </>
         ) : null}
@@ -250,10 +253,44 @@ function FeeHeatmap({ utxos }: { utxos: Utxo[] }) {
 }
 
 function buildGraph(mode: GraphMode, utxos: Utxo[], report: WalletReport): { nodes: ViewNode[]; edges: ViewEdge[] } {
+  if (mode === "lineage") return lineageGraph(utxos);
   if (mode === "lifecycle") return lifecycleGraph(utxos);
   if (mode === "labels") return labelGraph(utxos);
   if (mode === "privacy") return privacyGraph(utxos);
   return walletGraph(utxos, report);
+}
+
+function lineageGraph(utxos: Utxo[]) {
+  const nodes: ViewNode[] = [];
+  const edges: ViewEdge[] = [];
+  const add = uniqueNode(nodes);
+  const sources = unique(utxos.map(provenanceKey));
+  const txids = unique(utxos.map((utxo) => utxo.txid));
+
+  sources.forEach((source, index) => {
+    const sample = utxos.find((utxo) => provenanceKey(utxo) === source);
+    add({
+      id: `source:${source}`,
+      type: "label",
+      label: sample ? provenanceLabel(sample) : source,
+      meta: "source cluster",
+      risk: sample?.provenance.confidence_level,
+      x: 12,
+      y: y(index, sources.length)
+    });
+  });
+
+  txids.forEach((txid, index) => {
+    add({ id: `tx:${txid}`, type: "transaction", label: txidPrefix(txid), meta: "receive tx", x: 44, y: y(index, txids.length) });
+  });
+
+  utxos.forEach((utxo, index) => {
+    add(utxoNode(utxo, 82, y(index, utxos.length)));
+    edges.push({ id: `source-tx:${utxo.outpoint}`, source: `source:${provenanceKey(utxo)}`, target: `tx:${utxo.txid}`, label: "suggests" });
+    edges.push({ id: `tx-utxo:${utxo.outpoint}`, source: `tx:${utxo.txid}`, target: `utxo:${utxo.outpoint}`, label: "creates" });
+  });
+
+  return { nodes, edges };
 }
 
 function walletGraph(utxos: Utxo[], report: WalletReport) {
@@ -318,13 +355,21 @@ function utxoNode(utxo: Utxo, x: number, yPosition: number): ViewNode {
     id: `utxo:${utxo.outpoint}`,
     type: "utxo",
     label: `${compactSats(utxo.amount_sats)} sats`,
-    meta: utxo.label ?? humanize(utxo.source_category),
+    meta: utxo.provenance.entity_label ?? utxo.label ?? humanize(utxo.source_category),
     risk: utxo.audit_flags[0],
     amountSats: utxo.amount_sats,
     utxo,
     x,
     y: yPosition
   };
+}
+
+function provenanceKey(utxo: Utxo): string {
+  return `${utxo.provenance.category}:${utxo.provenance.entity_label ?? utxo.source_label ?? "unknown"}`;
+}
+
+function provenanceLabel(utxo: Utxo): string {
+  return utxo.provenance.entity_label ?? humanize(utxo.provenance.category);
 }
 
 function limitGraph(graph: { nodes: ViewNode[]; edges: ViewEdge[] }, limit: number) {

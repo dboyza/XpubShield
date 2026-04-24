@@ -1,3 +1,4 @@
+use crate::action_engine::build_action_center;
 use crate::address_derivation::derive_addresses_for_descriptors;
 use crate::audit_engine::audit_wallet;
 use crate::mock_backend::privacy_score_for_backend;
@@ -5,12 +6,14 @@ use crate::models::{
     BackendKind, Descriptor, Network, QuarantineStatus, SourceCategory, Transaction, Utxo,
     UtxoStatus, Wallet, WalletReport,
 };
+use crate::provenance_engine::enrich_wallet_provenance;
 use crate::wallet_import::ValidatedImport;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::collections::BTreeSet;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::time::Duration;
@@ -100,17 +103,22 @@ impl BitcoinCoreBackend {
         for descriptor in descriptors.iter_mut() {
             descriptor.wallet_id = wallet_id.clone();
         }
-        let mut addresses =
-            derive_addresses_for_descriptors(&wallet_id, &wallet.network, &descriptors, import.gap_limit)
-                .map_err(|error| BitcoinCoreError::Derivation(error.to_string()))?;
-        let scan_objects = scan_objects_for_addresses(addresses.iter().map(|address| address.address.as_str()));
+        let mut addresses = derive_addresses_for_descriptors(
+            &wallet_id,
+            &wallet.network,
+            &descriptors,
+            import.gap_limit,
+        )
+        .map_err(|error| BitcoinCoreError::Derivation(error.to_string()))?;
+        let scan_objects =
+            scan_objects_for_addresses(addresses.iter().map(|address| address.address.as_str()));
         let scan_result = self.scantxoutset(&scan_objects)?;
         let mut utxos = utxos_from_scan_result(&wallet.network, &descriptors, &scan_result);
         mark_used_addresses(&mut addresses, &utxos);
         let transactions = transactions_from_utxos(&utxos);
         let (findings, scores, totals) = audit_wallet(&wallet, &addresses, &mut utxos);
 
-        Ok(WalletReport {
+        let mut report = WalletReport {
             backend_privacy: privacy_score_for_backend(BackendKind::BitcoinCoreRpc),
             wallet,
             descriptors,
@@ -120,21 +128,34 @@ impl BitcoinCoreBackend {
             findings,
             scores,
             totals,
-        })
+            actions: Vec::new(),
+            provenance_summary: Default::default(),
+        };
+        enrich_wallet_provenance(&mut report);
+        report.actions = build_action_center(&report, &BTreeSet::new());
+        Ok(report)
     }
 
-    fn scantxoutset(&self, scan_objects: &[String]) -> Result<ScantxoutsetResult, BitcoinCoreError> {
+    fn scantxoutset(
+        &self,
+        scan_objects: &[String],
+    ) -> Result<ScantxoutsetResult, BitcoinCoreError> {
         let response = self.call("scantxoutset", json!(["start", scan_objects]))?;
-        let envelope: RpcEnvelope<ScantxoutsetResult> =
-            serde_json::from_value(response).map_err(|error| BitcoinCoreError::Parse(error.to_string()))?;
+        let envelope: RpcEnvelope<ScantxoutsetResult> = serde_json::from_value(response)
+            .map_err(|error| BitcoinCoreError::Parse(error.to_string()))?;
         if let Some(error) = envelope.error {
-            return Err(BitcoinCoreError::Rpc(format!("{}: {}", error.code, error.message)));
+            return Err(BitcoinCoreError::Rpc(format!(
+                "{}: {}",
+                error.code, error.message
+            )));
         }
         let result = envelope
             .result
             .ok_or_else(|| BitcoinCoreError::Parse("missing result".to_string()))?;
         if !result.success {
-            return Err(BitcoinCoreError::Rpc("scantxoutset did not complete successfully".to_string()));
+            return Err(BitcoinCoreError::Rpc(
+                "scantxoutset did not complete successfully".to_string(),
+            ));
         }
         Ok(result)
     }
@@ -216,13 +237,16 @@ pub fn utxos_from_scan_result(
                 vout: unspent.vout,
                 outpoint: format!("{}:{}", unspent.txid, unspent.vout),
                 amount_sats: btc_to_sats(unspent.amount),
-                address: address_from_scan_desc(unspent.desc.as_deref()).unwrap_or_else(|| "unknown".to_string()),
+                address: address_from_scan_desc(unspent.desc.as_deref())
+                    .unwrap_or_else(|| "unknown".to_string()),
                 script_pubkey: unspent.script_pubkey.clone(),
                 script_type,
                 derivation_path: derivation_path_from_scan_desc(unspent.desc.as_deref())
                     .unwrap_or_else(|| format!("m/{network:?}/unknown")),
                 confirmations: confirmations.min(u32::MAX as u64) as u32,
-                block_height: unspent.height.map(|height| height.min(u32::MAX as u64) as u32),
+                block_height: unspent
+                    .height
+                    .map(|height| height.min(u32::MAX as u64) as u32),
                 block_time: None,
                 label: None,
                 source_label: None,
@@ -234,6 +258,7 @@ pub fn utxos_from_scan_result(
                 audit_flags: Vec::new(),
                 quarantine_status: QuarantineStatus::None,
                 spendability_status: UtxoStatus::Unknown,
+                provenance: Default::default(),
             }
         })
         .collect()
