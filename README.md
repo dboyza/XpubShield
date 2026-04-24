@@ -2,11 +2,13 @@
 
 XpubShield is a local-first, watch-only Bitcoin desktop app for personal custody observability. It helps users inspect wallet structure, xpub-derived descriptors, UTXO fee burden, labeling gaps, and basic privacy risks without signing or broadcasting transactions.
 
-This repository currently implements Phases 1-5 as local-first product slices. Phase 1 covers the Tauri + React shell, Rust data models and commands, SQLite schema/migrations, a mock blockchain backend, descriptor/xpub import validation, private-material rejection, mock UTXO scanning, a dashboard, a UTXO table, and a deterministic audit engine.
+This repository currently implements Phases 1-8 as local-first product slices. Phase 1 covers the Tauri + React shell, Rust data models and commands, SQLite schema/migrations, a mock blockchain backend, descriptor/xpub import validation, private-material rejection, mock UTXO scanning, a dashboard, a UTXO table, and a deterministic audit engine.
 
 Phase 2 includes local label/quarantine editing, fee stress testing, a privacy impact simulator, and a consolidation planner using simulation-only mock wallet data.
 
-Phase 3 includes a local PSBT linter, recovery health report, descriptor diff tool, and template-based transaction explanations. Phase 4 hardens persistence, descriptor derivation, descriptor diff previews, and raw PSBT parsing. Phase 5 adds a local Bitcoin Core RPC backend that scans derived addresses with `scantxoutset` `addr(...)` scan objects.
+Phase 3 includes a local PSBT linter, recovery health report, descriptor diff tool, and template-based transaction explanations. Phase 4 hardens persistence, descriptor derivation, descriptor diff previews, and raw PSBT parsing. Phase 5 adds a local Bitcoin Core RPC backend that scans derived addresses with `scantxoutset` `addr(...)` scan objects. Phases 6-8 add graph visualization, local alerts, and Esplora-compatible address scanning.
+
+Current release posture is **Demo Preview**, not beta. Release-readiness notes, packaging artifacts, and the dependency audit decision are tracked in `docs/RELEASE_READINESS.md`.
 
 ## Security Model
 
@@ -221,4 +223,4 @@ Phase 8:
 
 Next:
 
-- Demo preview to beta readiness review
+- Resolve beta blockers listed in `docs/RELEASE_READINESS.md`

@@ -4,9 +4,11 @@ Last updated: 2026-04-24
 
 ## Current State
 
-Phases 1, 2, and 3 are implemented as local/mock-data product slices.
+Phases 1 through 8 are implemented as local-first product slices. Current release posture is **Demo Preview**, not beta.
 
-The app is a Tauri + React + TypeScript + Rust project with SQLite schema scaffolding. It currently uses mock wallet data and deterministic frontend/Rust logic. It does not sign transactions, broadcast transactions, transmit xpubs/descriptors, or connect to live Bitcoin backends yet.
+The app is a Tauri + React + TypeScript + Rust project with SQLite persistence, deterministic audit logic, local descriptor/address derivation, local PSBT parsing, graph views, local alerts, Bitcoin Core RPC scanning, and Esplora-compatible address scanning.
+
+The app remains watch-only. It does not process seed phrases, private keys, xprv values, WIF keys, signing material, transaction signing, PSBT finalization, transaction extraction, transaction broadcasting, cloud sync, user accounts, or telemetry.
 
 ## Completed
 
@@ -23,30 +25,60 @@ Phase 1:
 - Dashboard
 - UTXO table
 - Basic audit engine and risk scoring
-- README and product plan
 
 Phase 2:
 
-- Editable local labels/source labels/source categories in UTXO table
-- Editable spendability and quarantine status in UTXO table
+- Editable UTXO labels/source labels/source categories
+- Editable spendability and quarantine status
 - Fee stress test page
 - Privacy simulator page
 - Consolidation planner page
-- Deterministic Phase 2 helper logic
 
 Phase 3:
 
-- PSBT linter page for mock JSON fixtures and raw PSBT envelope detection
+- PSBT linter page
 - Recovery health report page with JSON/Markdown export
-- Descriptor diff page with metadata comparison and deterministic previews
+- Descriptor diff page
 - Transaction explanation page using templates
-- Mock PSBT fixture
 
-Packaging/setup:
+Phase 4:
 
-- Rust/Cargo setup documented in README
-- Tauri Windows icon added
-- Windows MSI and NSIS setup EXE build successfully
+- Durable SQLite persistence for wallet report and UTXO metadata
+- Rust-backed public descriptor parsing and address derivation
+- Rust-derived descriptor diff previews
+- Local raw PSBT parsing/linting
+
+Phase 5:
+
+- Local Bitcoin Core RPC backend
+- Local-only URL enforcement
+- Derived-address-only `scantxoutset` scan objects
+
+Phase 6:
+
+- Graph view page
+- Wallet graph, UTXO lifecycle, label cluster, privacy risk, and fee heatmap views
+- Graph filters, node detail panel, and bounded rendering
+
+Phase 7:
+
+- Local alert engine
+- SQLite alert persistence
+- Alert acknowledgement commands and UI
+- Alerts for public API mode, address reuse, gap/unconfirmed findings, wallet activity, and quarantined PSBT attempts
+
+Phase 8:
+
+- Esplora-compatible backend configuration
+- Self-hosted/public Esplora address UTXO scanning
+- Public API acknowledgement enforcement
+- Derived-address-only Esplora requests
+
+Phase 9:
+
+- Release-readiness note added in `docs/RELEASE_READINESS.md`
+- Dependency audit decision documented
+- README and traceability updated
 
 ## Verification
 
@@ -56,12 +88,8 @@ Last known passing checks:
 npm run build
 cd src-tauri
 cargo test
-```
-
-Tauri packaging also passed:
-
-```powershell
-npm run tauri build
+cd ..
+npm run tauri -- build
 ```
 
 Generated artifacts:
@@ -72,39 +100,29 @@ Generated artifacts:
 
 ## Known Limitations
 
-- Live Bitcoin Core, Electrum, and Esplora backends are not implemented yet.
-- Label/quarantine edits are session-local mock wallet state; durable SQLite persistence is still needed.
-- Address derivation is mocked for demo purposes.
-- PSBT linter does not yet parse real PSBT internals through Rust Bitcoin crates.
-- Descriptor diff uses deterministic previews, not real Bitcoin address derivation.
-- No graph visualization yet.
-- No local alerts yet.
-- Build artifacts are ignored and not tracked in Git.
-- The public backend privacy score is wired to the selected backend mode even while scan data remains mocked.
+- Current release posture is Demo Preview, not beta.
+- `npm audit` still reports the Vite/esbuild moderate dev-server advisory; see `docs/RELEASE_READINESS.md`.
+- Electrum scanning is not implemented.
+- Bare ypub/zpub alternate-prefix normalization remains an import-hardening follow-up.
+- Bitcoin Core and Esplora backends focus on UTXO discovery; richer transaction history and spent-output monitoring need more work.
+- Background scan scheduling is not implemented.
+- Address, transaction, source, and category label records exist in the schema but do not all have dedicated editing surfaces.
+- SQLite database encryption is not implemented.
+- Graph rendering is bounded in-app and does not yet use a dedicated graph library for very large wallets.
 
 ## Recommended Next Step
 
-Move to Phase 4 or harden the existing Phase 2/3 features before Phase 4.
+Move from Demo Preview toward beta readiness:
 
-Most valuable next implementation order:
-
-1. Add durable SQLite persistence for labels, source labels, categories, quarantine status, and spendability status.
-2. Replace mock descriptor preview/address derivation with Rust-backed `bitcoin`/`miniscript`/BDK-derived addresses.
-3. Implement real PSBT parsing in Rust and expose it through Tauri commands.
-4. Add graph visualization pages.
-5. Add live backend support, starting with local Bitcoin Core RPC or self-hosted Esplora.
+1. Decide whether to upgrade Vite now or explicitly defer the dev-server advisory until a compatibility pass.
+2. Add fixture coverage for backend scans, PSBT edge cases, graph data, alerts, and ypub/zpub normalization.
+3. Add richer live transaction history and background scan scheduling.
+4. Run a fresh watch-only security review before any beta tag.
 
 ## Git Notes
-
-Recent commits:
-
-- `f55e1ff add phase 3 wallet review tools`
-- `dd91192 add phase 2 wallet simulations`
-- `bc43620 fix Tauri Windows packaging`
-- `ed945fd document Rust setup for Tauri`
 
 Remote:
 
 - `origin` is `https://dboyza@github.com/dboyza/XpubShield.git`
 - Local Git Credential Manager is configured to prefer `dboyza` for GitHub.
-- `main` was synced with `origin/main` before the Phase 4 verification pass.
+- Do not push unless explicitly asked.
