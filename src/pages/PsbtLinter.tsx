@@ -1,9 +1,10 @@
 import { FileSearch, ShieldAlert } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { analyzePsbt } from "../api/tauri";
 import { RiskBadge } from "../components/RiskBadge";
 import { StatusPill } from "../components/StatusPill";
 import { compactSats, humanize, txidPrefix } from "../lib/format";
-import { analyzePsbtText, examplePsbtFixture } from "../lib/phase3";
+import { analyzePsbtText, examplePsbtFixture, type PsbtAnalysisResult } from "../lib/phase3";
 import type { WalletReport } from "../types/domain";
 
 interface PsbtLinterProps {
@@ -12,7 +13,29 @@ interface PsbtLinterProps {
 
 export function PsbtLinter({ report }: PsbtLinterProps) {
   const [input, setInput] = useState("");
-  const analysis = useMemo(() => analyzePsbtText(input, report), [input, report]);
+  const fallbackAnalysis = useMemo(() => analyzePsbtText(input, report), [input, report]);
+  const [backendAnalysis, setBackendAnalysis] = useState<PsbtAnalysisResult | null>(null);
+  const analysis = backendAnalysis ?? fallbackAnalysis;
+
+  useEffect(() => {
+    const trimmed = input.trim();
+    if (!isRawPsbtEnvelope(trimmed)) {
+      setBackendAnalysis(null);
+      return;
+    }
+
+    let cancelled = false;
+    analyzePsbt(trimmed)
+      .then((result) => {
+        if (!cancelled) setBackendAnalysis(result);
+      })
+      .catch(() => {
+        if (!cancelled) setBackendAnalysis(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [input]);
 
   return (
     <main className="page-shell">
@@ -29,8 +52,8 @@ export function PsbtLinter({ report }: PsbtLinterProps) {
         <div>
           <strong>Local review only</strong>
           <p>
-            This linter never signs or broadcasts. Current Phase 3 support analyzes mock JSON PSBT
-            fixtures and detects raw PSBT envelopes so metadata gaps are visible.
+            This linter never signs or broadcasts. Raw PSBT envelopes are parsed locally in the
+            Rust backend; mock JSON fixtures remain available for demo review.
           </p>
         </div>
       </section>
@@ -141,4 +164,8 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
       <strong>{value}</strong>
     </div>
   );
+}
+
+function isRawPsbtEnvelope(input: string): boolean {
+  return input.startsWith("cHNidP8") || /^70736274ff/i.test(input.replace(/\s/g, ""));
 }

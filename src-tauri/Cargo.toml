@@ -17,6 +17,7 @@ path = "src/main.rs"
 tauri-build = { version = "2.1", features = [] }
 
 [dependencies]
+base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 miniscript = "13"
 rusqlite = { version = "0.32", features = ["bundled"] }
