@@ -96,16 +96,18 @@ Frontend:
 
 - `src/pages/OnboardingImport.tsx`: descriptor/xpub import flow, backend selection, privacy warning, client-side private-material rejection.
 - `src/pages/Dashboard.tsx`: balance, UTXO count, risk scores, findings, wallet-shape summary.
-- `src/pages/UtxoTable.tsx`: sortable/filterable UTXO table with fee-cost and audit flag visibility.
+- `src/pages/UtxoTable.tsx`: sortable/filterable UTXO table with fee-cost visibility, inline labels, and a UTXO detail drawer.
 - `src/pages/FeeStressTest.tsx`: deterministic fee-rate stress test across wallet UTXOs.
+- `src/pages/SpendPreview.tsx`: simulation-only spend preview with fee, change, label-mixing, and quarantine warnings.
 - `src/pages/PrivacySimulator.tsx`: “What does the chain know?” selected-UTXO privacy simulator.
-- `src/pages/ConsolidationPlanner.tsx`: label-aware consolidation simulation.
+- `src/pages/ConsolidationPlanner.tsx`: label-aware consolidation simulation with local plan persistence.
 - `src/pages/PsbtLinter.tsx`: local PSBT fixture linter and raw PSBT parser handoff.
 - `src/pages/RecoveryHealth.tsx`: watch-only recovery metadata report with JSON/Markdown export.
 - `src/pages/DescriptorDiff.tsx`: descriptor/xpub identity comparison tool.
 - `src/pages/TransactionExplanations.tsx`: deterministic transaction explanation templates.
 - `src/pages/GraphView.tsx`: interactive wallet, lifecycle, label, privacy-risk, and fee heatmap views.
 - `src/pages/Alerts.tsx`: local alert list with acknowledgement controls.
+- `src/pages/Settings.tsx`: backend/privacy summary, local data path, generic label registry, local exports, and clear-cache action.
 - `src/api/tauri.ts`: Tauri command bridge plus browser demo fallback.
 - `src/types/domain.ts`: TypeScript domain model mirror of Rust structs.
 
@@ -121,7 +123,7 @@ Rust backend:
 - `src-tauri/src/esplora_backend.rs`: self-hosted/public Esplora address-UTXO scan flow.
 - `src-tauri/src/audit_engine.rs`: deterministic Phase 1 checks and risk scoring.
 - `src-tauri/src/fee_estimator.rs`: script-type spend-cost estimates.
-- `src-tauri/src/database.rs`: SQLite migration bootstrap and current wallet/UTXO metadata persistence.
+- `src-tauri/src/database.rs`: SQLite migration bootstrap plus wallet, UTXO metadata, label, alert, and simulation persistence.
 - `src-tauri/src/graph_builder.rs`: bounded wallet graph node/edge construction.
 - `src-tauri/src/tauri_commands.rs`: app commands exposed to React.
 
@@ -176,11 +178,12 @@ Findings use heuristic language and avoid claiming certainty about ownership, sa
 - Electrum scanning is not implemented yet.
 - Esplora scanning currently uses address UTXO endpoints; richer transaction history details can expand later.
 - Bare ypub/zpub alternate-prefix normalization remains an import-hardening follow-up.
-- Address, transaction, source, and category label records are scaffolded in SQLite but do not yet have full editing UI.
+- Address, transaction, source, and category label records are managed through the Settings label registry; dedicated per-target editing can expand later.
 - No transaction signing.
 - No transaction broadcasting.
 - No encrypted database yet.
 - Graph rendering is bounded in-app and does not yet use a dedicated graph library for very large wallets.
+- Background scan scheduling and richer spent-output monitoring are not implemented yet.
 
 ## Roadmap
 
@@ -223,4 +226,4 @@ Phase 8:
 
 Next:
 
-- Resolve beta blockers listed in `docs/RELEASE_READINESS.md`
+- Resolve the remaining live-backend monitoring and final security-review items listed in `docs/RELEASE_READINESS.md`

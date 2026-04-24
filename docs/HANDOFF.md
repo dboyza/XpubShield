@@ -79,6 +79,9 @@ Phase 9:
 - Release-readiness note added in `docs/RELEASE_READINESS.md`
 - Dependency audit decision documented
 - README and traceability updated
+- Vite/esbuild audit remediation completed
+- UTXO detail, spend preview, Settings, generic labels, and persisted local simulations added
+- Fixture manifests added for required wallet and PSBT cases
 
 ## Verification
 
@@ -92,6 +95,15 @@ cd ..
 npm run tauri -- build
 ```
 
+Latest final verification also included:
+
+```powershell
+npm audit
+npm ls vite @vitejs/plugin-react
+```
+
+UI smoke test covered demo import, all primary routes, UTXO detail drawer, spend preview, Settings label registry, and xprv-like import rejection.
+
 Generated artifacts:
 
 - `src-tauri/target/release/xpubshield.exe`
@@ -101,12 +113,11 @@ Generated artifacts:
 ## Known Limitations
 
 - Current release posture is Demo Preview, not beta.
-- `npm audit` still reports the Vite/esbuild moderate dev-server advisory; see `docs/RELEASE_READINESS.md`.
 - Electrum scanning is not implemented.
 - Bare ypub/zpub alternate-prefix normalization remains an import-hardening follow-up.
 - Bitcoin Core and Esplora backends focus on UTXO discovery; richer transaction history and spent-output monitoring need more work.
 - Background scan scheduling is not implemented.
-- Address, transaction, source, and category label records exist in the schema but do not all have dedicated editing surfaces.
+- Address, transaction, source, and category label records are editable through the Settings label registry; dedicated per-target editors can expand later.
 - SQLite database encryption is not implemented.
 - Graph rendering is bounded in-app and does not yet use a dedicated graph library for very large wallets.
 
@@ -114,9 +125,9 @@ Generated artifacts:
 
 Move from Demo Preview toward beta readiness:
 
-1. Decide whether to upgrade Vite now or explicitly defer the dev-server advisory until a compatibility pass.
-2. Add fixture coverage for backend scans, PSBT edge cases, graph data, alerts, and ypub/zpub normalization.
-3. Add richer live transaction history and background scan scheduling.
+1. Add richer live transaction history and background scan scheduling for Bitcoin Core/Esplora.
+2. Decide whether the frontend privacy simulator should be backed by a matching Rust Tauri command.
+3. Review whether encrypted SQLite is required before beta.
 4. Run a fresh watch-only security review before any beta tag.
 
 ## Git Notes

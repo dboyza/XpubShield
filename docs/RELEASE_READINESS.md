@@ -32,12 +32,21 @@ XpubShield has the planned Phase 1 through Phase 8 product slices implemented, b
 Last passing checks:
 
 ```powershell
+npm audit
+npm ls vite @vitejs/plugin-react
 npm run build
 cd src-tauri
 cargo test
 cd ..
 npm run tauri -- build
 ```
+
+Last UI smoke test:
+
+- Demo wallet import loaded.
+- Dashboard, UTXO table/detail drawer, fee stress, spend preview, privacy, consolidation, PSBT linter, recovery, descriptor diff, explanations, graph, alerts, and settings routes rendered.
+- Import private-material rejection displayed for xprv-like input.
+- Browser console reported no errors during the smoke test.
 
 Package artifacts:
 
