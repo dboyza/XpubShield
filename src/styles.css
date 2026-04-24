@@ -675,6 +675,10 @@ td span {
   color: var(--text-muted);
 }
 
+.alert-card.acknowledged {
+  opacity: 0.66;
+}
+
 .risk-meta,
 .stress-item {
   display: flex;

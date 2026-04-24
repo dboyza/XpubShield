@@ -1,3 +1,4 @@
+pub mod alert_engine;
 pub mod address_derivation;
 pub mod audit_engine;
 pub mod bitcoin_core_backend;
@@ -19,8 +20,8 @@ pub mod wallet_import;
 
 use tauri::Manager;
 use tauri_commands::{
-    analyze_psbt, compare_descriptors, get_current_wallet, import_wallet, load_demo_wallet,
-    update_utxos, AppState,
+    acknowledge_alert, analyze_psbt, compare_descriptors, get_alerts, get_current_wallet,
+    import_wallet, load_demo_wallet, update_utxos, AppState,
 };
 
 pub fn run() {
@@ -37,7 +38,9 @@ pub fn run() {
             get_current_wallet,
             update_utxos,
             compare_descriptors,
-            analyze_psbt
+            analyze_psbt,
+            get_alerts,
+            acknowledge_alert
         ])
         .run(tauri::generate_context!())
         .expect("failed to run XpubShield");

@@ -1,7 +1,7 @@
 use crate::audit_engine::audit_wallet;
 use crate::mock_backend::privacy_score_for_backend;
 use crate::models::{
-    Descriptor, QuarantineStatus, SourceCategory, Transaction, Utxo, UtxoStatus, Wallet,
+    Alert, Descriptor, QuarantineStatus, Severity, SourceCategory, Transaction, Utxo, UtxoStatus, Wallet,
     WalletReport, WalletTotals,
 };
 use rusqlite::types::Type;
@@ -209,6 +209,53 @@ pub fn wallet_totals_from_utxos(utxos: &[Utxo]) -> WalletTotals {
         smallest_utxo_sats: utxos.iter().map(|utxo| utxo.amount_sats).min().unwrap_or(0),
         by_category,
     }
+}
+
+pub fn save_alerts(connection: &Connection, wallet_id: &str, alerts: &[Alert]) -> Result<()> {
+    for alert in alerts {
+        connection.execute(
+            "INSERT OR IGNORE INTO alerts (id, wallet_id, severity, title, message, acknowledged, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                alert.id,
+                wallet_id,
+                encode_enum(&alert.severity)?,
+                alert.title,
+                alert.message,
+                bool_to_i64(alert.acknowledged),
+                alert.created_at
+            ],
+        )?;
+    }
+    Ok(())
+}
+
+pub fn load_alerts(connection: &Connection, wallet_id: &str) -> Result<Vec<Alert>> {
+    let mut statement = connection.prepare(
+        "SELECT id, severity, title, message, acknowledged, created_at
+         FROM alerts WHERE wallet_id = ?1 ORDER BY acknowledged ASC, created_at DESC",
+    )?;
+    let rows = statement
+        .query_map(params![wallet_id], |row| {
+            Ok(Alert {
+                id: row.get(0)?,
+                severity: decode_enum::<Severity>(row.get(1)?)?,
+                title: row.get(2)?,
+                message: row.get(3)?,
+                acknowledged: i64_to_bool(row.get(4)?),
+                created_at: row.get(5)?,
+            })
+        })?
+        .collect();
+    rows
+}
+
+pub fn acknowledge_alert(connection: &Connection, alert_id: &str) -> Result<()> {
+    connection.execute(
+        "UPDATE alerts SET acknowledged = 1 WHERE id = ?1",
+        params![alert_id],
+    )?;
+    Ok(())
 }
 
 fn load_current_wallet(connection: &Connection) -> Result<Option<Wallet>> {
@@ -477,5 +524,32 @@ mod tests {
         assert_eq!(updated.source_category, SourceCategory::Gift);
         assert_eq!(updated.quarantine_status, QuarantineStatus::Manual);
         assert_eq!(updated.spendability_status, UtxoStatus::DoNotSpend);
+    }
+
+    #[test]
+    fn alerts_round_trip_and_acknowledge() {
+        use crate::blockchain_backend::BlockchainBackend;
+        use crate::mock_backend::{build_demo_import, MockBackend};
+
+        let mut connection = initialize_memory_database().unwrap();
+        let report = MockBackend.scan_wallet(&build_demo_import());
+        save_wallet_report(&mut connection, &report).unwrap();
+        let alert = Alert {
+            id: "alert_test".to_string(),
+            severity: Severity::High,
+            title: "Test alert".to_string(),
+            message: "Local-only alert".to_string(),
+            acknowledged: false,
+            created_at: "2026-04-24T00:00:00Z".to_string(),
+        };
+
+        save_alerts(&connection, &report.wallet.id, &[alert]).unwrap();
+        let loaded = load_alerts(&connection, &report.wallet.id).unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert!(!loaded[0].acknowledged);
+
+        acknowledge_alert(&connection, "alert_test").unwrap();
+        let loaded = load_alerts(&connection, &report.wallet.id).unwrap();
+        assert!(loaded[0].acknowledged);
     }
 }
