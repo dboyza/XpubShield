@@ -11,6 +11,7 @@ import {
   Settings as SettingsIcon,
   ShieldAlert,
   Send,
+  Settings2,
   Table2,
   Telescope,
   Upload
@@ -49,9 +50,68 @@ type Page =
   | "alerts"
   | "settings";
 
+type NavModule = {
+  title: string;
+  signal: string;
+  pages: Array<{
+    id: Page;
+    label: string;
+    icon: typeof LayoutDashboard;
+    requiresWallet?: boolean;
+  }>;
+};
+
+const NAV_MODULES: NavModule[] = [
+  {
+    title: "Command",
+    signal: "overview / live state",
+    pages: [
+      { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, requiresWallet: true },
+      { id: "alerts", label: "Alerts", icon: Bell, requiresWallet: true },
+      { id: "graph", label: "Graph", icon: GitBranch, requiresWallet: true }
+    ]
+  },
+  {
+    title: "Coins",
+    signal: "utxo control",
+    pages: [
+      { id: "utxos", label: "UTXOs", icon: Table2, requiresWallet: true },
+      { id: "fees", label: "Fee Stress", icon: BarChart3, requiresWallet: true }
+    ]
+  },
+  {
+    title: "Simulate",
+    signal: "future moves",
+    pages: [
+      { id: "spend_preview", label: "Spend Preview", icon: Send, requiresWallet: true },
+      { id: "privacy", label: "Privacy", icon: Telescope, requiresWallet: true },
+      { id: "consolidation", label: "Consolidation", icon: Combine, requiresWallet: true }
+    ]
+  },
+  {
+    title: "Verify",
+    signal: "before signing",
+    pages: [
+      { id: "psbt", label: "PSBT Linter", icon: FileSearch, requiresWallet: true },
+      { id: "recovery", label: "Recovery", icon: HeartPulse, requiresWallet: true },
+      { id: "descriptor_diff", label: "Descriptor Diff", icon: GitCompareArrows, requiresWallet: true },
+      { id: "explanations", label: "Explanations", icon: MessageSquareText, requiresWallet: true }
+    ]
+  },
+  {
+    title: "System",
+    signal: "local config",
+    pages: [
+      { id: "import", label: "Import", icon: Upload },
+      { id: "settings", label: "Settings", icon: SettingsIcon, requiresWallet: true }
+    ]
+  }
+];
+
 export default function App() {
   const [report, setReport] = useState<WalletReport | null>(null);
   const [page, setPage] = useState<Page>("import");
+  const [booting, setBooting] = useState(true);
 
   useEffect(() => {
     getCurrentWallet().then((current) => {
@@ -60,6 +120,11 @@ export default function App() {
         setPage("dashboard");
       }
     });
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setBooting(false), 840);
+    return () => window.clearTimeout(timer);
   }, []);
 
   function applyUtxoPatch(current: WalletReport | null, outpoints: string[], patch: UtxoUpdate) {
@@ -85,86 +150,51 @@ export default function App() {
     }
   }
 
-  if (!report && page === "import") {
-    return <OnboardingImport onImported={(next) => {
-      setReport(next);
-      setPage("dashboard");
-    }} />;
-  }
-
   return (
     <div className="app-frame">
+      <div className={`boot-sweep ${booting ? "boot-sweep-active" : ""}`} aria-hidden="true">
+        <span>XpubShield local console initializing</span>
+      </div>
       <aside className="sidebar">
         <div className="brand-lockup">
           <ShieldAlert size={24} aria-hidden="true" />
           <div>
             <strong>XpubShield</strong>
-            <span>Watch-only</span>
+            <span>WATCH-ONLY TERMINAL</span>
           </div>
         </div>
-        <nav>
-          <button className={page === "import" ? "active" : ""} onClick={() => setPage("import")}>
-            <Upload size={18} /> Import
-          </button>
-          <button
-            className={page === "dashboard" ? "active" : ""}
-            onClick={() => setPage("dashboard")}
-            disabled={!report}
-          >
-            <LayoutDashboard size={18} /> Dashboard
-          </button>
-          <button className={page === "utxos" ? "active" : ""} onClick={() => setPage("utxos")} disabled={!report}>
-            <Table2 size={18} /> UTXOs
-          </button>
-          <button className={page === "fees" ? "active" : ""} onClick={() => setPage("fees")} disabled={!report}>
-            <BarChart3 size={18} /> Fee Stress
-          </button>
-          <button
-            className={page === "spend_preview" ? "active" : ""}
-            onClick={() => setPage("spend_preview")}
-            disabled={!report}
-          >
-            <Send size={18} /> Spend Preview
-          </button>
-          <button className={page === "privacy" ? "active" : ""} onClick={() => setPage("privacy")} disabled={!report}>
-            <Telescope size={18} /> Privacy
-          </button>
-          <button
-            className={page === "consolidation" ? "active" : ""}
-            onClick={() => setPage("consolidation")}
-            disabled={!report}
-          >
-            <Combine size={18} /> Consolidation
-          </button>
-          <button className={page === "psbt" ? "active" : ""} onClick={() => setPage("psbt")} disabled={!report}>
-            <FileSearch size={18} /> PSBT Linter
-          </button>
-          <button className={page === "recovery" ? "active" : ""} onClick={() => setPage("recovery")} disabled={!report}>
-            <HeartPulse size={18} /> Recovery
-          </button>
-          <button
-            className={page === "descriptor_diff" ? "active" : ""}
-            onClick={() => setPage("descriptor_diff")}
-            disabled={!report}
-          >
-            <GitCompareArrows size={18} /> Descriptor Diff
-          </button>
-          <button
-            className={page === "explanations" ? "active" : ""}
-            onClick={() => setPage("explanations")}
-            disabled={!report}
-          >
-            <MessageSquareText size={18} /> Explanations
-          </button>
-          <button className={page === "graph" ? "active" : ""} onClick={() => setPage("graph")} disabled={!report}>
-            <GitBranch size={18} /> Graph
-          </button>
-          <button className={page === "alerts" ? "active" : ""} onClick={() => setPage("alerts")} disabled={!report}>
-            <Bell size={18} /> Alerts
-          </button>
-          <button className={page === "settings" ? "active" : ""} onClick={() => setPage("settings")} disabled={!report}>
-            <SettingsIcon size={18} /> Settings
-          </button>
+        <div className="terminal-status" aria-label="Local security status">
+          <Settings2 size={16} aria-hidden="true" />
+          <div>
+            <strong>{report ? report.wallet.network.toUpperCase() : "NO WALLET"}</strong>
+            <span>{report ? "local metadata armed" : "import required"}</span>
+          </div>
+        </div>
+        <nav className="module-nav" aria-label="XpubShield modules">
+          {NAV_MODULES.map((module) => (
+            <section className="nav-module" key={module.title}>
+              <div className="nav-module-heading">
+                <span>{module.title}</span>
+                <small>{module.signal}</small>
+              </div>
+              <div className="nav-module-buttons">
+                {module.pages.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      className={page === item.id ? "active" : ""}
+                      onClick={() => setPage(item.id)}
+                      disabled={item.requiresWallet && !report}
+                    >
+                      <Icon size={18} />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </nav>
       </aside>
       <div className="content-shell">
