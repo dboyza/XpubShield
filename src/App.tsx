@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Bell,
+  BookOpenCheck,
   Combine,
   FileSearch,
   GitBranch,
@@ -18,6 +19,11 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { dismissAction, getCurrentWallet, updateUtxos as persistUtxos } from "./api/tauri";
+import {
+  SovereignOpsTutorial,
+  TUTORIAL_STEPS,
+  type TutorialPageId
+} from "./components/SovereignOpsTutorial";
 import { ConsolidationPlanner } from "./pages/ConsolidationPlanner";
 import { Alerts } from "./pages/Alerts";
 import { Cockpit } from "./pages/Cockpit";
@@ -50,15 +56,31 @@ type Page =
   | "alerts"
   | "settings";
 
+type NavItemId = Page | "tutorial";
+
 type NavModule = {
   title: string;
   signal: string;
   pages: Array<{
-    id: Page;
+    id: NavItemId;
     label: string;
     icon: typeof LayoutDashboard;
     requiresWallet?: boolean;
   }>;
+};
+
+type TutorialState = {
+  dismissed: boolean;
+  promptSnoozed: boolean;
+  completedAt?: string;
+  lastStepId?: string;
+};
+
+const TUTORIAL_STORAGE_KEY = "xpubshield.tutorial.v1";
+
+const DEFAULT_TUTORIAL_STATE: TutorialState = {
+  dismissed: false,
+  promptSnoozed: false
 };
 
 const NAV_MODULES: NavModule[] = [
@@ -103,15 +125,46 @@ const NAV_MODULES: NavModule[] = [
     signal: "local config",
     pages: [
       { id: "import", label: "Import", icon: Upload },
+      { id: "tutorial", label: "Tutorial", icon: BookOpenCheck },
       { id: "settings", label: "Settings", icon: SettingsIcon, requiresWallet: true }
     ]
   }
 ];
 
+function readTutorialState(): TutorialState {
+  try {
+    const raw = window.localStorage.getItem(TUTORIAL_STORAGE_KEY);
+    if (!raw) return DEFAULT_TUTORIAL_STATE;
+    return { ...DEFAULT_TUTORIAL_STATE, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULT_TUTORIAL_STATE;
+  }
+}
+
+function writeTutorialState(next: TutorialState): TutorialState {
+  try {
+    window.localStorage.setItem(TUTORIAL_STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // Tutorial state is a convenience only; the app should keep working if storage is unavailable.
+  }
+  return next;
+}
+
+function findTutorialStepIndex(stepId?: string) {
+  const index = TUTORIAL_STEPS.findIndex((step) => step.id === stepId);
+  return index >= 0 ? index : 0;
+}
+
 export default function App() {
   const [report, setReport] = useState<WalletReport | null>(null);
   const [page, setPage] = useState<Page>("import");
   const [booting, setBooting] = useState(true);
+  const [tutorialState, setTutorialState] = useState<TutorialState>(() => readTutorialState());
+  const [tutorialPromptOpen, setTutorialPromptOpen] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [activeTutorialStep, setActiveTutorialStep] = useState(() =>
+    findTutorialStepIndex(readTutorialState().lastStepId)
+  );
 
   useEffect(() => {
     getCurrentWallet().then((current) => {
@@ -126,6 +179,21 @@ export default function App() {
     const timer = window.setTimeout(() => setBooting(false), 840);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (
+      booting ||
+      tutorialOpen ||
+      tutorialPromptOpen ||
+      tutorialState.dismissed ||
+      tutorialState.promptSnoozed ||
+      tutorialState.completedAt
+    ) {
+      return;
+    }
+
+    setTutorialPromptOpen(true);
+  }, [booting, tutorialOpen, tutorialPromptOpen, tutorialState]);
 
   function applyUtxoPatch(current: WalletReport | null, outpoints: string[], patch: UtxoUpdate) {
     if (!current) return current;
@@ -184,6 +252,66 @@ export default function App() {
     }
   }
 
+  function saveTutorialState(patch: Partial<TutorialState>) {
+    setTutorialState((current) => writeTutorialState({ ...current, ...patch }));
+  }
+
+  function openTutorial(stepIndex = activeTutorialStep) {
+    setActiveTutorialStep(stepIndex);
+    setTutorialPromptOpen(false);
+    setTutorialOpen(true);
+  }
+
+  function startTutorial() {
+    openTutorial(findTutorialStepIndex(tutorialState.lastStepId));
+  }
+
+  function closeTutorial() {
+    const activeStepId = TUTORIAL_STEPS[activeTutorialStep]?.id;
+    saveTutorialState({ lastStepId: activeStepId, promptSnoozed: true });
+    setTutorialOpen(false);
+    setTutorialPromptOpen(false);
+  }
+
+  function finishTutorial() {
+    const activeStepId = TUTORIAL_STEPS[activeTutorialStep]?.id;
+    saveTutorialState({
+      dismissed: true,
+      promptSnoozed: true,
+      completedAt: new Date().toISOString(),
+      lastStepId: activeStepId
+    });
+    setTutorialOpen(false);
+    setTutorialPromptOpen(false);
+  }
+
+  function snoozeTutorialPrompt() {
+    saveTutorialState({ promptSnoozed: true });
+    setTutorialPromptOpen(false);
+  }
+
+  function dismissTutorialPrompt() {
+    saveTutorialState({ dismissed: true, promptSnoozed: true });
+    setTutorialPromptOpen(false);
+  }
+
+  function resetTutorial() {
+    const next = writeTutorialState(DEFAULT_TUTORIAL_STATE);
+    setTutorialState(next);
+    setActiveTutorialStep(0);
+    setTutorialOpen(false);
+    setTutorialPromptOpen(true);
+  }
+
+  function changeTutorialStep(index: number) {
+    setActiveTutorialStep(index);
+    saveTutorialState({ lastStepId: TUTORIAL_STEPS[index]?.id });
+  }
+
+  function navigateFromTutorial(pageId: TutorialPageId) {
+    navigateToAction(pageId);
+  }
+
   return (
     <div className="app-frame">
       <div className={`boot-sweep ${booting ? "boot-sweep-active" : ""}`} aria-hidden="true">
@@ -214,12 +342,14 @@ export default function App() {
               <div className="nav-module-buttons">
                 {module.pages.map((item) => {
                   const Icon = item.icon;
+                  const isTutorialItem = item.id === "tutorial";
                   return (
                     <button
                       key={item.id}
-                      className={page === item.id ? "active" : ""}
-                      onClick={() => setPage(item.id)}
-                      disabled={item.requiresWallet && !report}
+                      className={isTutorialItem ? tutorialOpen || tutorialPromptOpen ? "active" : "" : page === item.id ? "active" : ""}
+                      onClick={() => (isTutorialItem ? openTutorial(0) : setPage(item.id as Page))}
+                      disabled={!isTutorialItem && item.requiresWallet && !report}
+                      data-tutorial-target={`nav-${item.id}`}
                     >
                       <Icon size={18} />
                       <span>{item.label}</span>
@@ -252,11 +382,25 @@ export default function App() {
         {page === "explanations" && report ? <TransactionExplanations report={report} /> : null}
         {page === "graph" && report ? <GraphView report={report} /> : null}
         {page === "alerts" && report ? <Alerts report={report} /> : null}
-        {page === "settings" && report ? <Settings report={report} onCacheCleared={() => {
+        {page === "settings" && report ? <Settings report={report} onTutorialReset={resetTutorial} onCacheCleared={() => {
           setReport(null);
           setPage("import");
         }} /> : null}
       </div>
+      {tutorialPromptOpen || tutorialOpen ? (
+        <SovereignOpsTutorial
+          mode={tutorialOpen ? "mission" : "prompt"}
+          activeStepIndex={activeTutorialStep}
+          reportLoaded={Boolean(report)}
+          onStart={startTutorial}
+          onMaybeLater={snoozeTutorialPrompt}
+          onDontShowAgain={dismissTutorialPrompt}
+          onClose={closeTutorial}
+          onFinish={finishTutorial}
+          onNavigate={navigateFromTutorial}
+          onStepChange={changeTutorialStep}
+        />
+      ) : null}
     </div>
   );
 }

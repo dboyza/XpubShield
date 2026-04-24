@@ -600,6 +600,28 @@ td input[type="checkbox"],
   background: rgba(255, 248, 232, 0.075);
 }
 
+.ghost-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 0 10px;
+  color: var(--text-muted);
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ghost-button:hover {
+  border-color: var(--line);
+  color: var(--text);
+  background: rgba(255, 248, 232, 0.04);
+}
+
 .danger-button {
   border-color: rgba(224, 93, 79, 0.5);
   color: #ffd8d2;
@@ -1468,6 +1490,142 @@ td span {
   margin-bottom: 0;
 }
 
+.tutorial-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.tutorial-layer::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background:
+    radial-gradient(circle at 78% 16%, rgba(247, 147, 26, 0.12), transparent 20rem),
+    rgba(0, 0, 0, 0.24);
+}
+
+.tutorial-layer-prompt {
+  display: grid;
+  place-items: end;
+  padding: 24px;
+}
+
+.tutorial-layer-mission {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 24px;
+}
+
+.tutorial-prompt,
+.tutorial-card {
+  position: relative;
+  z-index: 42;
+  display: grid;
+  gap: 14px;
+  width: min(460px, calc(100vw - 48px));
+  border: 1px solid var(--line-strong);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 18px;
+  color: var(--text);
+  background:
+    linear-gradient(135deg, rgba(247, 147, 26, 0.11), transparent 42%),
+    rgba(15, 14, 12, 0.98);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.46);
+  pointer-events: auto;
+  animation: tutorialIn 180ms ease-out both;
+}
+
+.tutorial-card {
+  width: min(520px, calc(100vw - 48px));
+}
+
+.tutorial-card p,
+.tutorial-prompt p {
+  color: var(--text-soft);
+  line-height: 1.55;
+}
+
+.tutorial-kicker,
+.tutorial-card-top,
+.tutorial-actions,
+.tutorial-step-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tutorial-card-top,
+.tutorial-actions-split {
+  justify-content: space-between;
+}
+
+.tutorial-kicker {
+  color: var(--accent-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.tutorial-progress {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.tutorial-progress button {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 248, 232, 0.14);
+  cursor: pointer;
+}
+
+.tutorial-progress button.active {
+  background: var(--accent);
+}
+
+.tutorial-cue {
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgba(255, 248, 232, 0.13);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  background: rgba(255, 248, 232, 0.04);
+}
+
+.tutorial-cue span {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.tutorial-cue strong {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.tutorial-actions {
+  flex-wrap: wrap;
+}
+
+.tutorial-skip {
+  justify-self: start;
+}
+
+.tutorial-highlight {
+  position: relative;
+  z-index: 24;
+  outline: 1px solid rgba(255, 196, 90, 0.9);
+  outline-offset: 4px;
+  box-shadow: 0 0 0 8px rgba(247, 147, 26, 0.12);
+}
+
 @keyframes pageIn {
   from {
     opacity: 0;
@@ -1487,6 +1645,18 @@ td span {
 
   to {
     background-position: 40px 40px, 40px 40px, 160px 160px;
+  }
+}
+
+@keyframes tutorialIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -1603,6 +1773,30 @@ td span {
 
   .detail-drawer {
     width: 100vw;
+  }
+
+  .tutorial-layer-prompt,
+  .tutorial-layer-mission {
+    align-items: end;
+    justify-content: stretch;
+    padding: 12px;
+  }
+
+  .tutorial-prompt,
+  .tutorial-card {
+    width: 100%;
+    max-height: calc(100vh - 24px);
+    overflow: auto;
+  }
+
+  .tutorial-actions-split,
+  .tutorial-step-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ghost-button {
+    width: 100%;
   }
 }
 
