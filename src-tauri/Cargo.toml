@@ -6,7 +6,7 @@ authors = ["XpubShield"]
 edition = "2021"
 
 [lib]
-name = "xpubshield"
+name = "xpubshield_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [[bin]]
