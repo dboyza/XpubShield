@@ -12,7 +12,7 @@ import {
   Upload
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getCurrentWallet } from "./api/tauri";
+import { getCurrentWallet, updateUtxos as persistUtxos } from "./api/tauri";
 import { ConsolidationPlanner } from "./pages/ConsolidationPlanner";
 import { Dashboard } from "./pages/Dashboard";
 import { DescriptorDiff } from "./pages/DescriptorDiff";
@@ -50,16 +50,27 @@ export default function App() {
     });
   }, []);
 
-  function updateUtxos(outpoints: string[], patch: UtxoUpdate) {
+  function applyUtxoPatch(current: WalletReport | null, outpoints: string[], patch: UtxoUpdate) {
+    if (!current) return current;
+    return {
+      ...current,
+      utxos: current.utxos.map((utxo) =>
+        outpoints.includes(utxo.outpoint) ? { ...utxo, ...patch } : utxo
+      )
+    };
+  }
+
+  async function updateUtxos(outpoints: string[], patch: UtxoUpdate) {
     setReport((current) => {
-      if (!current) return current;
-      return {
-        ...current,
-        utxos: current.utxos.map((utxo) =>
-          outpoints.includes(utxo.outpoint) ? { ...utxo, ...patch } : utxo
-        )
-      };
+      return applyUtxoPatch(current, outpoints, patch);
     });
+
+    try {
+      const updated = await persistUtxos(outpoints, patch);
+      setReport(updated);
+    } catch {
+      // Browser demo mode has no Tauri IPC; keep the optimistic local update for smoke testing.
+    }
   }
 
   if (!report && page === "import") {

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { ImportRequest, WalletReport } from "../types/domain";
+import type { ImportRequest, UtxoUpdate, WalletReport } from "../types/domain";
 
 export async function importWallet(request: ImportRequest): Promise<WalletReport> {
   return invoke<WalletReport>("import_wallet", { request });
@@ -19,6 +19,10 @@ export async function getCurrentWallet(): Promise<WalletReport | null> {
   } catch {
     return null;
   }
+}
+
+export async function updateUtxos(outpoints: string[], patch: UtxoUpdate): Promise<WalletReport> {
+  return invoke<WalletReport>("update_utxos", { outpoints, patch });
 }
 
 export function looksLikePrivateMaterial(input: string): boolean {

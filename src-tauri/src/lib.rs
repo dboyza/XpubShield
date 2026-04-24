@@ -17,15 +17,22 @@ pub mod recovery_report;
 pub mod tauri_commands;
 pub mod wallet_import;
 
-use tauri_commands::{get_current_wallet, import_wallet, load_demo_wallet, AppState};
+use tauri::Manager;
+use tauri_commands::{get_current_wallet, import_wallet, load_demo_wallet, update_utxos, AppState};
 
 pub fn run() {
     tauri::Builder::default()
-        .manage(AppState::default())
+        .setup(|app| {
+            let app_data_dir = app.path().app_data_dir()?;
+            std::fs::create_dir_all(&app_data_dir)?;
+            app.manage(AppState::new(app_data_dir.join("xpubshield.sqlite3"))?);
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             import_wallet,
             load_demo_wallet,
-            get_current_wallet
+            get_current_wallet,
+            update_utxos
         ])
         .run(tauri::generate_context!())
         .expect("failed to run XpubShield");
