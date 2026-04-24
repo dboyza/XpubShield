@@ -1,4 +1,7 @@
 use crate::models::{Keychain, ScriptType};
+use miniscript::descriptor::{Descriptor as MiniscriptDescriptor, DescriptorPublicKey};
+use std::str::FromStr;
+use thiserror::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParsedDescriptor {
@@ -8,6 +11,14 @@ pub struct ParsedDescriptor {
     pub account_path: Option<String>,
     pub keychain: Keychain,
     pub has_wildcard: bool,
+}
+
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum DescriptorParseError {
+    #[error("private key material is not allowed in watch-only descriptors")]
+    PrivateMaterial,
+    #[error("descriptor could not be parsed as a public Bitcoin descriptor: {0}")]
+    InvalidDescriptor(String),
 }
 
 pub fn parse_descriptor_metadata(descriptor: &str) -> ParsedDescriptor {
@@ -20,6 +31,14 @@ pub fn parse_descriptor_metadata(descriptor: &str) -> ParsedDescriptor {
         keychain: detect_keychain(descriptor),
         has_wildcard: descriptor.contains('*'),
     }
+}
+
+pub fn parse_public_descriptor(descriptor: &str) -> Result<ParsedDescriptor, DescriptorParseError> {
+    let descriptor = descriptor.trim();
+    reject_private_descriptor_material(descriptor)?;
+    MiniscriptDescriptor::<DescriptorPublicKey>::from_str(descriptor)
+        .map_err(|error| DescriptorParseError::InvalidDescriptor(error.to_string()))?;
+    Ok(parse_descriptor_metadata(descriptor))
 }
 
 pub fn detect_script_type(descriptor: &str) -> ScriptType {
@@ -37,6 +56,23 @@ pub fn detect_script_type(descriptor: &str) -> ScriptType {
     } else {
         ScriptType::Unknown
     }
+}
+
+pub fn extract_public_xpub(descriptor: &str) -> Option<String> {
+    descriptor
+        .split(|character: char| {
+            matches!(
+                character,
+                '(' | ')' | '[' | ']' | ',' | '/' | '#' | '<' | '>' | ':' | ' '
+            )
+        })
+        .find(|part| {
+            matches!(
+                part.get(0..4),
+                Some("xpub" | "tpub" | "ypub" | "zpub" | "upub" | "vpub")
+            )
+        })
+        .map(ToString::to_string)
 }
 
 fn extract_checksum(descriptor: &str) -> Option<String> {
@@ -79,6 +115,21 @@ fn detect_keychain(descriptor: &str) -> Keychain {
     }
 }
 
+fn reject_private_descriptor_material(descriptor: &str) -> Result<(), DescriptorParseError> {
+    let lowered = descriptor.to_ascii_lowercase();
+    let private_markers = [
+        "xprv", "tprv", "yprv", "zprv", "uprv", "vprv", "wif", "private key", "privkey",
+        "mnemonic", "seed phrase",
+    ];
+    if private_markers
+        .iter()
+        .any(|marker| lowered.contains(marker))
+    {
+        return Err(DescriptorParseError::PrivateMaterial);
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -94,5 +145,19 @@ mod tests {
         assert_eq!(parsed.account_path.as_deref(), Some("m/84h/0h/0h"));
         assert_eq!(parsed.checksum.as_deref(), Some("abcd1234"));
         assert!(parsed.has_wildcard);
+    }
+
+    #[test]
+    fn rejects_private_descriptor_material() {
+        let error = parse_public_descriptor("wpkh(xprv9s21ZrQH143K/0/*)").unwrap_err();
+        assert_eq!(error, DescriptorParseError::PrivateMaterial);
+    }
+
+    #[test]
+    fn extracts_public_xpub() {
+        let xpub = "xpub661MyMwAqRbcF9KQ4zX3x2tVxRcG4pL1Example";
+        let descriptor = format!("wpkh([d34db33f/84h/0h/0h]{xpub}/0/*)");
+
+        assert_eq!(extract_public_xpub(&descriptor).as_deref(), Some(xpub));
     }
 }

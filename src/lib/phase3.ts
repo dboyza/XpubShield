@@ -78,6 +78,7 @@ export interface DescriptorIdentity {
   wildcard: boolean;
   checksum?: string;
   addressPreview: string[];
+  derivationError?: string | null;
 }
 
 export interface DescriptorDiffResult {

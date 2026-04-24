@@ -1,4 +1,4 @@
-use crate::address_derivation::mock_derive_addresses;
+use crate::address_derivation::{derive_addresses_for_descriptors, mock_derive_addresses};
 use crate::audit_engine::audit_wallet;
 use crate::blockchain_backend::BlockchainBackend;
 use crate::models::{
@@ -76,7 +76,8 @@ pub fn build_mock_wallet_report(import: &ValidatedImport) -> WalletReport {
         .first()
         .map(|descriptor| descriptor.script_type)
         .unwrap_or(ScriptType::NativeSegwit);
-    let mut addresses = mock_derive_addresses(&wallet_id, &wallet.network, &primary_script, 12);
+    let mut addresses = derive_addresses_for_descriptors(&wallet_id, &wallet.network, &descriptors, 12)
+        .unwrap_or_else(|_| mock_derive_addresses(&wallet_id, &wallet.network, &primary_script, 12));
     mark_mock_receive_counts(&mut addresses);
 
     let transactions = mock_transactions();

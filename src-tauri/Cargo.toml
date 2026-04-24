@@ -18,6 +18,7 @@ tauri-build = { version = "2.1", features = [] }
 
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
+miniscript = "13"
 rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

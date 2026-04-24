@@ -3,6 +3,7 @@ use crate::database::{
     initialize_database, load_current_wallet_report, merge_persisted_utxo_metadata,
     save_wallet_report, wallet_totals_from_utxos,
 };
+use crate::descriptor_diff::{compare_descriptor_inputs, DescriptorDiffSummary};
 use crate::mock_backend::{build_demo_import, MockBackend};
 use crate::models::{Network, QuarantineStatus, SourceCategory, UtxoStatus, WalletReport};
 use crate::wallet_import::{validate_import, ImportKind, ImportRequest};
@@ -186,6 +187,15 @@ pub fn update_utxos(
     }
 
     Ok(updated)
+}
+
+#[tauri::command]
+pub fn compare_descriptors(
+    left: String,
+    right: String,
+    network: Network,
+) -> DescriptorDiffSummary {
+    compare_descriptor_inputs(&left, &right, network)
 }
 
 #[allow(dead_code)]

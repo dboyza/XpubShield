@@ -1,7 +1,8 @@
 import { GitCompareArrows } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { compareDescriptors } from "../api/tauri";
 import { StatusPill } from "../components/StatusPill";
-import { compareDescriptorInputs } from "../lib/phase3";
+import { compareDescriptorInputs, type DescriptorDiffResult } from "../lib/phase3";
 import type { WalletReport } from "../types/domain";
 
 interface DescriptorDiffProps {
@@ -12,7 +13,23 @@ export function DescriptorDiff({ report }: DescriptorDiffProps) {
   const defaultDescriptor = report.descriptors[0]?.descriptor ?? "";
   const [left, setLeft] = useState(defaultDescriptor);
   const [right, setRight] = useState(defaultDescriptor);
-  const diff = useMemo(() => compareDescriptorInputs(left, right), [left, right]);
+  const fallbackDiff = useMemo(() => compareDescriptorInputs(left, right), [left, right]);
+  const [backendDiff, setBackendDiff] = useState<DescriptorDiffResult | null>(null);
+  const diff = backendDiff ?? fallbackDiff;
+
+  useEffect(() => {
+    let cancelled = false;
+    compareDescriptors(left, right, report.wallet.network)
+      .then((result) => {
+        if (!cancelled) setBackendDiff(result);
+      })
+      .catch(() => {
+        if (!cancelled) setBackendDiff(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [left, right, report.wallet.network]);
 
   return (
     <main className="page-shell">
@@ -29,8 +46,8 @@ export function DescriptorDiff({ report }: DescriptorDiffProps) {
         <div>
           <strong>Watch-only identity comparison</strong>
           <p>
-            Phase 3 compares descriptor metadata and deterministic address previews. Full Bitcoin
-            address derivation will be wired through the Rust backend in a later live-wallet phase.
+            XpubShield derives descriptor previews locally in the Rust backend when possible. Raw
+            xpubs and descriptors are not sent to external services.
           </p>
         </div>
       </section>
@@ -52,6 +69,17 @@ export function DescriptorDiff({ report }: DescriptorDiffProps) {
           <StatusPill label={diff.summary.includes("same") ? "Likely same" : "Review"} tone={diff.summary.includes("same") ? "good" : "warn"} />
         </div>
         <p className="plain-text">{diff.summary}</p>
+        {(diff.left.derivationError || diff.right.derivationError) && (
+          <div className="privacy-warning inline-warning">
+            <GitCompareArrows size={18} aria-hidden="true" />
+            <div>
+              <strong>Manual review needed</strong>
+              <p>
+                {diff.left.derivationError || diff.right.derivationError}
+              </p>
+            </div>
+          </div>
+        )}
         <div className="table-panel embedded-table">
           <table>
             <thead>
@@ -99,7 +127,7 @@ function Preview({ title, addresses }: { title: string; addresses: string[] }) {
     <div className="panel">
       <div className="panel-heading">
         <h2>{title}</h2>
-        <StatusPill label="20 rows" />
+        <StatusPill label={`${addresses.length} rows`} />
       </div>
       <div className="preview-list">
         {addresses.map((address, index) => (

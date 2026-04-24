@@ -18,7 +18,10 @@ pub mod tauri_commands;
 pub mod wallet_import;
 
 use tauri::Manager;
-use tauri_commands::{get_current_wallet, import_wallet, load_demo_wallet, update_utxos, AppState};
+use tauri_commands::{
+    compare_descriptors, get_current_wallet, import_wallet, load_demo_wallet, update_utxos,
+    AppState,
+};
 
 pub fn run() {
     tauri::Builder::default()
@@ -32,7 +35,8 @@ pub fn run() {
             import_wallet,
             load_demo_wallet,
             get_current_wallet,
-            update_utxos
+            update_utxos,
+            compare_descriptors
         ])
         .run(tauri::generate_context!())
         .expect("failed to run XpubShield");
