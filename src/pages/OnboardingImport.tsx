@@ -1,5 +1,5 @@
 import { AlertTriangle, Database, FileKey2, Upload, WalletCards } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { importWallet, loadDemoWallet, looksLikePrivateMaterial } from "../api/tauri";
 import { PrivacyWarning } from "../components/PrivacyWarning";
 import type { BackendKind, ImportRequest, Network, ScriptType, WalletReport } from "../types/domain";
@@ -22,11 +22,23 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
   const [bitcoinCoreUsername, setBitcoinCoreUsername] = useState("");
   const [bitcoinCorePassword, setBitcoinCorePassword] = useState("");
   const [bitcoinCoreWallet, setBitcoinCoreWallet] = useState("");
+  const [esploraBaseUrl, setEsploraBaseUrl] = useState("http://127.0.0.1:3000");
+  const [esploraUseTor, setEsploraUseTor] = useState(false);
   const [acknowledgedPublicApi, setAcknowledgedPublicApi] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const publicApiMode = backend === "public_esplora";
+
+  useEffect(() => {
+    if (backend === "public_esplora") {
+      setEsploraBaseUrl("https://mempool.space/api");
+      setEsploraUseTor(false);
+    } else if (backend === "esplora") {
+      setEsploraBaseUrl("http://127.0.0.1:3000");
+      setEsploraUseTor(false);
+    }
+  }, [backend]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -60,6 +72,14 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
               username: bitcoinCoreUsername || undefined,
               password: bitcoinCorePassword || undefined,
               wallet: bitcoinCoreWallet || undefined
+            }
+          : undefined,
+      esplora:
+        backend === "esplora" || backend === "public_esplora"
+          ? {
+              base_url: esploraBaseUrl,
+              use_tor: esploraUseTor,
+              public_api_acknowledged: acknowledgedPublicApi
             }
           : undefined,
       public_api_acknowledged: acknowledgedPublicApi
@@ -239,6 +259,32 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
                     value={bitcoinCorePassword}
                     onChange={(event) => setBitcoinCorePassword(event.target.value)}
                   />
+                </label>
+              </div>
+            </section>
+          ) : null}
+
+          {backend === "esplora" || backend === "public_esplora" ? (
+            <section className="embedded-form">
+              <div className="section-heading compact-heading">
+                <Database size={18} aria-hidden="true" />
+                <div>
+                  <p>{backend === "public_esplora" ? "Weak privacy" : "Self-hosted"}</p>
+                  <h2>Esplora API</h2>
+                </div>
+              </div>
+              <div className="form-grid">
+                <label>
+                  Base URL
+                  <input value={esploraBaseUrl} onChange={(event) => setEsploraBaseUrl(event.target.value)} />
+                </label>
+                <label className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={esploraUseTor}
+                    onChange={(event) => setEsploraUseTor(event.target.checked)}
+                  />
+                  <span>Tor-routed endpoint</span>
                 </label>
               </div>
             </section>

@@ -116,6 +116,7 @@ Rust backend:
 - `src-tauri/src/blockchain_backend.rs`: backend trait.
 - `src-tauri/src/mock_backend.rs`: deterministic mock scan data.
 - `src-tauri/src/bitcoin_core_backend.rs`: local-only Bitcoin Core RPC scan flow using derived address scan objects.
+- `src-tauri/src/esplora_backend.rs`: self-hosted/public Esplora address-UTXO scan flow.
 - `src-tauri/src/audit_engine.rs`: deterministic Phase 1 checks and risk scoring.
 - `src-tauri/src/fee_estimator.rs`: script-type spend-cost estimates.
 - `src-tauri/src/database.rs`: SQLite migration bootstrap and current wallet/UTXO metadata persistence.
@@ -170,7 +171,8 @@ Findings use heuristic language and avoid claiming certainty about ownership, sa
 ## MVP Limitations
 
 - Bitcoin Core RPC scanning requires a local node and local RPC credentials; it rejects non-local RPC URLs.
-- Electrum and Esplora scanning are not implemented yet.
+- Electrum scanning is not implemented yet.
+- Esplora scanning currently uses address UTXO endpoints; richer transaction history details can expand later.
 - Bare ypub/zpub alternate-prefix normalization remains an import-hardening follow-up.
 - Address, transaction, source, and category label records are scaffolded in SQLite but do not yet have full editing UI.
 - No transaction signing.
@@ -213,6 +215,10 @@ Phase 7:
 
 - Local-only alerts: implemented for wallet state, public API mode, address reuse, gap/unconfirmed findings, and quarantined PSBT attempts
 
+Phase 8:
+
+- Esplora-compatible backend: implemented for self-hosted/public address UTXO scanning with public API acknowledgement
+
 Next:
 
-- Esplora-compatible backend
+- Demo preview to beta readiness review
