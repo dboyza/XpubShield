@@ -78,8 +78,8 @@ export function SpendPreview({ report }: SpendPreviewProps) {
         </div>
       </section>
 
-      <section className="simulator-grid">
-        <div className="panel">
+      <section className="simulator-grid preflight-grid">
+        <div className="panel preflight-input-panel">
           <div className="panel-heading">
             <h2>Inputs</h2>
             <StatusPill label={`${selected.length} selected`} tone={selected.length ? "warn" : "neutral"} />
@@ -128,7 +128,7 @@ export function SpendPreview({ report }: SpendPreviewProps) {
           </div>
         </div>
 
-        <div className="panel">
+        <div className="panel preflight-result-panel">
           <div className="panel-heading">
             <h2>Preview</h2>
             <StatusPill label={humanize(preview.privacyRisk)} tone={preview.privacyRisk === "high" ? "bad" : preview.privacyRisk === "medium" ? "warn" : "good"} />
