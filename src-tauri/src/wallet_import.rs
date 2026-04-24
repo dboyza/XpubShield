@@ -1,6 +1,7 @@
 use crate::bitcoin_core_backend::BitcoinCoreRpcConfig;
 use crate::descriptor_parser::parse_descriptor_metadata;
 use crate::descriptor_parser::parse_public_descriptor;
+use crate::esplora_backend::EsploraBackendConfig;
 use crate::models::{BackendKind, Descriptor, Keychain, Network, ScriptType};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -25,6 +26,7 @@ pub struct ImportRequest {
     pub gap_limit: Option<u32>,
     pub backend: Option<BackendKind>,
     pub bitcoin_core_rpc: Option<BitcoinCoreRpcConfig>,
+    pub esplora: Option<EsploraBackendConfig>,
     pub public_api_acknowledged: bool,
 }
 
@@ -267,6 +269,7 @@ mod tests {
             gap_limit: Some(20),
             backend: Some(BackendKind::Mock),
             bitcoin_core_rpc: None,
+            esplora: None,
             public_api_acknowledged: false,
         }
     }

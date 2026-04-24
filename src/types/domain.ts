@@ -53,6 +53,7 @@ export interface ImportRequest {
   gap_limit?: number;
   backend?: BackendKind;
   bitcoin_core_rpc?: BitcoinCoreRpcConfig;
+  esplora?: EsploraBackendConfig;
   public_api_acknowledged: boolean;
 }
 
@@ -61,6 +62,12 @@ export interface BitcoinCoreRpcConfig {
   username?: string | null;
   password?: string | null;
   wallet?: string | null;
+}
+
+export interface EsploraBackendConfig {
+  base_url: string;
+  use_tor: boolean;
+  public_api_acknowledged: boolean;
 }
 
 export interface Wallet {

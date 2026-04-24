@@ -7,6 +7,7 @@ use crate::database::{
     wallet_totals_from_utxos,
 };
 use crate::descriptor_diff::{compare_descriptor_inputs, DescriptorDiffSummary};
+use crate::esplora_backend::EsploraBackend;
 use crate::mock_backend::{build_demo_import, MockBackend};
 use crate::models::{Alert, Network, QuarantineStatus, SourceCategory, UtxoStatus, WalletReport};
 use crate::psbt_linter::{analyze_psbt_text, PsbtAnalysisResult};
@@ -57,11 +58,22 @@ pub fn import_wallet(
     state: State<'_, AppState>,
 ) -> Result<WalletReport, String> {
     let bitcoin_core_config = request.bitcoin_core_rpc.clone();
+    let esplora_config = request.esplora.clone();
     let validated = validate_import(request).map_err(|error| error.to_string())?;
     let mut report = if matches!(validated.backend, crate::models::BackendKind::BitcoinCoreRpc) {
         let config = bitcoin_core_config
             .ok_or_else(|| "Bitcoin Core RPC mode requires local RPC configuration.".to_string())?;
         BitcoinCoreBackend::new(config)
+            .map_err(|error| error.to_string())?
+            .scan_wallet(&validated)
+            .map_err(|error| error.to_string())?
+    } else if matches!(
+        validated.backend,
+        crate::models::BackendKind::Esplora | crate::models::BackendKind::PublicEsplora
+    ) {
+        let config = esplora_config
+            .ok_or_else(|| "Esplora mode requires backend configuration.".to_string())?;
+        EsploraBackend::new(config)
             .map_err(|error| error.to_string())?
             .scan_wallet(&validated)
             .map_err(|error| error.to_string())?
@@ -290,6 +302,7 @@ pub fn demo_request() -> ImportRequest {
         gap_limit: Some(20),
         backend: Some(crate::models::BackendKind::Mock),
         bitcoin_core_rpc: None,
+        esplora: None,
         public_api_acknowledged: false,
     }
 }
