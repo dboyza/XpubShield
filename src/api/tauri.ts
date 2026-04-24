@@ -46,6 +46,18 @@ export async function acknowledgeAlert(alertId: string): Promise<Alert[]> {
   return invoke<Alert[]>("acknowledge_alert", { alertId });
 }
 
+export async function getLocalDataPath(): Promise<string | null> {
+  try {
+    return await invoke<string | null>("get_local_data_path");
+  } catch {
+    return null;
+  }
+}
+
+export async function clearLocalCache(): Promise<void> {
+  return invoke<void>("clear_local_cache");
+}
+
 export function looksLikePrivateMaterial(input: string): boolean {
   const value = input.toLowerCase();
   if (/(xprv|tprv|yprv|zprv|uprv|vprv|private key|privkey|mnemonic|seed phrase|wif)/.test(value)) {

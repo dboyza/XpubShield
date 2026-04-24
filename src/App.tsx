@@ -8,7 +8,9 @@ import {
   HeartPulse,
   LayoutDashboard,
   MessageSquareText,
+  Settings as SettingsIcon,
   ShieldAlert,
+  Send,
   Table2,
   Telescope,
   Upload
@@ -25,6 +27,8 @@ import { OnboardingImport } from "./pages/OnboardingImport";
 import { PrivacySimulator } from "./pages/PrivacySimulator";
 import { PsbtLinter } from "./pages/PsbtLinter";
 import { RecoveryHealth } from "./pages/RecoveryHealth";
+import { Settings } from "./pages/Settings";
+import { SpendPreview } from "./pages/SpendPreview";
 import { TransactionExplanations } from "./pages/TransactionExplanations";
 import { UtxoTable } from "./pages/UtxoTable";
 import type { UtxoUpdate, WalletReport } from "./types/domain";
@@ -34,6 +38,7 @@ type Page =
   | "dashboard"
   | "utxos"
   | "fees"
+  | "spend_preview"
   | "privacy"
   | "consolidation"
   | "psbt"
@@ -41,7 +46,8 @@ type Page =
   | "descriptor_diff"
   | "explanations"
   | "graph"
-  | "alerts";
+  | "alerts"
+  | "settings";
 
 export default function App() {
   const [report, setReport] = useState<WalletReport | null>(null);
@@ -113,6 +119,13 @@ export default function App() {
           <button className={page === "fees" ? "active" : ""} onClick={() => setPage("fees")} disabled={!report}>
             <BarChart3 size={18} /> Fee Stress
           </button>
+          <button
+            className={page === "spend_preview" ? "active" : ""}
+            onClick={() => setPage("spend_preview")}
+            disabled={!report}
+          >
+            <Send size={18} /> Spend Preview
+          </button>
           <button className={page === "privacy" ? "active" : ""} onClick={() => setPage("privacy")} disabled={!report}>
             <Telescope size={18} /> Privacy
           </button>
@@ -149,6 +162,9 @@ export default function App() {
           <button className={page === "alerts" ? "active" : ""} onClick={() => setPage("alerts")} disabled={!report}>
             <Bell size={18} /> Alerts
           </button>
+          <button className={page === "settings" ? "active" : ""} onClick={() => setPage("settings")} disabled={!report}>
+            <SettingsIcon size={18} /> Settings
+          </button>
         </nav>
       </aside>
       <div className="content-shell">
@@ -161,6 +177,7 @@ export default function App() {
         {page === "dashboard" && report ? <Dashboard report={report} /> : null}
         {page === "utxos" && report ? <UtxoTable report={report} onUpdateUtxos={updateUtxos} /> : null}
         {page === "fees" && report ? <FeeStressTest report={report} /> : null}
+        {page === "spend_preview" && report ? <SpendPreview report={report} /> : null}
         {page === "privacy" && report ? <PrivacySimulator report={report} /> : null}
         {page === "consolidation" && report ? <ConsolidationPlanner report={report} /> : null}
         {page === "psbt" && report ? <PsbtLinter report={report} /> : null}
@@ -169,6 +186,10 @@ export default function App() {
         {page === "explanations" && report ? <TransactionExplanations report={report} /> : null}
         {page === "graph" && report ? <GraphView report={report} /> : null}
         {page === "alerts" && report ? <Alerts report={report} /> : null}
+        {page === "settings" && report ? <Settings report={report} onCacheCleared={() => {
+          setReport(null);
+          setPage("import");
+        }} /> : null}
       </div>
     </div>
   );

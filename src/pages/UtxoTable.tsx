@@ -1,4 +1,4 @@
-import { ArrowDownUp, CheckSquare, Filter, Search, Tags } from "lucide-react";
+import { ArrowDownUp, CheckSquare, Filter, Info, Search, Tags, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { RiskBadge } from "../components/RiskBadge";
 import { StatusPill } from "../components/StatusPill";
@@ -47,6 +47,7 @@ export function UtxoTable({ report, onUpdateUtxos }: UtxoTableProps) {
   const [batchCategory, setBatchCategory] = useState<SourceCategory>("unknown");
   const [batchStatus, setBatchStatus] = useState<UtxoStatus>("spendable");
   const [batchQuarantine, setBatchQuarantine] = useState<QuarantineStatus>("none");
+  const [detailOutpoint, setDetailOutpoint] = useState<string | null>(null);
 
   const riskFlags = useMemo(
     () => Array.from(new Set(report.utxos.flatMap((utxo) => utxo.audit_flags))).sort(),
@@ -77,6 +78,11 @@ export function UtxoTable({ report, onUpdateUtxos }: UtxoTableProps) {
       .filter((utxo) => (riskFlag === "all" ? true : utxo.audit_flags.includes(riskFlag)))
       .sort((a, b) => compareUtxos(a, b, sortKey));
   }, [category, query, report.utxos, riskFlag, sortKey]);
+
+  const detailUtxo = useMemo(
+    () => report.utxos.find((utxo) => utxo.outpoint === detailOutpoint) ?? null,
+    [detailOutpoint, report.utxos]
+  );
 
   function toggle(outpoint: string) {
     setSelected((current) =>
@@ -262,6 +268,7 @@ export function UtxoTable({ report, onUpdateUtxos }: UtxoTableProps) {
               <th>Spend cost</th>
               <th>Risk</th>
               <th>Status</th>
+              <th>Detail</th>
             </tr>
           </thead>
           <tbody>
@@ -362,11 +369,25 @@ export function UtxoTable({ report, onUpdateUtxos }: UtxoTableProps) {
                     {utxo.quarantine_status !== "none" ? <RiskBadge severity="medium" /> : null}
                   </div>
                 </td>
+                <td>
+                  <button type="button" className="icon-button" onClick={() => setDetailOutpoint(utxo.outpoint)} aria-label={`Open details for ${utxo.outpoint}`}>
+                    <Info size={16} />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </section>
+
+      {detailUtxo ? (
+        <UtxoDetailDrawer
+          report={report}
+          utxo={detailUtxo}
+          onClose={() => setDetailOutpoint(null)}
+          onUpdate={(patch) => onUpdateUtxos([detailUtxo.outpoint], patch)}
+        />
+      ) : null}
     </main>
   );
 }
@@ -388,4 +409,172 @@ function FeeStack({ utxo }: { utxo: Utxo }) {
       <span>100: {at100 ? `${compactSats(at100.cost_sats)} sats` : "n/a"}</span>
     </div>
   );
+}
+
+function UtxoDetailDrawer({
+  report,
+  utxo,
+  onClose,
+  onUpdate
+}: {
+  report: WalletReport;
+  utxo: Utxo;
+  onClose: () => void;
+  onUpdate: (patch: UtxoUpdate) => void;
+}) {
+  const transaction = report.transactions.find((item) => item.txid === utxo.txid);
+  const address = report.derived_addresses.find((item) => item.address === utxo.address);
+  const relatedFindings = report.findings.filter((finding) => finding.affected_utxos.includes(utxo.outpoint));
+
+  return (
+    <aside className="detail-drawer" aria-label="UTXO detail drawer">
+      <div className="detail-drawer-header">
+        <div>
+          <p>{txidPrefix(utxo.txid)}</p>
+          <h2>{satsToBtc(utxo.amount_sats)}</h2>
+        </div>
+        <button type="button" className="icon-button" onClick={onClose} aria-label="Close UTXO detail">
+          <X size={16} />
+        </button>
+      </div>
+
+      <section className="panel embedded-form">
+        <div className="panel-heading">
+          <h2>Plain-English explanation</h2>
+          <StatusPill label={utxo.quarantine_status === "none" ? "Review" : "Quarantined"} tone={utxo.quarantine_status === "none" ? "neutral" : "warn"} />
+        </div>
+        <p className="plain-text">{describeUtxo(utxo, relatedFindings.length)}</p>
+      </section>
+
+      <section className="panel embedded-form">
+        <div className="panel-heading">
+          <h2>Labels and status</h2>
+          <StatusPill label="Local only" tone="good" />
+        </div>
+        <div className="action-grid detail-grid">
+          <label>
+            UTXO label
+            <input value={utxo.label ?? ""} onChange={(event) => onUpdate({ label: event.target.value || null })} />
+          </label>
+          <label>
+            Source label
+            <input value={utxo.source_label ?? ""} onChange={(event) => onUpdate({ source_label: event.target.value || null })} />
+          </label>
+          <label>
+            Category
+            <select value={utxo.source_category} onChange={(event) => onUpdate({ source_category: event.target.value as SourceCategory })}>
+              {SOURCE_CATEGORIES.map((item) => (
+                <option key={item} value={item}>{categoryLabel(item)}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Spend status
+            <select value={utxo.spendability_status} onChange={(event) => onUpdate({ spendability_status: event.target.value as UtxoStatus })}>
+              {SPENDABILITY_STATUSES.map((status) => (
+                <option key={status} value={status}>{humanize(status)}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Quarantine
+            <select value={utxo.quarantine_status} onChange={(event) => onUpdate({ quarantine_status: event.target.value as QuarantineStatus })}>
+              {QUARANTINE_STATUSES.map((status) => (
+                <option key={status} value={status}>{humanize(status)}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section className="panel embedded-form">
+        <div className="panel-heading">
+          <h2>Wallet path</h2>
+          <StatusPill label={scriptTypeLabel(utxo.script_type)} />
+        </div>
+        <div className="shape-list">
+          <DetailRow label="Outpoint" value={utxo.outpoint} />
+          <DetailRow label="Address" value={utxo.address} />
+          <DetailRow label="Script pubkey" value={utxo.script_pubkey} />
+          <DetailRow label="Derivation path" value={utxo.derivation_path} />
+          <DetailRow label="Keychain" value={address ? humanize(address.keychain) : utxo.is_change ? "Change" : "External"} />
+          <DetailRow label="Address receive count" value={address ? String(address.receive_count) : "Unknown"} />
+        </div>
+      </section>
+
+      <section className="panel embedded-form">
+        <div className="panel-heading">
+          <h2>Spend costs</h2>
+          <StatusPill label={`${utxo.spend_vbytes_estimate} vB`} />
+        </div>
+        <div className="shape-list">
+          {utxo.spend_cost_by_fee_rate.map((fee) => (
+            <DetailRow
+              key={fee.fee_rate}
+              label={`${fee.fee_rate} sats/vB`}
+              value={`${compactSats(fee.cost_sats)} sats (${fee.percent_of_value.toFixed(2)}%)`}
+            />
+          ))}
+        </div>
+      </section>
+
+      <section className="panel embedded-form">
+        <div className="panel-heading">
+          <h2>Transaction</h2>
+          <StatusPill label={`${utxo.confirmations} confirmations`} tone={utxo.confirmations === 0 ? "warn" : "good"} />
+        </div>
+        <div className="shape-list">
+          <DetailRow label="Txid" value={utxo.txid} />
+          <DetailRow label="Vout" value={String(utxo.vout)} />
+          <DetailRow label="Block height" value={String(utxo.block_height ?? "Unconfirmed")} />
+          <DetailRow label="Block time" value={utxo.block_time ?? "Unknown"} />
+          <DetailRow label="Source txid" value={utxo.source_txid ?? "Unknown"} />
+        </div>
+        {transaction?.explanation ? <p className="plain-text detail-note">{transaction.explanation}</p> : null}
+      </section>
+
+      <section className="panel embedded-form">
+        <div className="panel-heading">
+          <h2>Related risks</h2>
+          <StatusPill label={`${relatedFindings.length} findings`} tone={relatedFindings.length ? "warn" : "good"} />
+        </div>
+        {relatedFindings.length ? (
+          <div className="finding-list">
+            {relatedFindings.map((finding) => (
+              <article className="finding-row" key={finding.id}>
+                <strong>{finding.title}</strong>
+                <p>{finding.explanation}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="empty-state">No audit finding directly references this UTXO.</p>
+        )}
+      </section>
+    </aside>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="shape-row">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function describeUtxo(utxo: Utxo, findingCount: number): string {
+  const receiveType = utxo.is_change ? "change output" : "external receive";
+  const label = utxo.label ? `labeled ${utxo.label}` : "unlabeled";
+  const quarantine =
+    utxo.quarantine_status === "none"
+      ? "It is not currently quarantined."
+      : `It is marked ${humanize(utxo.quarantine_status)}, so it should not be casually merged.`;
+  const findings =
+    findingCount > 0
+      ? `${findingCount} audit finding may apply to this coin.`
+      : "No direct audit finding references this coin.";
+
+  return `This UTXO appears to be a ${receiveType} at ${utxo.derivation_path}. It is ${label}, categorized as ${categoryLabel(utxo.source_category)}, and has ${utxo.confirmations} confirmations. ${quarantine} ${findings} These heuristics are not definitive.`;
 }

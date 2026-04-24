@@ -54,6 +54,24 @@ export interface ConsolidationPlan {
   }>;
 }
 
+export interface SpendPreview {
+  selectedOutpoints: string[];
+  destinationAmountSats: number;
+  feeRate: number;
+  changePolicy: "auto" | "avoid_change";
+  inputAmountSats: number;
+  estimatedVbytes: number;
+  estimatedFeeSats: number;
+  changeAmountSats: number;
+  createsChange: boolean;
+  privacyRisk: "low" | "medium" | "high";
+  labelMixingRisk: "low" | "medium" | "high";
+  quarantineWarnings: string[];
+  betterUtxoSuggestions: string[];
+  feeCosts: Array<{ feeRate: number; estimatedFeeSats: number; changeAmountSats: number }>;
+  summary: string;
+}
+
 export function stressTestUtxos(utxos: Utxo[], walletBalanceSats: number): FeeStressRow[] {
   return STRESS_FEE_RATES.map((feeRate) => {
     const totalSpendCostSats = utxos.reduce(
@@ -77,6 +95,59 @@ export function stressTestUtxos(utxos: Utxo[], walletBalanceSats: number): FeeSt
 
 export function spendCostAtRate(utxo: Utxo, feeRate: number): number {
   return utxo.spend_vbytes_estimate * feeRate;
+}
+
+export function buildSpendPreview(
+  selected: Utxo[],
+  allUtxos: Utxo[],
+  destinationAmountSats: number,
+  feeRate: number,
+  changePolicy: SpendPreview["changePolicy"]
+): SpendPreview {
+  const normalizedAmount = Math.max(0, Math.floor(destinationAmountSats));
+  const normalizedFeeRate = Math.max(1, Math.floor(feeRate));
+  const inputAmountSats = selected.reduce((sum, utxo) => sum + utxo.amount_sats, 0);
+  const inputVbytes = selected.reduce((sum, utxo) => sum + utxo.spend_vbytes_estimate, 0);
+  const baseVbytes = selected.length > 0 ? inputVbytes + 10 + 31 : 0;
+  const changeProbeFee = (baseVbytes + 43) * normalizedFeeRate;
+  const possibleChange = inputAmountSats - normalizedAmount - changeProbeFee;
+  const createsChange = changePolicy === "auto" && possibleChange >= 546;
+  const estimatedVbytes = selected.length > 0 ? baseVbytes + (createsChange ? 43 : 0) : 0;
+  const estimatedFeeSats = estimatedVbytes * normalizedFeeRate;
+  const rawChange = inputAmountSats - normalizedAmount - estimatedFeeSats;
+  const changeAmountSats = createsChange ? Math.max(0, rawChange) : 0;
+  const labels = distinctValues(selected.map((utxo) => utxo.label || "Unlabeled"));
+  const categories = distinctValues(selected.map((utxo) => utxo.source_category));
+  const quarantineWarnings = selected
+    .filter((utxo) => utxo.quarantine_status !== "none")
+    .map((utxo) => `${utxo.outpoint} is marked ${utxo.quarantine_status}.`);
+  const labelMixingRisk = riskFromCounts(labels.length, categories.length, quarantineWarnings.length > 0);
+  const privacyRisk = createsChange && labelMixingRisk !== "low" ? "high" : labelMixingRisk;
+
+  return {
+    selectedOutpoints: selected.map((utxo) => utxo.outpoint),
+    destinationAmountSats: normalizedAmount,
+    feeRate: normalizedFeeRate,
+    changePolicy,
+    inputAmountSats,
+    estimatedVbytes,
+    estimatedFeeSats,
+    changeAmountSats,
+    createsChange,
+    privacyRisk,
+    labelMixingRisk,
+    quarantineWarnings,
+    betterUtxoSuggestions: betterSpendSuggestions(selected, allUtxos, normalizedAmount, normalizedFeeRate),
+    feeCosts: STRESS_FEE_RATES.map((rate) => {
+      const fee = estimatedVbytes * rate;
+      return {
+        feeRate: rate,
+        estimatedFeeSats: fee,
+        changeAmountSats: createsChange ? Math.max(0, inputAmountSats - normalizedAmount - fee) : 0
+      };
+    }),
+    summary: buildSpendSummary(selected.length, normalizedAmount, inputAmountSats, estimatedFeeSats, rawChange)
+  };
 }
 
 export function feePercentOfValue(utxo: Utxo, feeRate: number): number {
@@ -250,6 +321,71 @@ function privacyDamage(labelCount: number, categoryCount: number, includesQuaran
   if (includesQuarantined || labelCount > 2 || categoryCount > 2) return "high";
   if (labelCount > 1 || categoryCount > 1) return "medium";
   return "low";
+}
+
+function riskFromCounts(
+  labelCount: number,
+  categoryCount: number,
+  includesQuarantined: boolean
+): "low" | "medium" | "high" {
+  if (includesQuarantined || labelCount > 2 || categoryCount > 2) return "high";
+  if (labelCount > 1 || categoryCount > 1) return "medium";
+  return "low";
+}
+
+function betterSpendSuggestions(
+  selected: Utxo[],
+  allUtxos: Utxo[],
+  destinationAmountSats: number,
+  feeRate: number
+): string[] {
+  if (selected.length === 0 || destinationAmountSats <= 0) {
+    return ["Select one or more spendable UTXOs and enter a destination amount."];
+  }
+
+  const suggestions: string[] = [];
+  const selectedCategories = distinctValues(selected.map((utxo) => utxo.source_category));
+  const selectedLabels = distinctValues(selected.map((utxo) => utxo.label || "Unlabeled"));
+  const cleanCandidates = allUtxos
+    .filter((utxo) => utxo.quarantine_status === "none" && utxo.spendability_status === "spendable")
+    .sort((a, b) => a.amount_sats - b.amount_sats);
+
+  const exactish = cleanCandidates.find((utxo) => utxo.amount_sats >= destinationAmountSats + spendCostAtRate(utxo, feeRate));
+  if (exactish && !selected.some((utxo) => utxo.outpoint === exactish.outpoint)) {
+    suggestions.push(`Consider ${exactish.outpoint}: one spendable UTXO may cover this amount without merging inputs.`);
+  }
+
+  if (selectedCategories.length > 1 || selectedLabels.length > 1) {
+    suggestions.push("Try selecting UTXOs from one label and source category to reduce common-input linkage.");
+  }
+
+  if (selected.some((utxo) => utxo.quarantine_status !== "none")) {
+    suggestions.push("Remove quarantined UTXOs from this simulation unless the manual review is intentional.");
+  }
+
+  if (suggestions.length === 0) {
+    suggestions.push("Review recipient, fee rate, and change policy in your signing wallet before signing elsewhere.");
+  }
+
+  return suggestions;
+}
+
+function buildSpendSummary(
+  selectedCount: number,
+  destinationAmountSats: number,
+  inputAmountSats: number,
+  estimatedFeeSats: number,
+  rawChange: number
+): string {
+  if (selectedCount === 0) return "No UTXOs are selected for this simulation.";
+  if (destinationAmountSats <= 0) return "Enter a destination amount to estimate fee and change.";
+  if (inputAmountSats < destinationAmountSats + estimatedFeeSats) {
+    return "The selected UTXOs may not cover the destination amount plus the estimated fee.";
+  }
+  if (rawChange > 0) {
+    return "This simulated spend likely creates change. Any change could inherit the selected inputs' combined history.";
+  }
+  return "This simulated spend appears to use the selected amount without economical change. Verify exact behavior in the signing wallet.";
 }
 
 function distinctValues<T extends string>(values: T[]): T[] {
