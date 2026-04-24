@@ -1,15 +1,41 @@
-import { BarChart3, Combine, LayoutDashboard, ShieldAlert, Table2, Telescope, Upload } from "lucide-react";
+import {
+  BarChart3,
+  Combine,
+  FileSearch,
+  GitCompareArrows,
+  HeartPulse,
+  LayoutDashboard,
+  MessageSquareText,
+  ShieldAlert,
+  Table2,
+  Telescope,
+  Upload
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { getCurrentWallet } from "./api/tauri";
 import { ConsolidationPlanner } from "./pages/ConsolidationPlanner";
 import { Dashboard } from "./pages/Dashboard";
+import { DescriptorDiff } from "./pages/DescriptorDiff";
 import { FeeStressTest } from "./pages/FeeStressTest";
 import { OnboardingImport } from "./pages/OnboardingImport";
 import { PrivacySimulator } from "./pages/PrivacySimulator";
+import { PsbtLinter } from "./pages/PsbtLinter";
+import { RecoveryHealth } from "./pages/RecoveryHealth";
+import { TransactionExplanations } from "./pages/TransactionExplanations";
 import { UtxoTable } from "./pages/UtxoTable";
 import type { UtxoUpdate, WalletReport } from "./types/domain";
 
-type Page = "import" | "dashboard" | "utxos" | "fees" | "privacy" | "consolidation";
+type Page =
+  | "import"
+  | "dashboard"
+  | "utxos"
+  | "fees"
+  | "privacy"
+  | "consolidation"
+  | "psbt"
+  | "recovery"
+  | "descriptor_diff"
+  | "explanations";
 
 export default function App() {
   const [report, setReport] = useState<WalletReport | null>(null);
@@ -80,6 +106,26 @@ export default function App() {
           >
             <Combine size={18} /> Consolidation
           </button>
+          <button className={page === "psbt" ? "active" : ""} onClick={() => setPage("psbt")} disabled={!report}>
+            <FileSearch size={18} /> PSBT Linter
+          </button>
+          <button className={page === "recovery" ? "active" : ""} onClick={() => setPage("recovery")} disabled={!report}>
+            <HeartPulse size={18} /> Recovery
+          </button>
+          <button
+            className={page === "descriptor_diff" ? "active" : ""}
+            onClick={() => setPage("descriptor_diff")}
+            disabled={!report}
+          >
+            <GitCompareArrows size={18} /> Descriptor Diff
+          </button>
+          <button
+            className={page === "explanations" ? "active" : ""}
+            onClick={() => setPage("explanations")}
+            disabled={!report}
+          >
+            <MessageSquareText size={18} /> Explanations
+          </button>
         </nav>
       </aside>
       <div className="content-shell">
@@ -94,6 +140,10 @@ export default function App() {
         {page === "fees" && report ? <FeeStressTest report={report} /> : null}
         {page === "privacy" && report ? <PrivacySimulator report={report} /> : null}
         {page === "consolidation" && report ? <ConsolidationPlanner report={report} /> : null}
+        {page === "psbt" && report ? <PsbtLinter report={report} /> : null}
+        {page === "recovery" && report ? <RecoveryHealth report={report} /> : null}
+        {page === "descriptor_diff" && report ? <DescriptorDiff report={report} /> : null}
+        {page === "explanations" && report ? <TransactionExplanations report={report} /> : null}
       </div>
     </div>
   );

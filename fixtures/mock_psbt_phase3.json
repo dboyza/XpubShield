@@ -1,0 +1,27 @@
+{
+  "purpose": "Phase 3 local PSBT linter fixture. This is not a real signed or unsigned Bitcoin transaction.",
+  "inputs": [
+    {
+      "outpoint": "65b6726e7c9e0b8c2f98bdbd83a7ad21829ab95e4db9b9a4f6dfaa03f37a1111:0",
+      "amount_sats": 25000000,
+      "script_type": "native_segwit"
+    },
+    {
+      "outpoint": "b2f31aa884ea31e2f9450d5d2aa22eaf880e9451bbf5f6a6a1552ef4cd7b2222:0",
+      "amount_sats": 3100000,
+      "script_type": "native_segwit"
+    }
+  ],
+  "outputs": [
+    {
+      "address": "bc1qrecipientphase3example000000000000",
+      "amount_sats": 28075000
+    },
+    {
+      "address": "bc1qsentinel10003phase1demo",
+      "amount_sats": 20000
+    }
+  ],
+  "fee_sats": 5000,
+  "vsize": 180
+}
