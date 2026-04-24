@@ -2,11 +2,11 @@
 
 XpubShield is a local-first, watch-only Bitcoin desktop app for personal custody observability. It helps users inspect wallet structure, xpub-derived descriptors, UTXO fee burden, labeling gaps, and basic privacy risks without signing or broadcasting transactions.
 
-This repository currently implements Phases 1-3 as local/mock-data product slices. Phase 1 covers the Tauri + React shell, Rust data models and commands, SQLite schema/migrations, a mock blockchain backend, descriptor/xpub import validation, private-material rejection, mock UTXO scanning, a dashboard, a UTXO table, and a deterministic audit engine.
+This repository currently implements Phases 1-5 as local-first product slices. Phase 1 covers the Tauri + React shell, Rust data models and commands, SQLite schema/migrations, a mock blockchain backend, descriptor/xpub import validation, private-material rejection, mock UTXO scanning, a dashboard, a UTXO table, and a deterministic audit engine.
 
 Phase 2 includes local label/quarantine editing, fee stress testing, a privacy impact simulator, and a consolidation planner using simulation-only mock wallet data.
 
-Phase 3 includes a local PSBT linter, recovery health report, descriptor diff tool, and template-based transaction explanations.
+Phase 3 includes a local PSBT linter, recovery health report, descriptor diff tool, and template-based transaction explanations. Phase 4 hardens persistence, descriptor derivation, descriptor diff previews, and raw PSBT parsing. Phase 5 adds a local Bitcoin Core RPC backend that scans derived addresses with `scantxoutset` `addr(...)` scan objects.
 
 ## Security Model
 
@@ -20,7 +20,7 @@ XpubShield is watch-only only.
 - Xpubs, descriptors, labels, wallet history, addresses, and PSBTs are treated as sensitive local data.
 - Raw xpubs and descriptors must never be sent to third-party APIs.
 
-The current app only scans bundled mock data. Future live backends must preserve the same security boundary.
+The app supports bundled mock data and local Bitcoin Core RPC scanning. Live backend code must preserve the same security boundary and must query derived addresses only.
 
 ## Privacy Model
 
@@ -98,7 +98,7 @@ Frontend:
 - `src/pages/FeeStressTest.tsx`: deterministic fee-rate stress test across wallet UTXOs.
 - `src/pages/PrivacySimulator.tsx`: “What does the chain know?” selected-UTXO privacy simulator.
 - `src/pages/ConsolidationPlanner.tsx`: label-aware consolidation simulation.
-- `src/pages/PsbtLinter.tsx`: local PSBT fixture linter and raw PSBT envelope detector.
+- `src/pages/PsbtLinter.tsx`: local PSBT fixture linter and raw PSBT parser handoff.
 - `src/pages/RecoveryHealth.tsx`: watch-only recovery metadata report with JSON/Markdown export.
 - `src/pages/DescriptorDiff.tsx`: descriptor/xpub identity comparison tool.
 - `src/pages/TransactionExplanations.tsx`: deterministic transaction explanation templates.
@@ -108,24 +108,22 @@ Frontend:
 Rust backend:
 
 - `src-tauri/src/wallet_import.rs`: descriptor/xpub validation and private-material rejection.
-- `src-tauri/src/descriptor_parser.rs`: Phase 1 descriptor metadata extraction.
-- `src-tauri/src/address_derivation.rs`: mock address derivation surface.
+- `src-tauri/src/descriptor_parser.rs`: descriptor metadata extraction and miniscript-backed public descriptor validation.
+- `src-tauri/src/address_derivation.rs`: mock demo derivation plus miniscript-backed descriptor address derivation.
 - `src-tauri/src/blockchain_backend.rs`: backend trait.
 - `src-tauri/src/mock_backend.rs`: deterministic mock scan data.
+- `src-tauri/src/bitcoin_core_backend.rs`: local-only Bitcoin Core RPC scan flow using derived address scan objects.
 - `src-tauri/src/audit_engine.rs`: deterministic Phase 1 checks and risk scoring.
 - `src-tauri/src/fee_estimator.rs`: script-type spend-cost estimates.
-- `src-tauri/src/database.rs`: SQLite migration bootstrap.
+- `src-tauri/src/database.rs`: SQLite migration bootstrap and current wallet/UTXO metadata persistence.
 - `src-tauri/src/tauri_commands.rs`: app commands exposed to React.
 
 Rust modules scaffolded for current and future phases:
 
 - Esplora backend
-- Bitcoin Core backend
 - Privacy simulator
 - Consolidation planner
-- PSBT linter
 - Recovery report
-- Descriptor diff
 - Graph builder
 
 ## SQLite Schema
@@ -167,12 +165,10 @@ Findings use heuristic language and avoid claiming certainty about ownership, sa
 
 ## MVP Limitations
 
-- Mock blockchain backend only.
-- Descriptor parsing is intentionally lightweight in the current mock-data build.
-- Address derivation uses mock addresses for demonstration.
-- No live Bitcoin Core, Electrum, or Esplora scanning yet.
-- Phase 2 label/quarantine edits are held in the current app session for the mock wallet; durable SQLite persistence is a follow-up.
-- Phase 3 PSBT linting supports mock JSON fixtures and raw PSBT envelope detection; full Rust PSBT parsing is a follow-up.
+- Bitcoin Core RPC scanning requires a local node and local RPC credentials; it rejects non-local RPC URLs.
+- Electrum and Esplora scanning are not implemented yet.
+- Bare ypub/zpub alternate-prefix normalization remains an import-hardening follow-up.
+- Address, transaction, source, and category label records are scaffolded in SQLite but do not yet have full editing UI.
 - No transaction signing.
 - No transaction broadcasting.
 - No encrypted database yet.
@@ -182,22 +178,31 @@ Findings use heuristic language and avoid claiming certainty about ownership, sa
 
 Phase 2:
 
-- Local labeling workflow: implemented for session-local mock wallet state
-- Quarantine status editing: implemented for session-local mock wallet state
+- Local labeling workflow: implemented for UTXO metadata with SQLite persistence
+- Quarantine status editing: implemented for UTXO metadata with SQLite persistence
 - Fee stress testing: implemented for mock wallet data
 - Privacy simulator: implemented for selected mock UTXOs
 - Consolidation planner simulation: implemented for selected mock UTXOs
 
 Phase 3:
 
-- PSBT linter: implemented for mock fixtures and PSBT envelope detection
+- PSBT linter: implemented for mock fixtures and local raw PSBT parsing
 - Recovery health report: implemented for current watch-only metadata
-- Descriptor diff tool: implemented with deterministic metadata/address-preview comparison
+- Descriptor diff tool: implemented with Rust-derived descriptor previews when descriptors are parseable
 - Transaction explanation templates: implemented for mock transaction data
 
 Phase 4:
 
+- Durable wallet/UTXO metadata persistence: implemented
+- Rust-backed descriptor parsing/address derivation: implemented for parseable public descriptors
+- Raw PSBT parsing/linting: implemented
+
+Phase 5:
+
+- Bitcoin Core RPC backend: implemented for local `scantxoutset` address scanning
+
+Next:
+
 - Interactive graph visualization
-- Esplora-compatible backend
-- Bitcoin Core RPC backend
 - Local-only alerts
+- Esplora-compatible backend

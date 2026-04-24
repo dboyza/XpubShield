@@ -164,6 +164,17 @@ td span,
   justify-content: flex-start;
 }
 
+.compact-heading {
+  margin-bottom: 14px;
+}
+
+.embedded-form {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
 h1,
 h2,
 p {
