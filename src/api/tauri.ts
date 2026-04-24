@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { DescriptorDiffResult } from "../lib/phase3";
 import type { ImportRequest, UtxoUpdate, WalletReport } from "../types/domain";
 
 export async function importWallet(request: ImportRequest): Promise<WalletReport> {
@@ -23,6 +24,14 @@ export async function getCurrentWallet(): Promise<WalletReport | null> {
 
 export async function updateUtxos(outpoints: string[], patch: UtxoUpdate): Promise<WalletReport> {
   return invoke<WalletReport>("update_utxos", { outpoints, patch });
+}
+
+export async function compareDescriptors(
+  left: string,
+  right: string,
+  network: WalletReport["wallet"]["network"]
+): Promise<DescriptorDiffResult> {
+  return invoke<DescriptorDiffResult>("compare_descriptors", { left, right, network });
 }
 
 export function looksLikePrivateMaterial(input: string): boolean {

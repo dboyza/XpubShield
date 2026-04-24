@@ -1,4 +1,5 @@
 use crate::descriptor_parser::parse_descriptor_metadata;
+use crate::descriptor_parser::parse_public_descriptor;
 use crate::models::{BackendKind, Descriptor, Keychain, Network, ScriptType};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -163,10 +164,11 @@ fn validate_descriptor_shape(descriptor: &str) -> Result<(), ImportError> {
         "sortedmulti(",
     ];
 
-    if supported.iter().any(|prefix| descriptor.starts_with(prefix)) {
-        Ok(())
-    } else {
+    if !supported.iter().any(|prefix| descriptor.starts_with(prefix)) {
         Err(ImportError::UnsupportedDescriptor)
+    } else {
+        parse_public_descriptor(descriptor).map_err(|_| ImportError::UnsupportedDescriptor)?;
+        Ok(())
     }
 }
 
@@ -291,7 +293,7 @@ mod tests {
     fn accepts_descriptor_shape() {
         let mut request = base_request(ImportKind::Descriptor);
         request.descriptor =
-            Some("wpkh([d34db33f/84h/0h/0h]xpub661MyMwAqRbc/0/*)".to_string());
+            Some("tr(xpub6BgBgsespWvERF3LHQu6CnqdvfEvtMcQjYrcRzx53QJjSxarj2afYWcLteoGVky7D3UKDP9QyrLprQ3VCECoY49yfdDEHGCtMMj92pReUsQ/0/*)".to_string());
 
         let validated = validate_import(request).unwrap();
         assert_eq!(validated.descriptors.len(), 1);
