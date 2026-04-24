@@ -4,6 +4,8 @@ XpubShield is a local-first, watch-only Bitcoin desktop app for personal custody
 
 This repository currently implements the Phase 1 MVP with a Tauri + React shell, Rust data models and commands, SQLite schema/migrations, a mock blockchain backend, descriptor/xpub import validation, private-material rejection, mock UTXO scanning, a dashboard, a UTXO table, and a deterministic audit engine.
 
+Phase 2 UI surfaces are underway and currently include local label/quarantine editing, fee stress testing, a privacy impact simulator, and a consolidation planner using simulation-only mock wallet data.
+
 ## Security Model
 
 XpubShield is watch-only only.
@@ -91,6 +93,9 @@ Frontend:
 - `src/pages/OnboardingImport.tsx`: descriptor/xpub import flow, backend selection, privacy warning, client-side private-material rejection.
 - `src/pages/Dashboard.tsx`: balance, UTXO count, risk scores, findings, wallet-shape summary.
 - `src/pages/UtxoTable.tsx`: sortable/filterable UTXO table with fee-cost and audit flag visibility.
+- `src/pages/FeeStressTest.tsx`: deterministic fee-rate stress test across wallet UTXOs.
+- `src/pages/PrivacySimulator.tsx`: “What does the chain know?” selected-UTXO privacy simulator.
+- `src/pages/ConsolidationPlanner.tsx`: label-aware consolidation simulation.
 - `src/api/tauri.ts`: Tauri command bridge plus browser demo fallback.
 - `src/types/domain.ts`: TypeScript domain model mirror of Rust structs.
 
@@ -160,6 +165,7 @@ Findings use heuristic language and avoid claiming certainty about ownership, sa
 - Descriptor parsing is intentionally lightweight in Phase 1.
 - Address derivation uses mock addresses for demonstration.
 - No live Bitcoin Core, Electrum, or Esplora scanning yet.
+- Phase 2 label/quarantine edits are held in the current app session for the mock wallet; durable SQLite persistence is a follow-up.
 - No PSBT linting beyond private-material rejection scaffold.
 - No transaction signing.
 - No transaction broadcasting.
@@ -170,11 +176,11 @@ Findings use heuristic language and avoid claiming certainty about ownership, sa
 
 Phase 2:
 
-- Local labeling workflow
-- Quarantine status editing
-- Fee stress testing
-- Privacy simulator
-- Consolidation planner simulation
+- Local labeling workflow: in progress
+- Quarantine status editing: in progress
+- Fee stress testing: implemented for mock wallet data
+- Privacy simulator: implemented for selected mock UTXOs
+- Consolidation planner simulation: implemented for selected mock UTXOs
 
 Phase 3:
 
