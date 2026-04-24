@@ -102,6 +102,7 @@ Frontend:
 - `src/pages/RecoveryHealth.tsx`: watch-only recovery metadata report with JSON/Markdown export.
 - `src/pages/DescriptorDiff.tsx`: descriptor/xpub identity comparison tool.
 - `src/pages/TransactionExplanations.tsx`: deterministic transaction explanation templates.
+- `src/pages/GraphView.tsx`: interactive wallet, lifecycle, label, privacy-risk, and fee heatmap views.
 - `src/api/tauri.ts`: Tauri command bridge plus browser demo fallback.
 - `src/types/domain.ts`: TypeScript domain model mirror of Rust structs.
 
@@ -116,6 +117,7 @@ Rust backend:
 - `src-tauri/src/audit_engine.rs`: deterministic Phase 1 checks and risk scoring.
 - `src-tauri/src/fee_estimator.rs`: script-type spend-cost estimates.
 - `src-tauri/src/database.rs`: SQLite migration bootstrap and current wallet/UTXO metadata persistence.
+- `src-tauri/src/graph_builder.rs`: bounded wallet graph node/edge construction.
 - `src-tauri/src/tauri_commands.rs`: app commands exposed to React.
 
 Rust modules scaffolded for current and future phases:
@@ -172,7 +174,7 @@ Findings use heuristic language and avoid claiming certainty about ownership, sa
 - No transaction signing.
 - No transaction broadcasting.
 - No encrypted database yet.
-- No graph visualization yet.
+- Graph rendering is bounded in-app and does not yet use a dedicated graph library for very large wallets.
 
 ## Roadmap
 
@@ -201,8 +203,11 @@ Phase 5:
 
 - Bitcoin Core RPC backend: implemented for local `scantxoutset` address scanning
 
+Phase 6:
+
+- Graph visualization: implemented with wallet, lifecycle, label cluster, privacy risk, and fee heatmap views
+
 Next:
 
-- Interactive graph visualization
 - Local-only alerts
 - Esplora-compatible backend
