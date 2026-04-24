@@ -97,7 +97,7 @@ pub fn build_mock_wallet_report(import: &ValidatedImport) -> WalletReport {
     }
 }
 
-fn privacy_score_for_backend(kind: BackendKind) -> BackendPrivacyScore {
+pub fn privacy_score_for_backend(kind: BackendKind) -> BackendPrivacyScore {
     match kind {
         BackendKind::Mock => BackendPrivacyScore {
             score: 100,
