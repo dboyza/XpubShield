@@ -42,7 +42,7 @@ export function PsbtLinter({ report }: PsbtLinterProps) {
       <section className="page-header">
         <div>
           <p>{report.wallet.name}</p>
-          <h1>PSBT linter</h1>
+          <h1>PSBT preflight</h1>
         </div>
         <StatusPill label="No signing" tone="good" />
       </section>
@@ -52,8 +52,8 @@ export function PsbtLinter({ report }: PsbtLinterProps) {
         <div>
           <strong>Local review only</strong>
           <p>
-            This linter never signs or broadcasts. Raw PSBT envelopes are parsed locally in the
-            Rust backend; mock JSON fixtures remain available for demo review.
+            This module never signs or broadcasts. Raw PSBT envelopes are parsed locally where
+            possible, then checked against wallet labels, provenance, change, and fee assumptions.
           </p>
         </div>
       </section>
@@ -61,7 +61,7 @@ export function PsbtLinter({ report }: PsbtLinterProps) {
       <section className="simulator-grid">
         <div className="panel">
           <div className="panel-heading">
-            <h2>Import PSBT</h2>
+            <h2>Import PSBT for review</h2>
             <button type="button" className="secondary-button" onClick={() => setInput(examplePsbtFixture(report))}>
               <FileSearch size={16} /> Example
             </button>
@@ -133,7 +133,7 @@ export function PsbtLinter({ report }: PsbtLinterProps) {
 
       <section className="panel">
         <div className="panel-heading">
-          <h2>Warnings</h2>
+            <h2>Preflight warnings</h2>
           <StatusPill label={`${analysis.warnings.length} items`} tone={analysis.warnings.length ? "warn" : "good"} />
         </div>
         {analysis.warnings.length ? (

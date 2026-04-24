@@ -1,3 +1,4 @@
+use crate::action_engine::build_action_center;
 use crate::address_derivation::{derive_addresses_for_descriptors, mock_derive_addresses};
 use crate::audit_engine::audit_wallet;
 use crate::blockchain_backend::BlockchainBackend;
@@ -5,8 +6,10 @@ use crate::models::{
     BackendKind, BackendPrivacyScore, Descriptor, Keychain, Network, ScriptType, SourceCategory,
     Transaction, Utxo, UtxoStatus, Wallet, WalletReport,
 };
+use crate::provenance_engine::enrich_wallet_provenance;
 use crate::wallet_import::ValidatedImport;
 use chrono::Utc;
+use std::collections::BTreeSet;
 
 pub struct MockBackend;
 
@@ -76,8 +79,11 @@ pub fn build_mock_wallet_report(import: &ValidatedImport) -> WalletReport {
         .first()
         .map(|descriptor| descriptor.script_type)
         .unwrap_or(ScriptType::NativeSegwit);
-    let mut addresses = derive_addresses_for_descriptors(&wallet_id, &wallet.network, &descriptors, 12)
-        .unwrap_or_else(|_| mock_derive_addresses(&wallet_id, &wallet.network, &primary_script, 12));
+    let mut addresses =
+        derive_addresses_for_descriptors(&wallet_id, &wallet.network, &descriptors, 12)
+            .unwrap_or_else(|_| {
+                mock_derive_addresses(&wallet_id, &wallet.network, &primary_script, 12)
+            });
     mark_mock_receive_counts(&mut addresses);
 
     let transactions = mock_transactions();
@@ -85,7 +91,7 @@ pub fn build_mock_wallet_report(import: &ValidatedImport) -> WalletReport {
     let (findings, scores, totals) = audit_wallet(&wallet, &addresses, &mut utxos);
     let backend_privacy = privacy_score_for_backend(wallet.backend);
 
-    WalletReport {
+    let mut report = WalletReport {
         wallet,
         descriptors,
         derived_addresses: addresses,
@@ -95,7 +101,12 @@ pub fn build_mock_wallet_report(import: &ValidatedImport) -> WalletReport {
         scores,
         backend_privacy,
         totals,
-    }
+        actions: Vec::new(),
+        provenance_summary: Default::default(),
+    };
+    enrich_wallet_provenance(&mut report);
+    report.actions = build_action_center(&report, &BTreeSet::new());
+    report
 }
 
 pub fn privacy_score_for_backend(kind: BackendKind) -> BackendPrivacyScore {
@@ -378,6 +389,7 @@ fn utxo(
         audit_flags: Vec::new(),
         quarantine_status: crate::models::QuarantineStatus::None,
         spendability_status: UtxoStatus::Spendable,
+        provenance: Default::default(),
     }
 }
 

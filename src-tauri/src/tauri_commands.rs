@@ -1,19 +1,24 @@
+use crate::action_engine::build_action_center;
 use crate::alert_engine::{generate_wallet_alerts, psbt_quarantine_alert};
-use crate::blockchain_backend::BlockchainBackend;
 use crate::bitcoin_core_backend::BitcoinCoreBackend;
+use crate::blockchain_backend::BlockchainBackend;
 use crate::database::{
     acknowledge_alert as acknowledge_alert_in_database, clear_local_cache as clear_database_cache,
-    initialize_database, load_alerts, load_current_wallet_report, load_labels as load_database_labels,
-    merge_persisted_utxo_metadata, save_alerts, save_consolidation_plan, save_label,
-    save_spend_simulation, save_wallet_report, wallet_totals_from_utxos,
+    delete_coin_set as delete_database_coin_set, dismiss_action as dismiss_database_action,
+    initialize_database, load_alerts, load_coin_sets as load_database_coin_sets,
+    load_current_wallet_report, load_dismissed_action_ids, load_labels as load_database_labels,
+    merge_persisted_utxo_metadata, save_alerts, save_coin_set as save_database_coin_set,
+    save_consolidation_plan, save_label, save_spend_simulation, save_wallet_report,
+    wallet_totals_from_utxos,
 };
 use crate::descriptor_diff::{compare_descriptor_inputs, DescriptorDiffSummary};
 use crate::esplora_backend::EsploraBackend;
 use crate::mock_backend::{build_demo_import, MockBackend};
 use crate::models::{
-    Alert, AuditFinding, ConfidenceLevel, ConsolidationPlan, FeeEstimate, Label, Network,
+    Alert, AuditFinding, CoinSet, ConfidenceLevel, ConsolidationPlan, FeeEstimate, Label, Network,
     QuarantineStatus, Severity, SourceCategory, SpendSimulation, Utxo, UtxoStatus, WalletReport,
 };
+use crate::provenance_engine::enrich_wallet_provenance;
 use crate::psbt_linter::{analyze_psbt_text, PsbtAnalysisResult};
 use crate::wallet_import::{validate_import, ImportKind, ImportRequest};
 use rusqlite::Connection;
@@ -68,6 +73,15 @@ pub struct LabelPatch {
     pub category: SourceCategory,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct CoinSetPatch {
+    pub id: Option<String>,
+    pub name: String,
+    pub intent: String,
+    pub outpoints: Vec<String>,
+    pub notes: Option<String>,
+}
+
 #[tauri::command]
 pub fn import_wallet(
     request: ImportRequest,
@@ -76,7 +90,10 @@ pub fn import_wallet(
     let bitcoin_core_config = request.bitcoin_core_rpc.clone();
     let esplora_config = request.esplora.clone();
     let validated = validate_import(request).map_err(|error| error.to_string())?;
-    let mut report = if matches!(validated.backend, crate::models::BackendKind::BitcoinCoreRpc) {
+    let mut report = if matches!(
+        validated.backend,
+        crate::models::BackendKind::BitcoinCoreRpc
+    ) {
         let config = bitcoin_core_config
             .ok_or_else(|| "Bitcoin Core RPC mode requires local RPC configuration.".to_string())?;
         BitcoinCoreBackend::new(config)
@@ -102,6 +119,7 @@ pub fn import_wallet(
             .lock()
             .map_err(|_| "Database lock poisoned".to_string())?;
         merge_persisted_utxo_metadata(&database, &mut report).map_err(|error| error.to_string())?;
+        refresh_report_derivatives(&mut report, &database)?;
     }
     {
         let mut database = state
@@ -109,8 +127,12 @@ pub fn import_wallet(
             .lock()
             .map_err(|_| "Database lock poisoned".to_string())?;
         save_wallet_report(&mut database, &report).map_err(|error| error.to_string())?;
-        save_alerts(&database, &report.wallet.id, &generate_wallet_alerts(&report))
-            .map_err(|error| error.to_string())?;
+        save_alerts(
+            &database,
+            &report.wallet.id,
+            &generate_wallet_alerts(&report),
+        )
+        .map_err(|error| error.to_string())?;
     }
     *state
         .report
@@ -128,6 +150,7 @@ pub fn load_demo_wallet(state: State<'_, AppState>) -> Result<WalletReport, Stri
             .lock()
             .map_err(|_| "Database lock poisoned".to_string())?;
         merge_persisted_utxo_metadata(&database, &mut report).map_err(|error| error.to_string())?;
+        refresh_report_derivatives(&mut report, &database)?;
     }
     {
         let mut database = state
@@ -135,8 +158,12 @@ pub fn load_demo_wallet(state: State<'_, AppState>) -> Result<WalletReport, Stri
             .lock()
             .map_err(|_| "Database lock poisoned".to_string())?;
         save_wallet_report(&mut database, &report).map_err(|error| error.to_string())?;
-        save_alerts(&database, &report.wallet.id, &generate_wallet_alerts(&report))
-            .map_err(|error| error.to_string())?;
+        save_alerts(
+            &database,
+            &report.wallet.id,
+            &generate_wallet_alerts(&report),
+        )
+        .map_err(|error| error.to_string())?;
     }
     *state
         .report
@@ -189,7 +216,7 @@ pub fn update_utxos(
             .ok_or_else(|| "No wallet loaded".to_string());
     }
 
-    let updated = {
+    let mut updated = {
         let mut report_guard = state
             .report
             .lock()
@@ -229,18 +256,20 @@ pub fn update_utxos(
             .database
             .lock()
             .map_err(|_| "Database lock poisoned".to_string())?;
+        refresh_report_derivatives(&mut updated, &database)?;
         save_wallet_report(&mut database, &updated).map_err(|error| error.to_string())?;
     }
+
+    *state
+        .report
+        .lock()
+        .map_err(|_| "State lock poisoned".to_string())? = Some(updated.clone());
 
     Ok(updated)
 }
 
 #[tauri::command]
-pub fn compare_descriptors(
-    left: String,
-    right: String,
-    network: Network,
-) -> DescriptorDiffSummary {
+pub fn compare_descriptors(left: String, right: String, network: Network) -> DescriptorDiffSummary {
     compare_descriptor_inputs(&left, &right, network)
 }
 
@@ -265,8 +294,12 @@ pub fn analyze_psbt(
             .database
             .lock()
             .map_err(|_| "Database lock poisoned".to_string())?;
-        save_alerts(&database, &report.wallet.id, &[psbt_quarantine_alert(&report.wallet.id)])
-            .map_err(|error| error.to_string())?;
+        save_alerts(
+            &database,
+            &report.wallet.id,
+            &[psbt_quarantine_alert(&report.wallet.id)],
+        )
+        .map_err(|error| error.to_string())?;
     }
     Ok(analysis)
 }
@@ -316,10 +349,7 @@ pub fn list_labels(state: State<'_, AppState>) -> Result<Vec<Label>, String> {
 }
 
 #[tauri::command]
-pub fn upsert_label(
-    patch: LabelPatch,
-    state: State<'_, AppState>,
-) -> Result<Vec<Label>, String> {
+pub fn upsert_label(patch: LabelPatch, state: State<'_, AppState>) -> Result<Vec<Label>, String> {
     validate_label_patch(&patch)?;
     let report = current_report(&state)?;
     let label = Label {
@@ -341,6 +371,93 @@ pub fn upsert_label(
         .map_err(|_| "Database lock poisoned".to_string())?;
     save_label(&database, &label).map_err(|error| error.to_string())?;
     load_database_labels(&database, &report.wallet.id).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn list_coin_sets(state: State<'_, AppState>) -> Result<Vec<CoinSet>, String> {
+    let report = current_report(&state)?;
+    let database = state
+        .database
+        .lock()
+        .map_err(|_| "Database lock poisoned".to_string())?;
+    load_database_coin_sets(&database, &report.wallet.id).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn save_coin_set(
+    patch: CoinSetPatch,
+    state: State<'_, AppState>,
+) -> Result<Vec<CoinSet>, String> {
+    let report = current_report(&state)?;
+    validate_coin_set_patch(&patch, &report)?;
+    let now = chrono::Utc::now().to_rfc3339();
+    let id = patch.id.unwrap_or_else(|| {
+        format!(
+            "coinset:{}:{}",
+            report.wallet.id,
+            chrono::Utc::now().timestamp_millis()
+        )
+    });
+    let coin_set = CoinSet {
+        id,
+        wallet_id: report.wallet.id.clone(),
+        name: patch.name.trim().to_string(),
+        intent: patch.intent.trim().to_string(),
+        outpoints: unique_outpoints(patch.outpoints),
+        notes: patch.notes.and_then(|notes| {
+            let trimmed = notes.trim().to_string();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed)
+            }
+        }),
+        created_at: now.clone(),
+        updated_at: now,
+    };
+    let database = state
+        .database
+        .lock()
+        .map_err(|_| "Database lock poisoned".to_string())?;
+    save_database_coin_set(&database, &coin_set).map_err(|error| error.to_string())?;
+    load_database_coin_sets(&database, &report.wallet.id).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn delete_coin_set(
+    coin_set_id: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<CoinSet>, String> {
+    let report = current_report(&state)?;
+    let database = state
+        .database
+        .lock()
+        .map_err(|_| "Database lock poisoned".to_string())?;
+    delete_database_coin_set(&database, &report.wallet.id, &coin_set_id)
+        .map_err(|error| error.to_string())?;
+    load_database_coin_sets(&database, &report.wallet.id).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn dismiss_action(
+    action_id: String,
+    state: State<'_, AppState>,
+) -> Result<WalletReport, String> {
+    let mut report = current_report(&state)?;
+    {
+        let database = state
+            .database
+            .lock()
+            .map_err(|_| "Database lock poisoned".to_string())?;
+        dismiss_database_action(&database, &report.wallet.id, action_id.trim())
+            .map_err(|error| error.to_string())?;
+        refresh_report_derivatives(&mut report, &database)?;
+    }
+    *state
+        .report
+        .lock()
+        .map_err(|_| "State lock poisoned".to_string())? = Some(report.clone());
+    Ok(report)
 }
 
 #[tauri::command]
@@ -412,10 +529,27 @@ fn current_report(state: &State<'_, AppState>) -> Result<WalletReport, String> {
         .ok_or_else(|| "No wallet loaded".to_string())
 }
 
+fn refresh_report_derivatives(
+    report: &mut WalletReport,
+    database: &Connection,
+) -> Result<(), String> {
+    enrich_wallet_provenance(report);
+    let dismissed = load_dismissed_action_ids(database, &report.wallet.id)
+        .map_err(|error| error.to_string())?;
+    report.actions = build_action_center(report, &dismissed);
+    Ok(())
+}
+
 fn validate_label_patch(patch: &LabelPatch) -> Result<(), String> {
     let target_type = patch.target_type.trim();
-    if !matches!(target_type, "utxo" | "address" | "transaction" | "source" | "category") {
-        return Err("Label target type must be utxo, address, transaction, source, or category.".to_string());
+    if !matches!(
+        target_type,
+        "utxo" | "address" | "transaction" | "source" | "category"
+    ) {
+        return Err(
+            "Label target type must be utxo, address, transaction, source, or category."
+                .to_string(),
+        );
     }
     if patch.target_id.trim().is_empty() {
         return Err("Label target id is required.".to_string());
@@ -424,6 +558,39 @@ fn validate_label_patch(patch: &LabelPatch) -> Result<(), String> {
         return Err("Label text is required.".to_string());
     }
     Ok(())
+}
+
+fn validate_coin_set_patch(patch: &CoinSetPatch, report: &WalletReport) -> Result<(), String> {
+    if patch.name.trim().is_empty() {
+        return Err("Coin set name is required.".to_string());
+    }
+    if patch.intent.trim().is_empty() {
+        return Err("Coin set intent is required.".to_string());
+    }
+    if patch.outpoints.is_empty() {
+        return Err("Coin set requires at least one UTXO.".to_string());
+    }
+    let wallet_outpoints = report
+        .utxos
+        .iter()
+        .map(|utxo| utxo.outpoint.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    if patch
+        .outpoints
+        .iter()
+        .any(|outpoint| !wallet_outpoints.contains(outpoint.as_str()))
+    {
+        return Err("Coin set includes an outpoint that is not in the loaded wallet.".to_string());
+    }
+    Ok(())
+}
+
+fn unique_outpoints(outpoints: Vec<String>) -> Vec<String> {
+    outpoints
+        .into_iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect()
 }
 
 fn selected_utxos(report: &WalletReport, outpoints: &[String]) -> Vec<Utxo> {
@@ -441,14 +608,25 @@ fn build_spend_simulation(
     fee_rate: u32,
 ) -> SpendSimulation {
     let input_amount: u64 = selected.iter().map(|utxo| utxo.amount_sats).sum();
-    let input_vbytes: u32 = selected.iter().map(|utxo| utxo.spend_vbytes_estimate.max(58)).sum();
-    let base_vbytes = if selected.is_empty() { 0 } else { input_vbytes + 10 + 31 };
+    let input_vbytes: u32 = selected
+        .iter()
+        .map(|utxo| utxo.spend_vbytes_estimate.max(58))
+        .sum();
+    let base_vbytes = if selected.is_empty() {
+        0
+    } else {
+        input_vbytes + 10 + 31
+    };
     let change_probe_fee = u64::from(base_vbytes + 43) * u64::from(fee_rate);
     let creates_change = input_amount
         .saturating_sub(destination_amount_sats)
         .saturating_sub(change_probe_fee)
         >= 546;
-    let estimated_vbytes = if creates_change { base_vbytes + 43 } else { base_vbytes };
+    let estimated_vbytes = if creates_change {
+        base_vbytes + 43
+    } else {
+        base_vbytes
+    };
     let estimated_fee_sats = u64::from(estimated_vbytes) * u64::from(fee_rate);
     let change_amount_sats = input_amount
         .checked_sub(destination_amount_sats.saturating_add(estimated_fee_sats))
@@ -464,7 +642,10 @@ fn build_spend_simulation(
             selected,
         ));
     }
-    if selected.iter().any(|utxo| utxo.quarantine_status != QuarantineStatus::None) {
+    if selected
+        .iter()
+        .any(|utxo| utxo.quarantine_status != QuarantineStatus::None)
+    {
         warnings.push(simulation_finding(
             "quarantined_coin_risk",
             Severity::High,

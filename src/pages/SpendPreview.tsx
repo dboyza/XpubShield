@@ -65,7 +65,7 @@ export function SpendPreview({ report }: SpendPreviewProps) {
       <section className="page-header">
         <div>
           <p>{report.wallet.name}</p>
-          <h1>Spend preview</h1>
+          <h1>Spend preflight</h1>
         </div>
         <StatusPill label="Simulation only" tone="good" />
       </section>
@@ -74,7 +74,7 @@ export function SpendPreview({ report }: SpendPreviewProps) {
         <ShieldAlert size={20} />
         <div>
           <strong>No transaction is created</strong>
-          <p>This preview estimates fee, change, and privacy effects from selected UTXOs only. It does not sign, finalize, extract, or broadcast a transaction.</p>
+          <p>This preflight models what an observer could learn from selected coins. It does not sign, finalize, extract, construct, or broadcast a transaction.</p>
         </div>
       </section>
 
@@ -141,6 +141,14 @@ export function SpendPreview({ report }: SpendPreviewProps) {
           </section>
 
           <div className="finding-list">
+            <article className="finding-row observer-card">
+              <strong>What an observer could infer</strong>
+              <ul>
+                {preview.observerNotes.map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
+            </article>
             <article className="finding-row">
               <strong>{preview.createsChange ? "Change likely created" : "No economical change estimated"}</strong>
               <p>{preview.summary}</p>
@@ -148,6 +156,10 @@ export function SpendPreview({ report }: SpendPreviewProps) {
             <article className="finding-row">
               <strong>Label mixing risk: {humanize(preview.labelMixingRisk)}</strong>
               <p>This heuristic checks selected labels, source categories, and quarantine flags. It is not definitive.</p>
+            </article>
+            <article className="finding-row">
+              <strong>Provenance mixing risk: {humanize(preview.provenanceMixingRisk)}</strong>
+              <p>Local registry and manual labels are used to spot exchange/non-exchange and entity-context mixing without remote attribution calls.</p>
             </article>
             {preview.quarantineWarnings.map((warning) => (
               <article className="finding-row" key={warning}>
@@ -207,7 +219,9 @@ function SpendPickRow({ utxo, checked, onToggle }: { utxo: Utxo; checked: boolea
       <input type="checkbox" checked={checked} onChange={() => onToggle(utxo.outpoint)} />
       <span>
         <strong>{satsToBtc(utxo.amount_sats)}</strong>
-        <span>{txidPrefix(utxo.txid)} - {utxo.label || "Unlabeled"} - {humanize(utxo.source_category)}</span>
+        <span>
+          {txidPrefix(utxo.txid)} - {utxo.label || "Unlabeled"} - {utxo.provenance.entity_label ?? humanize(utxo.provenance.category)}
+        </span>
       </span>
     </label>
   );

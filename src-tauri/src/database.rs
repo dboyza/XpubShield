@@ -1,14 +1,17 @@
+use crate::action_engine::build_action_center;
 use crate::audit_engine::audit_wallet;
 use crate::mock_backend::privacy_score_for_backend;
 use crate::models::{
-    Alert, ConsolidationPlan, Descriptor, Label, QuarantineStatus, Severity, SourceCategory,
-    SpendSimulation, Transaction, Utxo, UtxoStatus, Wallet, WalletReport, WalletTotals,
+    Alert, CoinSet, ConsolidationPlan, Descriptor, Label, ProvenanceAssessment, QuarantineStatus,
+    Severity, SourceCategory, SpendSimulation, Transaction, Utxo, UtxoStatus, Wallet, WalletReport,
+    WalletTotals,
 };
+use crate::provenance_engine::enrich_wallet_provenance;
 use rusqlite::types::Type;
 use rusqlite::{params, Connection, OptionalExtension, Result};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::Path;
 
 pub const INITIAL_SCHEMA: &str = include_str!("../migrations/001_initial_schema.sql");
@@ -28,12 +31,35 @@ pub fn initialize_memory_database() -> Result<Connection> {
 pub fn save_wallet_report(connection: &mut Connection, report: &WalletReport) -> Result<()> {
     let tx = connection.transaction()?;
     tx.execute(
-        "DELETE FROM wallets WHERE id = ?1",
+        "DELETE FROM transaction_outputs WHERE txid IN (SELECT txid FROM transactions WHERE wallet_id = ?1)",
         params![report.wallet.id],
     )?;
     tx.execute(
+        "DELETE FROM transaction_inputs WHERE txid IN (SELECT txid FROM transactions WHERE wallet_id = ?1)",
+        params![report.wallet.id],
+    )?;
+    for table in [
+        "provenance_assessments",
+        "audit_findings",
+        "transactions",
+        "utxos",
+        "derived_addresses",
+        "descriptors",
+    ] {
+        tx.execute(
+            &format!("DELETE FROM {table} WHERE wallet_id = ?1"),
+            params![report.wallet.id],
+        )?;
+    }
+    tx.execute(
         "INSERT INTO wallets (id, name, network, backend, gap_limit, descriptor_based, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+         ON CONFLICT(id) DO UPDATE SET
+           name = excluded.name,
+           network = excluded.network,
+           backend = excluded.backend,
+           gap_limit = excluded.gap_limit,
+           descriptor_based = excluded.descriptor_based",
         params![
             report.wallet.id,
             report.wallet.name,
@@ -132,6 +158,7 @@ pub fn save_wallet_report(connection: &mut Connection, report: &WalletReport) ->
                 encode_enum(&utxo.spendability_status)?
             ],
         )?;
+        save_provenance_assessment_tx(&tx, &report.wallet.id, utxo)?;
     }
 
     for finding in &report.findings {
@@ -158,6 +185,29 @@ pub fn save_wallet_report(connection: &mut Connection, report: &WalletReport) ->
     tx.commit()
 }
 
+fn save_provenance_assessment_tx(
+    tx: &rusqlite::Transaction<'_>,
+    wallet_id: &str,
+    utxo: &Utxo,
+) -> Result<()> {
+    tx.execute(
+        "INSERT INTO provenance_assessments
+         (outpoint, wallet_id, source_kind, entity_label, category, confidence_level, evidence_json, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![
+            utxo.outpoint,
+            wallet_id,
+            encode_enum(&utxo.provenance.source_kind)?,
+            utxo.provenance.entity_label,
+            encode_enum(&utxo.provenance.category)?,
+            encode_enum(&utxo.provenance.confidence_level)?,
+            encode_json(&utxo.provenance.evidence)?,
+            utxo.provenance.updated_at
+        ],
+    )?;
+    Ok(())
+}
+
 pub fn load_current_wallet_report(connection: &Connection) -> Result<Option<WalletReport>> {
     let Some(wallet) = load_current_wallet(connection)? else {
         return Ok(None);
@@ -170,8 +220,9 @@ pub fn load_current_wallet_report(connection: &Connection) -> Result<Option<Wall
     let persisted_metadata = utxo_metadata_by_outpoint(&utxos);
     let (findings, scores, totals) = audit_wallet(&wallet, &addresses, &mut utxos);
     apply_utxo_metadata(&mut utxos, &persisted_metadata);
+    let dismissed_actions = load_dismissed_action_ids(connection, &wallet.id)?;
 
-    Ok(Some(WalletReport {
+    let mut report = WalletReport {
         backend_privacy: privacy_score_for_backend(wallet.backend),
         wallet,
         descriptors,
@@ -181,7 +232,13 @@ pub fn load_current_wallet_report(connection: &Connection) -> Result<Option<Wall
         findings,
         scores,
         totals,
-    }))
+        actions: Vec::new(),
+        provenance_summary: Default::default(),
+    };
+    enrich_wallet_provenance(&mut report);
+    report.actions = build_action_center(&report, &dismissed_actions);
+
+    Ok(Some(report))
 }
 
 pub fn merge_persisted_utxo_metadata(
@@ -298,12 +355,116 @@ pub fn load_labels(connection: &Connection, wallet_id: &str) -> Result<Vec<Label
     rows
 }
 
+pub fn load_coin_sets(connection: &Connection, wallet_id: &str) -> Result<Vec<CoinSet>> {
+    let mut statement = connection.prepare(
+        "SELECT id, wallet_id, name, intent, notes, created_at, updated_at
+         FROM coin_sets WHERE wallet_id = ?1 ORDER BY updated_at DESC, name ASC",
+    )?;
+    let mut sets = statement
+        .query_map(params![wallet_id], |row| {
+            Ok(CoinSet {
+                id: row.get(0)?,
+                wallet_id: row.get(1)?,
+                name: row.get(2)?,
+                intent: row.get(3)?,
+                outpoints: Vec::new(),
+                notes: row.get(4)?,
+                created_at: row.get(5)?,
+                updated_at: row.get(6)?,
+            })
+        })?
+        .collect::<Result<Vec<_>>>()?;
+
+    for set in &mut sets {
+        set.outpoints = load_coin_set_members(connection, &set.id)?;
+    }
+
+    Ok(sets)
+}
+
+pub fn save_coin_set(connection: &Connection, coin_set: &CoinSet) -> Result<()> {
+    connection.execute(
+        "INSERT INTO coin_sets (id, wallet_id, name, intent, notes, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+         ON CONFLICT(id) DO UPDATE SET
+           name = excluded.name,
+           intent = excluded.intent,
+           notes = excluded.notes,
+           updated_at = excluded.updated_at
+         WHERE coin_sets.wallet_id = excluded.wallet_id",
+        params![
+            coin_set.id,
+            coin_set.wallet_id,
+            coin_set.name,
+            coin_set.intent,
+            coin_set.notes,
+            coin_set.created_at,
+            coin_set.updated_at
+        ],
+    )?;
+    connection.execute(
+        "DELETE FROM coin_set_members WHERE coin_set_id = ?1",
+        params![coin_set.id],
+    )?;
+    for outpoint in &coin_set.outpoints {
+        connection.execute(
+            "INSERT OR IGNORE INTO coin_set_members (coin_set_id, outpoint) VALUES (?1, ?2)",
+            params![coin_set.id, outpoint],
+        )?;
+    }
+    Ok(())
+}
+
+pub fn delete_coin_set(connection: &Connection, wallet_id: &str, coin_set_id: &str) -> Result<()> {
+    connection.execute(
+        "DELETE FROM coin_sets WHERE wallet_id = ?1 AND id = ?2",
+        params![wallet_id, coin_set_id],
+    )?;
+    Ok(())
+}
+
+pub fn dismiss_action(connection: &Connection, wallet_id: &str, action_id: &str) -> Result<()> {
+    let id = format!("dismissed:{wallet_id}:{action_id}");
+    connection.execute(
+        "INSERT OR IGNORE INTO dismissed_actions (id, wallet_id, action_id, dismissed_at)
+         VALUES (?1, ?2, ?3, CURRENT_TIMESTAMP)",
+        params![id, wallet_id, action_id],
+    )?;
+    Ok(())
+}
+
+pub fn load_dismissed_action_ids(
+    connection: &Connection,
+    wallet_id: &str,
+) -> Result<BTreeSet<String>> {
+    let mut statement =
+        connection.prepare("SELECT action_id FROM dismissed_actions WHERE wallet_id = ?1")?;
+    let rows = statement
+        .query_map(params![wallet_id], |row| row.get::<_, String>(0))?
+        .collect::<Result<BTreeSet<_>>>()?;
+    Ok(rows)
+}
+
+fn load_coin_set_members(connection: &Connection, coin_set_id: &str) -> Result<Vec<String>> {
+    let mut statement = connection.prepare(
+        "SELECT outpoint FROM coin_set_members WHERE coin_set_id = ?1 ORDER BY outpoint",
+    )?;
+    let members = statement
+        .query_map(params![coin_set_id], |row| row.get::<_, String>(0))?
+        .collect();
+    members
+}
+
 pub fn save_spend_simulation(
     connection: &Connection,
     wallet_id: &str,
     simulation: &SpendSimulation,
 ) -> Result<()> {
-    let id = format!("spend:{}:{}", wallet_id, chrono::Utc::now().timestamp_millis());
+    let id = format!(
+        "spend:{}:{}",
+        wallet_id,
+        chrono::Utc::now().timestamp_millis()
+    );
     connection.execute(
         "INSERT INTO spend_simulations
          (id, wallet_id, selected_outpoints_json, destination_amount_sats, fee_rate,
@@ -329,7 +490,11 @@ pub fn save_consolidation_plan(
     wallet_id: &str,
     plan: &ConsolidationPlan,
 ) -> Result<()> {
-    let id = format!("consolidation:{}:{}", wallet_id, chrono::Utc::now().timestamp_millis());
+    let id = format!(
+        "consolidation:{}:{}",
+        wallet_id,
+        chrono::Utc::now().timestamp_millis()
+    );
     connection.execute(
         "INSERT INTO consolidation_plans
          (id, wallet_id, selected_outpoints_json, current_utxo_count, proposed_utxo_count,
@@ -354,6 +519,10 @@ pub fn clear_local_cache(connection: &mut Connection) -> Result<()> {
     for table in [
         "backend_configs",
         "settings",
+        "dismissed_actions",
+        "coin_set_members",
+        "coin_sets",
+        "provenance_assessments",
         "alerts",
         "psbt_analyses",
         "consolidation_plans",
@@ -496,6 +665,7 @@ fn load_utxos(connection: &Connection, wallet_id: &str) -> Result<Vec<Utxo>> {
                 audit_flags: decode_json(row.get::<_, String>(17)?)?,
                 quarantine_status: decode_enum(row.get::<_, String>(18)?)?,
                 spendability_status: decode_enum(row.get::<_, String>(19)?)?,
+                provenance: ProvenanceAssessment::default(),
             })
         })?
         .collect();
@@ -742,10 +912,14 @@ mod tests {
         save_consolidation_plan(&connection, &report.wallet.id, &plan).unwrap();
 
         let spend_count: u32 = connection
-            .query_row("SELECT COUNT(*) FROM spend_simulations", [], |row| row.get(0))
+            .query_row("SELECT COUNT(*) FROM spend_simulations", [], |row| {
+                row.get(0)
+            })
             .unwrap();
         let consolidation_count: u32 = connection
-            .query_row("SELECT COUNT(*) FROM consolidation_plans", [], |row| row.get(0))
+            .query_row("SELECT COUNT(*) FROM consolidation_plans", [], |row| {
+                row.get(0)
+            })
             .unwrap();
         assert_eq!(spend_count, 1);
         assert_eq!(consolidation_count, 1);

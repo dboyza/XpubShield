@@ -41,6 +41,7 @@ export type QuarantineStatus =
   | "avoid_non_kyc_mix"
   | "suspicious_external_pattern"
   | "manual";
+export type ProvenanceSourceKind = "manual" | "registry" | "heuristic" | "wallet_change" | "unknown";
 
 export interface ImportRequest {
   import_kind: "descriptor" | "xpub" | "demo";
@@ -142,6 +143,7 @@ export interface Utxo {
   audit_flags: string[];
   quarantine_status: QuarantineStatus;
   spendability_status: UtxoStatus;
+  provenance: ProvenanceAssessment;
 }
 
 export interface AuditFinding {
@@ -154,6 +156,45 @@ export interface AuditFinding {
   affected_transactions: string[];
   confidence_level: ConfidenceLevel;
   heuristic_notes: string;
+}
+
+export interface ProvenanceEvidence {
+  id: string;
+  label: string;
+  detail: string;
+  confidence_level: ConfidenceLevel;
+  source: string;
+}
+
+export interface ProvenanceAssessment {
+  source_kind: ProvenanceSourceKind;
+  entity_label?: string | null;
+  category: SourceCategory;
+  confidence_level: ConfidenceLevel;
+  evidence: ProvenanceEvidence[];
+  updated_at: string;
+}
+
+export interface ProvenanceSummary {
+  assessed_count: number;
+  manual_count: number;
+  registry_count: number;
+  heuristic_count: number;
+  unknown_count: number;
+  exchange_like_count: number;
+}
+
+export interface ActionItem {
+  id: string;
+  severity: Severity;
+  title: string;
+  summary: string;
+  why_it_matters: string;
+  recommended_action: string;
+  cta_page: string;
+  affected_utxos: string[];
+  confidence_level: ConfidenceLevel;
+  dismissed: boolean;
 }
 
 export interface RiskScores {
@@ -230,6 +271,19 @@ export interface WalletReport {
   scores: RiskScores;
   backend_privacy: BackendPrivacyScore;
   totals: WalletTotals;
+  actions: ActionItem[];
+  provenance_summary: ProvenanceSummary;
+}
+
+export interface CoinSet {
+  id: string;
+  wallet_id: string;
+  name: string;
+  intent: string;
+  outpoints: string[];
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export type UtxoUpdate = Partial<

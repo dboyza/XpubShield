@@ -12,13 +12,14 @@ interface RecoveryHealthProps {
 
 export function RecoveryHealth({ report }: RecoveryHealthProps) {
   const health = useMemo(() => buildRecoveryHealth(report), [report]);
+  const checklist = useMemo(() => buildRecoveryChecklist(report), [report]);
 
   return (
     <main className="page-shell">
       <section className="page-header">
         <div>
           <p>{report.wallet.name}</p>
-          <h1>Recovery health</h1>
+          <h1>Recovery drill</h1>
         </div>
         <StatusPill label="Local report" tone="good" />
       </section>
@@ -38,6 +39,24 @@ export function RecoveryHealth({ report }: RecoveryHealthProps) {
       </section>
 
       <section className="dashboard-grid">
+        <div className="panel">
+          <div className="panel-heading">
+            <h2>Operator checklist</h2>
+            <StatusPill label={`${checklist.filter((item) => item.status === "good").length}/${checklist.length} ready`} />
+          </div>
+          <div className="finding-list">
+            {checklist.map((item) => (
+              <article className="finding-row recovery-check" key={item.label}>
+                <div>
+                  <strong>{item.label}</strong>
+                  <p>{item.detail}</p>
+                </div>
+                <StatusPill label={humanize(item.status)} tone={item.status === "good" ? "good" : item.status === "warn" ? "warn" : "bad"} />
+              </article>
+            ))}
+          </div>
+        </div>
+
         <div className="panel">
           <div className="panel-heading">
             <h2>Metadata</h2>
@@ -74,6 +93,43 @@ export function RecoveryHealth({ report }: RecoveryHealthProps) {
       </section>
     </main>
   );
+}
+
+function buildRecoveryChecklist(report: WalletReport) {
+  const hasExternal = report.descriptors.some((descriptor) => descriptor.keychain === "external");
+  const hasChange = report.descriptors.some((descriptor) => descriptor.keychain === "change");
+  const hasFingerprint = report.descriptors.every((descriptor) => Boolean(descriptor.master_fingerprint));
+  const hasPath = report.descriptors.every((descriptor) => Boolean(descriptor.account_path));
+  const hasChecksum = report.descriptors.every((descriptor) => Boolean(descriptor.checksum));
+  const multisig = report.descriptors.some((descriptor) => descriptor.script_type === "multisig");
+
+  return [
+    {
+      label: "Descriptor completeness",
+      status: hasExternal && hasChange && hasChecksum ? "good" : hasExternal ? "warn" : "bad",
+      detail: "External, change, and checksummed descriptors should be available before an emergency restore."
+    },
+    {
+      label: "Fingerprint and path coverage",
+      status: hasFingerprint && hasPath ? "good" : "warn",
+      detail: "Master fingerprint and account path metadata help verify hardware-wallet identity and derivation."
+    },
+    {
+      label: "Gap risk",
+      status: report.wallet.gap_limit >= 20 ? "good" : "warn",
+      detail: "A gap limit below 20 can miss addresses during restore or independent wallet verification."
+    },
+    {
+      label: "Multisig metadata",
+      status: multisig ? "warn" : "good",
+      detail: multisig ? "Confirm cosigner fingerprints, derivation paths, and policy quorum outside this app." : "No multisig policy was detected."
+    },
+    {
+      label: "Export readiness",
+      status: report.descriptors.length > 0 && report.derived_addresses.length > 0 ? "good" : "bad",
+      detail: "The recovery export should include descriptors plus enough address history to verify the watch-only view."
+    }
+  ] as const;
 }
 
 function downloadText(filename: string, text: string) {

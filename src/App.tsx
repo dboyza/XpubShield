@@ -17,10 +17,10 @@ import {
   Upload
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getCurrentWallet, updateUtxos as persistUtxos } from "./api/tauri";
+import { dismissAction, getCurrentWallet, updateUtxos as persistUtxos } from "./api/tauri";
 import { ConsolidationPlanner } from "./pages/ConsolidationPlanner";
 import { Alerts } from "./pages/Alerts";
-import { Dashboard } from "./pages/Dashboard";
+import { Cockpit } from "./pages/Cockpit";
 import { DescriptorDiff } from "./pages/DescriptorDiff";
 import { FeeStressTest } from "./pages/FeeStressTest";
 import { GraphView } from "./pages/GraphView";
@@ -39,7 +39,7 @@ type Page =
   | "dashboard"
   | "utxos"
   | "fees"
-  | "spend_preview"
+  | "spend_preflight"
   | "privacy"
   | "consolidation"
   | "psbt"
@@ -66,16 +66,16 @@ const NAV_MODULES: NavModule[] = [
     title: "Command",
     signal: "overview / live state",
     pages: [
-      { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, requiresWallet: true },
+      { id: "dashboard", label: "Cockpit", icon: LayoutDashboard, requiresWallet: true },
       { id: "alerts", label: "Alerts", icon: Bell, requiresWallet: true },
-      { id: "graph", label: "Graph", icon: GitBranch, requiresWallet: true }
+      { id: "graph", label: "Lineage", icon: GitBranch, requiresWallet: true }
     ]
   },
   {
     title: "Coins",
     signal: "utxo control",
     pages: [
-      { id: "utxos", label: "UTXOs", icon: Table2, requiresWallet: true },
+      { id: "utxos", label: "Coin Workbench", icon: Table2, requiresWallet: true },
       { id: "fees", label: "Fee Stress", icon: BarChart3, requiresWallet: true }
     ]
   },
@@ -83,7 +83,7 @@ const NAV_MODULES: NavModule[] = [
     title: "Simulate",
     signal: "future moves",
     pages: [
-      { id: "spend_preview", label: "Spend Preview", icon: Send, requiresWallet: true },
+      { id: "spend_preflight", label: "Spend Preflight", icon: Send, requiresWallet: true },
       { id: "privacy", label: "Privacy", icon: Telescope, requiresWallet: true },
       { id: "consolidation", label: "Consolidation", icon: Combine, requiresWallet: true }
     ]
@@ -92,7 +92,7 @@ const NAV_MODULES: NavModule[] = [
     title: "Verify",
     signal: "before signing",
     pages: [
-      { id: "psbt", label: "PSBT Linter", icon: FileSearch, requiresWallet: true },
+      { id: "psbt", label: "PSBT Preflight", icon: FileSearch, requiresWallet: true },
       { id: "recovery", label: "Recovery", icon: HeartPulse, requiresWallet: true },
       { id: "descriptor_diff", label: "Descriptor Diff", icon: GitCompareArrows, requiresWallet: true },
       { id: "explanations", label: "Explanations", icon: MessageSquareText, requiresWallet: true }
@@ -150,6 +150,40 @@ export default function App() {
     }
   }
 
+  async function dismissCockpitAction(actionId: string) {
+    setReport((current) =>
+      current ? { ...current, actions: current.actions.filter((action) => action.id !== actionId) } : current
+    );
+    try {
+      const updated = await dismissAction(actionId);
+      setReport(updated);
+    } catch {
+      // Browser demo mode has no Tauri IPC; keep the local dismissal for smoke testing.
+    }
+  }
+
+  function navigateToAction(pageId: string) {
+    const validPages: Page[] = [
+      "import",
+      "dashboard",
+      "utxos",
+      "fees",
+      "spend_preflight",
+      "privacy",
+      "consolidation",
+      "psbt",
+      "recovery",
+      "descriptor_diff",
+      "explanations",
+      "graph",
+      "alerts",
+      "settings"
+    ];
+    if (validPages.includes(pageId as Page)) {
+      setPage(pageId as Page);
+    }
+  }
+
   return (
     <div className="app-frame">
       <div className={`boot-sweep ${booting ? "boot-sweep-active" : ""}`} aria-hidden="true">
@@ -204,10 +238,12 @@ export default function App() {
             setPage("dashboard");
           }} />
         ) : null}
-        {page === "dashboard" && report ? <Dashboard report={report} /> : null}
+        {page === "dashboard" && report ? (
+          <Cockpit report={report} onNavigate={navigateToAction} onDismissAction={dismissCockpitAction} />
+        ) : null}
         {page === "utxos" && report ? <UtxoTable report={report} onUpdateUtxos={updateUtxos} /> : null}
         {page === "fees" && report ? <FeeStressTest report={report} /> : null}
-        {page === "spend_preview" && report ? <SpendPreview report={report} /> : null}
+        {page === "spend_preflight" && report ? <SpendPreview report={report} /> : null}
         {page === "privacy" && report ? <PrivacySimulator report={report} /> : null}
         {page === "consolidation" && report ? <ConsolidationPlanner report={report} /> : null}
         {page === "psbt" && report ? <PsbtLinter report={report} /> : null}

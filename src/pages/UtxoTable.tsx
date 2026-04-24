@@ -1,10 +1,11 @@
-import { ArrowDownUp, CheckSquare, Filter, Info, Search, Tags, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { ArrowDownUp, BookmarkPlus, CheckSquare, Filter, Info, Search, Tags, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { RiskBadge } from "../components/RiskBadge";
 import { StatusPill } from "../components/StatusPill";
+import { deleteCoinSet, listCoinSets, saveCoinSet } from "../api/tauri";
 import { categoryLabel, compactSats, humanize, satsToBtc, scriptTypeLabel, txidPrefix } from "../lib/format";
 import { SOURCE_CATEGORIES } from "../lib/phase2";
-import type { QuarantineStatus, SourceCategory, Utxo, UtxoStatus, UtxoUpdate, WalletReport } from "../types/domain";
+import type { CoinSet, ProvenanceSourceKind, QuarantineStatus, SourceCategory, Utxo, UtxoStatus, UtxoUpdate, WalletReport } from "../types/domain";
 
 interface UtxoTableProps {
   report: WalletReport;
@@ -12,6 +13,7 @@ interface UtxoTableProps {
 }
 
 type SortKey = "amount_sats" | "confirmations" | "script_type" | "source_category";
+type ProvenanceFilter = ProvenanceSourceKind | "all" | "exchange_like" | "unknown_or_quarantined";
 
 const SPENDABILITY_STATUSES: UtxoStatus[] = [
   "spendable",
@@ -40,8 +42,13 @@ export function UtxoTable({ report, onUpdateUtxos }: UtxoTableProps) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<SourceCategory | "all">("all");
   const [riskFlag, setRiskFlag] = useState("all");
+  const [provenanceFilter, setProvenanceFilter] = useState<ProvenanceFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("amount_sats");
   const [selected, setSelected] = useState<string[]>([]);
+  const [coinSets, setCoinSets] = useState<CoinSet[]>([]);
+  const [coinSetName, setCoinSetName] = useState("");
+  const [coinSetIntent, setCoinSetIntent] = useState("spend preflight");
+  const [coinSetNotes, setCoinSetNotes] = useState("");
   const [batchLabel, setBatchLabel] = useState("");
   const [batchSourceLabel, setBatchSourceLabel] = useState("");
   const [batchCategory, setBatchCategory] = useState<SourceCategory>("unknown");
@@ -58,6 +65,12 @@ export function UtxoTable({ report, onUpdateUtxos }: UtxoTableProps) {
     () => Array.from(new Set(report.utxos.map((utxo) => utxo.source_category))).sort(),
     [report.utxos]
   );
+
+  useEffect(() => {
+    listCoinSets()
+      .then(setCoinSets)
+      .catch(() => setCoinSets([]));
+  }, []);
 
   const filtered = useMemo(() => {
     return report.utxos
@@ -76,8 +89,9 @@ export function UtxoTable({ report, onUpdateUtxos }: UtxoTableProps) {
       })
       .filter((utxo) => (category === "all" ? true : utxo.source_category === category))
       .filter((utxo) => (riskFlag === "all" ? true : utxo.audit_flags.includes(riskFlag)))
+      .filter((utxo) => matchesProvenanceFilter(utxo, provenanceFilter))
       .sort((a, b) => compareUtxos(a, b, sortKey));
-  }, [category, query, report.utxos, riskFlag, sortKey]);
+  }, [category, provenanceFilter, query, report.utxos, riskFlag, sortKey]);
 
   const detailUtxo = useMemo(
     () => report.utxos.find((utxo) => utxo.outpoint === detailOutpoint) ?? null,
@@ -105,12 +119,43 @@ export function UtxoTable({ report, onUpdateUtxos }: UtxoTableProps) {
     onUpdateUtxos(selected, patch);
   }
 
+  async function saveSelectedCoinSet() {
+    if (selected.length === 0) return;
+    const name = coinSetName.trim() || `${selected.length} coin preflight set`;
+    const intent = coinSetIntent.trim() || "spend preflight";
+    const localSet: CoinSet = {
+      id: `browser:${Date.now()}`,
+      wallet_id: report.wallet.id,
+      name,
+      intent,
+      outpoints: selected,
+      notes: coinSetNotes.trim() || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    try {
+      setCoinSets(await saveCoinSet({ name, intent, outpoints: selected, notes: coinSetNotes || null }));
+    } catch {
+      setCoinSets((current) => [localSet, ...current]);
+    }
+    setCoinSetName("");
+    setCoinSetNotes("");
+  }
+
+  async function removeCoinSet(id: string) {
+    try {
+      setCoinSets(await deleteCoinSet(id));
+    } catch {
+      setCoinSets((current) => current.filter((set) => set.id !== id));
+    }
+  }
+
   return (
     <main className="page-shell">
       <section className="page-header">
         <div>
           <p>{report.wallet.name}</p>
-          <h1>UTXO table</h1>
+          <h1>Coin workbench</h1>
         </div>
         <StatusPill label={`${selected.length} selected`} tone={selected.length ? "warn" : "neutral"} />
       </section>
@@ -209,6 +254,47 @@ export function UtxoTable({ report, onUpdateUtxos }: UtxoTableProps) {
         </section>
       ) : null}
 
+      <section className="panel coinset-panel">
+        <div className="panel-heading">
+          <h2>Saved coin sets</h2>
+          <StatusPill label={`${coinSets.length} sets`} tone={coinSets.length ? "good" : "neutral"} />
+        </div>
+        <div className="coinset-controls">
+          <label>
+            Set name
+            <input value={coinSetName} onChange={(event) => setCoinSetName(event.target.value)} placeholder="KYC stack / recovery drill / avoid merge" />
+          </label>
+          <label>
+            Intent
+            <input value={coinSetIntent} onChange={(event) => setCoinSetIntent(event.target.value)} placeholder="spend preflight" />
+          </label>
+          <label>
+            Notes
+            <input value={coinSetNotes} onChange={(event) => setCoinSetNotes(event.target.value)} placeholder="local operator notes" />
+          </label>
+          <button type="button" className="secondary-button" onClick={saveSelectedCoinSet} disabled={selected.length === 0}>
+            <BookmarkPlus size={16} /> Save selected
+          </button>
+        </div>
+        {coinSets.length ? (
+          <div className="coinset-list">
+            {coinSets.map((set) => (
+              <article className="coinset-card" key={set.id}>
+                <button type="button" className="coinset-main" onClick={() => setSelected(set.outpoints)}>
+                  <strong>{set.name}</strong>
+                  <span>{set.intent} · {set.outpoints.length} coins</span>
+                </button>
+                <button type="button" className="icon-button" onClick={() => removeCoinSet(set.id)} aria-label={`Delete ${set.name}`}>
+                  <Trash2 size={15} />
+                </button>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="empty-state">Save selected coins to preserve review sets like KYC stack, unknown source, or do-not-merge.</p>
+        )}
+      </section>
+
       <section className="toolbar command-bar">
         <label className="search-field">
           <Search size={17} aria-hidden="true" />
@@ -237,6 +323,18 @@ export function UtxoTable({ report, onUpdateUtxos }: UtxoTableProps) {
           </select>
         </label>
         <label>
+          <Filter size={16} aria-hidden="true" />
+          <select value={provenanceFilter} onChange={(event) => setProvenanceFilter(event.target.value as ProvenanceFilter)}>
+            <option value="all">All provenance</option>
+            <option value="manual">Manual evidence</option>
+            <option value="registry">Registry evidence</option>
+            <option value="heuristic">Heuristic evidence</option>
+            <option value="wallet_change">Wallet change</option>
+            <option value="exchange_like">Exchange-like</option>
+            <option value="unknown_or_quarantined">Unknown / quarantined</option>
+          </select>
+        </label>
+        <label>
           <ArrowDownUp size={16} aria-hidden="true" />
           <select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>
             <option value="amount_sats">Amount</option>
@@ -262,6 +360,7 @@ export function UtxoTable({ report, onUpdateUtxos }: UtxoTableProps) {
               <th>Amount</th>
               <th>Label</th>
               <th>Source</th>
+              <th>Provenance</th>
               <th>Path</th>
               <th>Confirmations</th>
               <th>Spend cost</th>
@@ -317,6 +416,9 @@ export function UtxoTable({ report, onUpdateUtxos }: UtxoTableProps) {
                     placeholder="No source label"
                     aria-label={`Source label ${utxo.outpoint}`}
                   />
+                </td>
+                <td>
+                  <ProvenanceStack utxo={utxo} />
                 </td>
                 <td>
                   <strong>{scriptTypeLabel(utxo.script_type)}</strong>
@@ -398,6 +500,17 @@ function compareUtxos(a: Utxo, b: Utxo, sortKey: SortKey) {
   return String(a[sortKey]).localeCompare(String(b[sortKey]));
 }
 
+function matchesProvenanceFilter(utxo: Utxo, filter: ProvenanceFilter) {
+  if (filter === "all") return true;
+  if (filter === "exchange_like") {
+    return utxo.provenance.category === "exchange" || utxo.source_category === "exchange";
+  }
+  if (filter === "unknown_or_quarantined") {
+    return utxo.provenance.source_kind === "unknown" || utxo.quarantine_status !== "none";
+  }
+  return utxo.provenance.source_kind === filter;
+}
+
 function FeeStack({ utxo }: { utxo: Utxo }) {
   const at25 = utxo.spend_cost_by_fee_rate.find((fee) => fee.fee_rate === 25);
   const at100 = utxo.spend_cost_by_fee_rate.find((fee) => fee.fee_rate === 100);
@@ -406,6 +519,16 @@ function FeeStack({ utxo }: { utxo: Utxo }) {
     <div className="fee-stack">
       <span>25: {at25 ? `${compactSats(at25.cost_sats)} sats` : "n/a"}</span>
       <span>100: {at100 ? `${compactSats(at100.cost_sats)} sats` : "n/a"}</span>
+    </div>
+  );
+}
+
+function ProvenanceStack({ utxo }: { utxo: Utxo }) {
+  return (
+    <div className="provenance-stack">
+      <strong>{utxo.provenance.entity_label ?? categoryLabel(utxo.provenance.category)}</strong>
+      <span>{humanize(utxo.provenance.source_kind)} · {humanize(utxo.provenance.confidence_level)}</span>
+      <span>{utxo.provenance.evidence[0]?.label ?? "No evidence"}</span>
     </div>
   );
 }
@@ -443,6 +566,27 @@ function UtxoDetailDrawer({
           <StatusPill label={utxo.quarantine_status === "none" ? "Review" : "Quarantined"} tone={utxo.quarantine_status === "none" ? "neutral" : "warn"} />
         </div>
         <p className="plain-text">{describeUtxo(utxo, relatedFindings.length)}</p>
+      </section>
+
+      <section className="panel embedded-form">
+        <div className="panel-heading">
+          <h2>Provenance evidence</h2>
+          <StatusPill label={humanize(utxo.provenance.confidence_level)} tone={utxo.provenance.confidence_level === "high" ? "good" : utxo.provenance.confidence_level === "medium" ? "warn" : "neutral"} />
+        </div>
+        <div className="shape-list">
+          <DetailRow label="Source kind" value={humanize(utxo.provenance.source_kind)} />
+          <DetailRow label="Entity/category" value={utxo.provenance.entity_label ?? categoryLabel(utxo.provenance.category)} />
+          <DetailRow label="Updated" value={utxo.provenance.updated_at} />
+        </div>
+        <div className="finding-list">
+          {utxo.provenance.evidence.map((evidence) => (
+            <article className="finding-row" key={evidence.id}>
+              <strong>{evidence.label}</strong>
+              <p>{evidence.detail}</p>
+              <span>{humanize(evidence.confidence_level)} confidence · {evidence.source}</span>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="panel embedded-form">
@@ -575,5 +719,6 @@ function describeUtxo(utxo: Utxo, findingCount: number): string {
       ? `${findingCount} audit finding may apply to this coin.`
       : "No direct audit finding references this coin.";
 
-  return `This UTXO appears to be a ${receiveType} at ${utxo.derivation_path}. It is ${label}, categorized as ${categoryLabel(utxo.source_category)}, and has ${utxo.confirmations} confirmations. ${quarantine} ${findings} These heuristics are not definitive.`;
+  const provenance = utxo.provenance.entity_label ?? categoryLabel(utxo.provenance.category);
+  return `This UTXO appears to be a ${receiveType} at ${utxo.derivation_path}. It is ${label}, categorized as ${categoryLabel(utxo.source_category)}, and its current provenance assessment is ${provenance} with ${humanize(utxo.provenance.confidence_level)} confidence. It has ${utxo.confirmations} confirmations. ${quarantine} ${findings} These heuristics are not definitive.`;
 }

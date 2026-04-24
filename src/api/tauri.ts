@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { DescriptorDiffResult, PsbtAnalysisResult } from "../lib/phase3";
 import type {
   Alert,
+  CoinSet,
   ConsolidationSimulation,
   ImportRequest,
   Label,
@@ -33,6 +34,10 @@ export async function getCurrentWallet(): Promise<WalletReport | null> {
 
 export async function updateUtxos(outpoints: string[], patch: UtxoUpdate): Promise<WalletReport> {
   return invoke<WalletReport>("update_utxos", { outpoints, patch });
+}
+
+export async function dismissAction(actionId: string): Promise<WalletReport> {
+  return invoke<WalletReport>("dismiss_action", { actionId });
 }
 
 export async function compareDescriptors(
@@ -78,6 +83,24 @@ export async function upsertLabel(patch: {
   category: SourceCategory;
 }): Promise<Label[]> {
   return invoke<Label[]>("upsert_label", { patch });
+}
+
+export async function listCoinSets(): Promise<CoinSet[]> {
+  return invoke<CoinSet[]>("list_coin_sets");
+}
+
+export async function saveCoinSet(patch: {
+  id?: string | null;
+  name: string;
+  intent: string;
+  outpoints: string[];
+  notes?: string | null;
+}): Promise<CoinSet[]> {
+  return invoke<CoinSet[]>("save_coin_set", { patch });
+}
+
+export async function deleteCoinSet(coinSetId: string): Promise<CoinSet[]> {
+  return invoke<CoinSet[]>("delete_coin_set", { coinSetId });
 }
 
 export async function simulateSpend(
@@ -175,7 +198,30 @@ function browserDemoReport(): WalletReport {
         ],
         audit_flags: [],
         quarantine_status: "none",
-        spendability_status: "spendable"
+        spendability_status: "spendable",
+        provenance: {
+          source_kind: "manual",
+          entity_label: "River withdrawal",
+          category: "exchange",
+          confidence_level: "high",
+          updated_at: "2026-04-24T00:00:00Z",
+          evidence: [
+            {
+              id: "manual_source_label",
+              label: "User-confirmed source label",
+              detail: "The coin has a local source label of River withdrawal. Manual labels take precedence over heuristics.",
+              confidence_level: "high",
+              source: "local_labels"
+            },
+            {
+              id: "river-demo-withdrawal",
+              label: "Bundled exchange withdrawal pattern",
+              detail: "The local registry recognizes this as a River-like withdrawal pattern in the bundled demo data.",
+              confidence_level: "high",
+              source: "bundled_registry"
+            }
+          ]
+        }
       },
       {
         txid: "89aa4bb6e41b9d2b7c913c4d633e4eed9d3089629f7f26064f0c96cc1f853333",
@@ -202,7 +248,30 @@ function browserDemoReport(): WalletReport {
         ],
         audit_flags: ["tiny_utxo", "uneconomical_to_spend", "dust_attack_suspicion"],
         quarantine_status: "dust_attack_suspicion",
-        spendability_status: "quarantined"
+        spendability_status: "quarantined",
+        provenance: {
+          source_kind: "unknown",
+          entity_label: null,
+          category: "unknown",
+          confidence_level: "low",
+          updated_at: "2026-04-24T00:00:00Z",
+          evidence: [
+            {
+              id: "unknown_source",
+              label: "No local provenance evidence",
+              detail: "No manual label, registry pattern, or wallet-change heuristic matched this coin.",
+              confidence_level: "low",
+              source: "local_provenance_engine"
+            },
+            {
+              id: "unknown_or_dust_flag",
+              label: "Unknown-source risk flag",
+              detail: "The coin is unlabeled and already carries an unknown-source or dust-style quarantine flag.",
+              confidence_level: "medium",
+              source: "audit_engine"
+            }
+          ]
+        }
       }
     ],
     findings: [
@@ -240,6 +309,40 @@ function browserDemoReport(): WalletReport {
       largest_utxo_sats: 25000000,
       smallest_utxo_sats: 1200,
       by_category: { Exchange: 25000000, Unknown: 1200 }
-    }
+    },
+    provenance_summary: {
+      assessed_count: 2,
+      manual_count: 1,
+      registry_count: 0,
+      heuristic_count: 0,
+      unknown_count: 1,
+      exchange_like_count: 1
+    },
+    actions: [
+      {
+        id: "cockpit:quarantined_coins",
+        severity: "high",
+        title: "Keep quarantined coins isolated",
+        summary: "1 UTXO is marked for quarantine or manual review.",
+        why_it_matters: "Quarantined coins can carry dust, unknown-source, address reuse, or manual do-not-merge risk.",
+        recommended_action: "Open the coin workbench, review the evidence, and avoid merging this coin into normal spends.",
+        cta_page: "utxos",
+        affected_utxos: ["89aa4bb6e41b9d2b7c913c4d633e4eed9d3089629f7f26064f0c96cc1f853333:1"],
+        confidence_level: "high",
+        dismissed: false
+      },
+      {
+        id: "cockpit:exchange_stack",
+        severity: "medium",
+        title: "Protect KYC-linked exchange stack",
+        summary: "1 UTXO looks exchange-linked by local labels or registry evidence.",
+        why_it_matters: "Exchange-linked coins can reveal identity context when merged with P2P, donation, or unknown-source coins.",
+        recommended_action: "Use Spend Preflight before merging exchange-like coins with unrelated contexts.",
+        cta_page: "spend_preflight",
+        affected_utxos: [`${txid}:0`],
+        confidence_level: "medium",
+        dismissed: false
+      }
+    ]
   };
 }

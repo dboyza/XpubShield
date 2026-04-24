@@ -1,3 +1,4 @@
+use crate::action_engine::build_action_center;
 use crate::address_derivation::derive_addresses_for_descriptors;
 use crate::audit_engine::audit_wallet;
 use crate::mock_backend::privacy_score_for_backend;
@@ -5,9 +6,11 @@ use crate::models::{
     BackendKind, QuarantineStatus, SourceCategory, Transaction, Utxo, UtxoStatus, Wallet,
     WalletReport,
 };
+use crate::provenance_engine::enrich_wallet_provenance;
 use crate::wallet_import::ValidatedImport;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 use thiserror::Error;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -76,9 +79,13 @@ impl EsploraBackend {
         for descriptor in descriptors.iter_mut() {
             descriptor.wallet_id = wallet_id.clone();
         }
-        let mut addresses =
-            derive_addresses_for_descriptors(&wallet_id, &wallet.network, &descriptors, import.gap_limit)
-                .map_err(|error| EsploraError::Derivation(error.to_string()))?;
+        let mut addresses = derive_addresses_for_descriptors(
+            &wallet_id,
+            &wallet.network,
+            &descriptors,
+            import.gap_limit,
+        )
+        .map_err(|error| EsploraError::Derivation(error.to_string()))?;
         let script_type = descriptors
             .first()
             .map(|descriptor| descriptor.script_type)
@@ -93,7 +100,13 @@ impl EsploraBackend {
                 .into_json()
                 .map_err(|error| EsploraError::Parse(error.to_string()))?;
             utxos.extend(response.into_iter().map(|utxo| {
-                utxo_from_esplora(&wallet_id, &address.address, &address.derivation_path, script_type, utxo)
+                utxo_from_esplora(
+                    &wallet_id,
+                    &address.address,
+                    &address.derivation_path,
+                    script_type,
+                    utxo,
+                )
             }));
         }
 
@@ -101,7 +114,7 @@ impl EsploraBackend {
         let transactions = transactions_from_utxos(&utxos);
         let (findings, scores, totals) = audit_wallet(&wallet, &addresses, &mut utxos);
 
-        Ok(WalletReport {
+        let mut report = WalletReport {
             backend_privacy: privacy_score_for_backend(backend),
             wallet,
             descriptors,
@@ -111,7 +124,12 @@ impl EsploraBackend {
             findings,
             scores,
             totals,
-        })
+            actions: Vec::new(),
+            provenance_summary: Default::default(),
+        };
+        enrich_wallet_provenance(&mut report);
+        report.actions = build_action_center(&report, &BTreeSet::new());
+        Ok(report)
     }
 }
 
@@ -160,6 +178,7 @@ pub fn utxo_from_esplora(
         audit_flags: Vec::new(),
         quarantine_status: QuarantineStatus::None,
         spendability_status: UtxoStatus::Unknown,
+        provenance: Default::default(),
     }
 }
 

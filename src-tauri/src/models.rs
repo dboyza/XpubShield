@@ -117,6 +117,16 @@ pub enum QuarantineStatus {
     Manual,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ProvenanceSourceKind {
+    Manual,
+    Registry,
+    Heuristic,
+    WalletChange,
+    Unknown,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Wallet {
     pub id: String,
@@ -195,6 +205,7 @@ pub struct Utxo {
     pub audit_flags: Vec<String>,
     pub quarantine_status: QuarantineStatus,
     pub spendability_status: UtxoStatus,
+    pub provenance: ProvenanceAssessment,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -218,6 +229,68 @@ pub struct AuditFinding {
     pub affected_transactions: Vec<String>,
     pub confidence_level: ConfidenceLevel,
     pub heuristic_notes: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProvenanceEvidence {
+    pub id: String,
+    pub label: String,
+    pub detail: String,
+    pub confidence_level: ConfidenceLevel,
+    pub source: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProvenanceAssessment {
+    pub source_kind: ProvenanceSourceKind,
+    pub entity_label: Option<String>,
+    pub category: SourceCategory,
+    pub confidence_level: ConfidenceLevel,
+    pub evidence: Vec<ProvenanceEvidence>,
+    pub updated_at: String,
+}
+
+impl Default for ProvenanceAssessment {
+    fn default() -> Self {
+        Self {
+            source_kind: ProvenanceSourceKind::Unknown,
+            entity_label: None,
+            category: SourceCategory::Unknown,
+            confidence_level: ConfidenceLevel::Low,
+            evidence: vec![ProvenanceEvidence {
+                id: "unknown_source".to_string(),
+                label: "No local provenance evidence".to_string(),
+                detail: "No manual label, registry pattern, or wallet-change heuristic matched this coin.".to_string(),
+                confidence_level: ConfidenceLevel::Low,
+                source: "local_provenance_engine".to_string(),
+            }],
+            updated_at: chrono::Utc::now().to_rfc3339(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ProvenanceSummary {
+    pub assessed_count: usize,
+    pub manual_count: usize,
+    pub registry_count: usize,
+    pub heuristic_count: usize,
+    pub unknown_count: usize,
+    pub exchange_like_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActionItem {
+    pub id: String,
+    pub severity: Severity,
+    pub title: String,
+    pub summary: String,
+    pub why_it_matters: String,
+    pub recommended_action: String,
+    pub cta_page: String,
+    pub affected_utxos: Vec<String>,
+    pub confidence_level: ConfidenceLevel,
+    pub dismissed: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -249,6 +322,8 @@ pub struct WalletReport {
     pub scores: RiskScores,
     pub backend_privacy: BackendPrivacyScore,
     pub totals: WalletTotals,
+    pub actions: Vec<ActionItem>,
+    pub provenance_summary: ProvenanceSummary,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -322,4 +397,16 @@ pub struct Alert {
     pub message: String,
     pub acknowledged: bool,
     pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CoinSet {
+    pub id: String,
+    pub wallet_id: String,
+    pub name: String,
+    pub intent: String,
+    pub outpoints: Vec<String>,
+    pub notes: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
 }

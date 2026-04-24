@@ -396,6 +396,7 @@ function lintFixture(
   const walletInputs = inputs.map((input) => input.walletUtxo).filter(Boolean) as Utxo[];
   const labels = distinct(walletInputs.map((utxo) => utxo.label || "Unlabeled"));
   const categories = distinct(walletInputs.map((utxo) => utxo.source_category));
+  const provenanceContexts = distinct(walletInputs.map(provenanceContext));
 
   if (feeRate === undefined || fixture.fee_sats === undefined) {
     warnings.push(missingMetadataWarning());
@@ -453,6 +454,18 @@ function lintFixture(
       explanation: "The selected inputs merge different labels or source categories. This may link histories.",
       recommendedAction: "Consider a coin selection from one label/category.",
       confidence: "high"
+    });
+  }
+
+  if (provenanceContexts.length > 1) {
+    warnings.push({
+      id: "provenance_mixing",
+      severity: walletInputs.some(isKycLike) && walletInputs.some(isNonKycLike) ? "high" : "medium",
+      title: "Provenance mixing",
+      explanation:
+        "The selected wallet inputs combine different local provenance contexts. This can reveal that separate source histories are controlled together.",
+      recommendedAction: "Prefer inputs from one source context unless the merge is intentional.",
+      confidence: "medium"
     });
   }
 
@@ -601,6 +614,19 @@ function row(label: string, left: unknown, right: unknown): DescriptorDiffResult
 
 function distinct<T extends string>(values: T[]): T[] {
   return Array.from(new Set(values)).sort();
+}
+
+function provenanceContext(utxo: Utxo): string {
+  return `${utxo.provenance.category}:${utxo.provenance.entity_label ?? utxo.source_label ?? utxo.label ?? "unknown"}`;
+}
+
+function isKycLike(utxo: Utxo): boolean {
+  return utxo.source_category === "exchange" || utxo.provenance.category === "exchange";
+}
+
+function isNonKycLike(utxo: Utxo): boolean {
+  return ["p2p", "mining", "gift", "donation"].includes(utxo.source_category) ||
+    ["p2p", "mining", "gift", "donation"].includes(utxo.provenance.category);
 }
 
 function hashString(value: string): string {
