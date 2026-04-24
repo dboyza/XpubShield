@@ -39,6 +39,20 @@ Prerequisites:
 - Rust stable with Cargo
 - Platform dependencies required by Tauri
 
+On Windows, install Rust through rustup:
+
+1. Download and run `rustup-init.exe` from `https://rustup.rs`.
+2. Choose the default installation.
+3. Close and reopen PowerShell.
+4. Verify Cargo is available:
+
+```powershell
+rustc --version
+cargo --version
+```
+
+If `npm run tauri dev` fails with `program not found` while running `cargo metadata`, Rust/Cargo is not installed or is not on `PATH`.
+
 Install dependencies:
 
 ```bash
@@ -53,7 +67,7 @@ npm run dev
 
 Run the desktop app:
 
-```bash
+```powershell
 npm run tauri dev
 ```
 
