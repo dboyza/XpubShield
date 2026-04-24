@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "UTXO Sentinel",
+  "productName": "XpubShield",
   "version": "0.1.0",
-  "identifier": "com.utxosentinel.app",
+  "identifier": "com.xpubshield.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "UTXO Sentinel",
+        "title": "XpubShield",
         "width": 1280,
         "height": 860,
         "minWidth": 1040,

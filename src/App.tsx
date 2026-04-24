@@ -34,7 +34,7 @@ export default function App() {
         <div className="brand-lockup">
           <ShieldAlert size={24} aria-hidden="true" />
           <div>
-            <strong>UTXO Sentinel</strong>
+            <strong>XpubShield</strong>
             <span>Watch-only</span>
           </div>
         </div>

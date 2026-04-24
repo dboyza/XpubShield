@@ -11,7 +11,7 @@ export function PrivacyWarning({ publicApiMode = false }: PrivacyWarningProps) {
       <div>
         <strong>{publicApiMode ? "Public API privacy warning" : "Watch-only security boundary"}</strong>
         <p>
-          UTXO Sentinel rejects seed phrases, private keys, xprv values, WIF keys, and signing
+          XpubShield rejects seed phrases, private keys, xprv values, WIF keys, and signing
           material. Xpubs, descriptors, addresses, labels, wallet history, and PSBTs are sensitive
           local data.
         </p>

@@ -37,7 +37,7 @@ pub struct ValidatedImport {
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ImportError {
-    #[error("Private key material is not accepted. UTXO Sentinel is watch-only and does not process seeds, xprv values, WIF keys, or signing material.")]
+    #[error("Private key material is not accepted. XpubShield is watch-only and does not process seeds, xprv values, WIF keys, or signing material.")]
     PrivateMaterial,
     #[error("A descriptor import requires a Bitcoin output descriptor.")]
     MissingDescriptor,

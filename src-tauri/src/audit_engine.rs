@@ -304,7 +304,7 @@ fn public_backend_findings(wallet: &Wallet) -> Vec<AuditFinding> {
         severity: Severity::High,
         title: "Public API mode is enabled".to_string(),
         explanation:
-            "Public API mode could reveal wallet addresses and timing metadata to a third party. UTXO Sentinel never uploads raw xpubs or descriptors."
+            "Public API mode could reveal wallet addresses and timing metadata to a third party. XpubShield never uploads raw xpubs or descriptors."
                 .to_string(),
         recommended_action:
             "Use Bitcoin Core RPC, a personal Electrum server, or self-hosted Esplora for better privacy."

@@ -1,16 +1,16 @@
 [package]
-name = "utxo-sentinel"
+name = "xpubshield"
 version = "0.1.0"
-description = "Local-first watch-only Bitcoin UTXO observability desktop app"
-authors = ["UTXO Sentinel"]
+description = "Local-first watch-only Bitcoin xpub and UTXO observability desktop app"
+authors = ["XpubShield"]
 edition = "2021"
 
 [lib]
-name = "utxo_sentinel"
+name = "xpubshield"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [[bin]]
-name = "utxo-sentinel"
+name = "xpubshield"
 path = "src/main.rs"
 
 [build-dependencies]

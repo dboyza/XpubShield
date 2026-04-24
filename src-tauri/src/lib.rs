@@ -28,5 +28,5 @@ pub fn run() {
             get_current_wallet
         ])
         .run(tauri::generate_context!())
-        .expect("failed to run UTXO Sentinel");
+        .expect("failed to run XpubShield");
 }

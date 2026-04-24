@@ -1,12 +1,12 @@
-# UTXO Sentinel
+# XpubShield
 
-UTXO Sentinel is a local-first, watch-only Bitcoin desktop app for personal custody observability. It helps users inspect wallet structure, UTXO fee burden, labeling gaps, and basic privacy risks without signing or broadcasting transactions.
+XpubShield is a local-first, watch-only Bitcoin desktop app for personal custody observability. It helps users inspect wallet structure, xpub-derived descriptors, UTXO fee burden, labeling gaps, and basic privacy risks without signing or broadcasting transactions.
 
 This repository currently implements the Phase 1 MVP with a Tauri + React shell, Rust data models and commands, SQLite schema/migrations, a mock blockchain backend, descriptor/xpub import validation, private-material rejection, mock UTXO scanning, a dashboard, a UTXO table, and a deterministic audit engine.
 
 ## Security Model
 
-UTXO Sentinel is watch-only only.
+XpubShield is watch-only only.
 
 - It must never ask for, import, store, transmit, or process seed phrases, mnemonics, private keys, xprv values, WIF keys, or signing material.
 - Pasted private material is rejected before import.
