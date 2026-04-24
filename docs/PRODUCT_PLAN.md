@@ -692,12 +692,99 @@ Current implementation note:
 - The descriptor diff tool compares metadata and deterministic previews; real Bitcoin address derivation remains a later backend-backed enhancement.
 - Transaction explanations are deterministic templates and avoid unsupported certainty.
 
-### Phase 4
+### Phase 4: Foundation Hardening
 
-- Graph visualization
-- Esplora-compatible backend
-- Bitcoin Core backend
-- Alerts
+Phase 4 addresses the verified MVP limits before live backend and graph work. The goal is to move the app from session-local mock behavior toward durable local wallet state while preserving the watch-only security boundary.
+
+- Add durable SQLite persistence for labels, source labels, categories, quarantine status, and spendability status.
+- Replace mock descriptor preview/address derivation with Rust-backed descriptor parsing and address derivation.
+- Update descriptor diff so first-20-address comparison uses real derived Bitcoin addresses instead of deterministic placeholders.
+- Implement real Rust PSBT parsing and expose local PSBT analysis through Tauri commands.
+- Preserve explicit no-signing, no-broadcasting, no-seed/private-key, and no-raw-xpub-upload boundaries.
+
+Acceptance gates:
+
+- Label, source, category, quarantine, and spendability edits survive app restart.
+- Descriptor-derived addresses match known wallet export fixtures.
+- PSBT lint fixtures cover high fee, unknown change, mixed labels, and quarantined inputs.
+- Private material rejection remains enforced in frontend and Rust import/PSBT paths.
+
+### Phase 5: Bitcoin Core Local Backend
+
+Phase 5 adds the first live backend using Bitcoin Core RPC because it best matches the local-first privacy model.
+
+- Implement Bitcoin Core RPC backend configuration and scan flow.
+- Query locally derived addresses only; never transmit raw xpubs or descriptors.
+- Keep the mock backend available for demo mode, fixtures, and tests.
+- Persist scan results into the local SQLite schema.
+- Surface backend privacy score and local-node status clearly in the UI.
+
+Acceptance gates:
+
+- Mocked Bitcoin Core RPC integration tests cover address activity, UTXO discovery, confirmations, and spent outputs.
+- Backend scan code demonstrates that only derived addresses/scripts are queried.
+- Public API privacy warnings do not appear for local Bitcoin Core mode.
+
+### Phase 6: Graph Visualization
+
+Phase 6 builds the original graph views on top of persisted wallet, address, transaction, UTXO, label, and audit data.
+
+- Add wallet graph, UTXO lifecycle graph, label cluster graph, privacy risk graph, and fee heatmap.
+- Include filters for label, source category, date, amount, script type, risk flag, and confirmation count.
+- Add node detail panels for transactions, addresses, UTXOs, and graph-derived risk context.
+- Add pagination or viewport rendering so large wallets are not rendered all at once.
+
+Acceptance gates:
+
+- Graph builder tests cover nodes, edges, filters, and risk highlighting.
+- UI smoke tests confirm graph navigation, filtering, and detail panels.
+- Large mock wallets remain responsive through pagination or viewport limits.
+
+### Phase 7: Local Alerts And Monitoring
+
+Phase 7 adds local-only alerts generated from wallet scans, simulations, PSBT analysis, and backend/privacy settings.
+
+- Add alerts for new incoming UTXOs, externally spent UTXOs, balance changes, unknown address activity, activity near the gap limit, new address reuse, and public API mode.
+- Add alerts when quarantined UTXOs appear in simulated spends or PSBT inputs.
+- Persist alert state locally, including acknowledgement status.
+- Avoid push notifications, cloud sync, or telemetry.
+
+Acceptance gates:
+
+- Alert rule tests cover each alert type.
+- Alert acknowledgement survives app restart.
+- Alerts do not transmit wallet metadata outside the local app.
+
+### Phase 8: Esplora Backend And Public API Mode
+
+Phase 8 adds Esplora-compatible backend support after the local Bitcoin Core backend is working.
+
+- Implement self-hosted Esplora-compatible backend configuration and scan flow.
+- Add optional public Esplora mode with unavoidable weak-privacy warnings and explicit acknowledgement.
+- Query derived addresses only; never upload raw xpubs or descriptors.
+- Keep public API mode visually distinct from local-node and self-hosted modes.
+
+Acceptance gates:
+
+- Mocked Esplora tests cover address activity, UTXO discovery, confirmations, and spent outputs.
+- Public API mode cannot be enabled without acknowledgement.
+- Backend privacy scoring reflects self-hosted, Tor-routed, and public API tradeoffs.
+
+### Phase 9: Demo Preview To Beta Readiness
+
+Phase 9 prepares the app to move beyond demo preview. The project should not be called beta until durable persistence, real descriptor/address derivation, real PSBT parsing, and the Bitcoin Core backend are complete.
+
+- Review dependency audit findings and decide whether to upgrade, pin, or document accepted development-only risk.
+- Expand fixture coverage for descriptors, xpub imports, wallet shapes, graph data, backend scans, alerts, and PSBT cases.
+- Refresh README, handoff notes, setup instructions, packaging notes, and security/privacy documentation.
+- Run security review focused on watch-only boundaries, local data handling, backend privacy, and accidental transmission risks.
+- Rebuild Windows desktop bundles and verify installer output.
+
+Acceptance gates:
+
+- `npm run build`, `cargo test`, and `npm run tauri -- build` pass.
+- Dependency audit status is documented with a chosen remediation or acceptance path.
+- Documentation clearly labels the current release posture as Demo Preview unless beta gates are satisfied.
 
 ## Non-Goals For MVP
 
