@@ -2,9 +2,10 @@ import { Calculator, CircleDollarSign, ShieldAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { MetricCard } from "../components/MetricCard";
 import { StatusPill } from "../components/StatusPill";
+import { simulateSpend } from "../api/tauri";
 import { compactSats, humanize, satsToBtc, txidPrefix } from "../lib/format";
 import { buildSpendPreview, STRESS_FEE_RATES } from "../lib/phase2";
-import type { Utxo, WalletReport } from "../types/domain";
+import type { SpendSimulation, Utxo, WalletReport } from "../types/domain";
 
 interface SpendPreviewProps {
   report: WalletReport;
@@ -16,6 +17,7 @@ export function SpendPreview({ report }: SpendPreviewProps) {
   const [feeRate, setFeeRate] = useState(25);
   const [changePolicy, setChangePolicy] = useState<"auto" | "avoid_change">("auto");
   const [singleContextOnly, setSingleContextOnly] = useState(false);
+  const [savedSimulation, setSavedSimulation] = useState<SpendSimulation | null>(null);
 
   const eligibleUtxos = useMemo(() => {
     if (!singleContextOnly || selected.length === 0) return report.utxos;
@@ -47,6 +49,15 @@ export function SpendPreview({ report }: SpendPreviewProps) {
     setSelected((current) =>
       current.includes(outpoint) ? current.filter((item) => item !== outpoint) : [...current, outpoint]
     );
+  }
+
+  async function persistSimulation() {
+    try {
+      const saved = await simulateSpend(selected, Number(destinationAmount), feeRate);
+      setSavedSimulation(saved);
+    } catch {
+      setSavedSimulation(null);
+    }
   }
 
   return (
@@ -144,6 +155,15 @@ export function SpendPreview({ report }: SpendPreviewProps) {
                 <p>{warning}</p>
               </article>
             ))}
+          </div>
+
+          <div className="button-row settings-actions">
+            <button type="button" className="secondary-button" onClick={persistSimulation} disabled={selected.length === 0}>
+              Save local simulation
+            </button>
+            {savedSimulation ? (
+              <StatusPill label={`${savedSimulation.warnings.length} persisted warnings`} tone={savedSimulation.warnings.length ? "warn" : "good"} />
+            ) : null}
           </div>
 
           <div className="panel embedded-form">

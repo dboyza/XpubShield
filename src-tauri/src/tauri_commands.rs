@@ -3,13 +3,17 @@ use crate::blockchain_backend::BlockchainBackend;
 use crate::bitcoin_core_backend::BitcoinCoreBackend;
 use crate::database::{
     acknowledge_alert as acknowledge_alert_in_database, clear_local_cache as clear_database_cache,
-    initialize_database, load_alerts, load_current_wallet_report, merge_persisted_utxo_metadata,
-    save_alerts, save_wallet_report, wallet_totals_from_utxos,
+    initialize_database, load_alerts, load_current_wallet_report, load_labels as load_database_labels,
+    merge_persisted_utxo_metadata, save_alerts, save_consolidation_plan, save_label,
+    save_spend_simulation, save_wallet_report, wallet_totals_from_utxos,
 };
 use crate::descriptor_diff::{compare_descriptor_inputs, DescriptorDiffSummary};
 use crate::esplora_backend::EsploraBackend;
 use crate::mock_backend::{build_demo_import, MockBackend};
-use crate::models::{Alert, Network, QuarantineStatus, SourceCategory, UtxoStatus, WalletReport};
+use crate::models::{
+    Alert, AuditFinding, ConfidenceLevel, ConsolidationPlan, FeeEstimate, Label, Network,
+    QuarantineStatus, Severity, SourceCategory, SpendSimulation, Utxo, UtxoStatus, WalletReport,
+};
 use crate::psbt_linter::{analyze_psbt_text, PsbtAnalysisResult};
 use crate::wallet_import::{validate_import, ImportKind, ImportRequest};
 use rusqlite::Connection;
@@ -54,6 +58,14 @@ pub struct UtxoMetadataPatch {
     pub source_category: Option<SourceCategory>,
     pub quarantine_status: Option<QuarantineStatus>,
     pub spendability_status: Option<UtxoStatus>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct LabelPatch {
+    pub target_type: String,
+    pub target_id: String,
+    pub label: String,
+    pub category: SourceCategory,
 }
 
 #[tauri::command]
@@ -294,6 +306,81 @@ pub fn acknowledge_alert(
 }
 
 #[tauri::command]
+pub fn list_labels(state: State<'_, AppState>) -> Result<Vec<Label>, String> {
+    let report = current_report(&state)?;
+    let database = state
+        .database
+        .lock()
+        .map_err(|_| "Database lock poisoned".to_string())?;
+    load_database_labels(&database, &report.wallet.id).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn upsert_label(
+    patch: LabelPatch,
+    state: State<'_, AppState>,
+) -> Result<Vec<Label>, String> {
+    validate_label_patch(&patch)?;
+    let report = current_report(&state)?;
+    let label = Label {
+        id: format!(
+            "label:{}:{}:{}",
+            report.wallet.id,
+            patch.target_type.trim(),
+            patch.target_id.trim()
+        ),
+        wallet_id: report.wallet.id.clone(),
+        target_type: patch.target_type.trim().to_string(),
+        target_id: patch.target_id.trim().to_string(),
+        label: patch.label.trim().to_string(),
+        category: patch.category,
+    };
+    let database = state
+        .database
+        .lock()
+        .map_err(|_| "Database lock poisoned".to_string())?;
+    save_label(&database, &label).map_err(|error| error.to_string())?;
+    load_database_labels(&database, &report.wallet.id).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn simulate_spend(
+    outpoints: Vec<String>,
+    destination_amount_sats: u64,
+    fee_rate: u32,
+    state: State<'_, AppState>,
+) -> Result<SpendSimulation, String> {
+    let report = current_report(&state)?;
+    let selected = selected_utxos(&report, &outpoints);
+    let simulation = build_spend_simulation(&selected, destination_amount_sats, fee_rate.max(1));
+    let database = state
+        .database
+        .lock()
+        .map_err(|_| "Database lock poisoned".to_string())?;
+    save_spend_simulation(&database, &report.wallet.id, &simulation)
+        .map_err(|error| error.to_string())?;
+    Ok(simulation)
+}
+
+#[tauri::command]
+pub fn simulate_consolidation(
+    outpoints: Vec<String>,
+    fee_rate: u32,
+    state: State<'_, AppState>,
+) -> Result<ConsolidationPlan, String> {
+    let report = current_report(&state)?;
+    let selected = selected_utxos(&report, &outpoints);
+    let plan = crate::consolidation_planner::draft_consolidation_plan(&selected, fee_rate.max(1));
+    let database = state
+        .database
+        .lock()
+        .map_err(|_| "Database lock poisoned".to_string())?;
+    save_consolidation_plan(&database, &report.wallet.id, &plan)
+        .map_err(|error| error.to_string())?;
+    Ok(plan)
+}
+
+#[tauri::command]
 pub fn get_local_data_path(state: State<'_, AppState>) -> Option<String> {
     state.data_path.clone()
 }
@@ -316,6 +403,140 @@ pub fn clear_local_cache(state: State<'_, AppState>) -> Result<(), String> {
     Ok(())
 }
 
+fn current_report(state: &State<'_, AppState>) -> Result<WalletReport, String> {
+    state
+        .report
+        .lock()
+        .map_err(|_| "State lock poisoned".to_string())?
+        .clone()
+        .ok_or_else(|| "No wallet loaded".to_string())
+}
+
+fn validate_label_patch(patch: &LabelPatch) -> Result<(), String> {
+    let target_type = patch.target_type.trim();
+    if !matches!(target_type, "utxo" | "address" | "transaction" | "source" | "category") {
+        return Err("Label target type must be utxo, address, transaction, source, or category.".to_string());
+    }
+    if patch.target_id.trim().is_empty() {
+        return Err("Label target id is required.".to_string());
+    }
+    if patch.label.trim().is_empty() {
+        return Err("Label text is required.".to_string());
+    }
+    Ok(())
+}
+
+fn selected_utxos(report: &WalletReport, outpoints: &[String]) -> Vec<Utxo> {
+    report
+        .utxos
+        .iter()
+        .filter(|utxo| outpoints.contains(&utxo.outpoint))
+        .cloned()
+        .collect()
+}
+
+fn build_spend_simulation(
+    selected: &[Utxo],
+    destination_amount_sats: u64,
+    fee_rate: u32,
+) -> SpendSimulation {
+    let input_amount: u64 = selected.iter().map(|utxo| utxo.amount_sats).sum();
+    let input_vbytes: u32 = selected.iter().map(|utxo| utxo.spend_vbytes_estimate.max(58)).sum();
+    let base_vbytes = if selected.is_empty() { 0 } else { input_vbytes + 10 + 31 };
+    let change_probe_fee = u64::from(base_vbytes + 43) * u64::from(fee_rate);
+    let creates_change = input_amount
+        .saturating_sub(destination_amount_sats)
+        .saturating_sub(change_probe_fee)
+        >= 546;
+    let estimated_vbytes = if creates_change { base_vbytes + 43 } else { base_vbytes };
+    let estimated_fee_sats = u64::from(estimated_vbytes) * u64::from(fee_rate);
+    let change_amount_sats = input_amount
+        .checked_sub(destination_amount_sats.saturating_add(estimated_fee_sats))
+        .filter(|change| creates_change && *change > 0);
+    let mut warnings = Vec::new();
+
+    if input_amount < destination_amount_sats.saturating_add(estimated_fee_sats) {
+        warnings.push(simulation_finding(
+            "insufficient_inputs",
+            Severity::High,
+            "Selected UTXOs may not cover spend",
+            "The selected UTXOs may not cover the destination amount plus estimated fees.",
+            selected,
+        ));
+    }
+    if selected.iter().any(|utxo| utxo.quarantine_status != QuarantineStatus::None) {
+        warnings.push(simulation_finding(
+            "quarantined_coin_risk",
+            Severity::High,
+            "Quarantined coin included",
+            "This simulated spend includes one or more quarantined UTXOs.",
+            selected,
+        ));
+    }
+    if mixed_labels_or_categories(selected) {
+        warnings.push(simulation_finding(
+            "label_mixing_risk",
+            Severity::Medium,
+            "Label mixing risk",
+            "This simulated spend combines different labels or source categories and could link histories.",
+            selected,
+        ));
+    }
+    if creates_change && mixed_labels_or_categories(selected) {
+        warnings.push(simulation_finding(
+            "toxic_change_risk",
+            Severity::Medium,
+            "Toxic change risk",
+            "If this simulated spend created change, that change could inherit the combined input history.",
+            selected,
+        ));
+    }
+
+    SpendSimulation {
+        selected_outpoints: selected.iter().map(|utxo| utxo.outpoint.clone()).collect(),
+        destination_amount_sats,
+        fee_estimate: FeeEstimate {
+            fee_rate,
+            estimated_vbytes,
+            estimated_fee_sats,
+        },
+        change_amount_sats,
+        warnings,
+    }
+}
+
+fn mixed_labels_or_categories(selected: &[Utxo]) -> bool {
+    let labels = selected
+        .iter()
+        .map(|utxo| utxo.label.as_deref().unwrap_or("Unlabeled"))
+        .collect::<std::collections::BTreeSet<_>>();
+    let categories = selected
+        .iter()
+        .map(|utxo| format!("{:?}", utxo.source_category))
+        .collect::<std::collections::BTreeSet<_>>();
+    labels.len() > 1 || categories.len() > 1
+}
+
+fn simulation_finding(
+    id: &str,
+    severity: Severity,
+    title: &str,
+    explanation: &str,
+    selected: &[Utxo],
+) -> AuditFinding {
+    AuditFinding {
+        id: id.to_string(),
+        severity,
+        title: title.to_string(),
+        explanation: explanation.to_string(),
+        recommended_action: "Review this simulation before signing elsewhere. XpubShield does not sign or broadcast.".to_string(),
+        affected_utxos: selected.iter().map(|utxo| utxo.outpoint.clone()).collect(),
+        affected_transactions: Vec::new(),
+        confidence_level: ConfidenceLevel::Medium,
+        heuristic_notes: "Simulation only; this heuristic is not definitive.".to_string(),
+    }
+}
+
 #[allow(dead_code)]
 pub fn demo_request() -> ImportRequest {
     ImportRequest {
@@ -331,5 +552,45 @@ pub fn demo_request() -> ImportRequest {
         bitcoin_core_rpc: None,
         esplora: None,
         public_api_acknowledged: false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::blockchain_backend::BlockchainBackend;
+    use crate::mock_backend::{build_demo_import, MockBackend};
+
+    #[test]
+    fn spend_simulation_flags_quarantined_and_mixed_inputs() {
+        let mut report = MockBackend.scan_wallet(&build_demo_import());
+        report.utxos[0].label = Some("Exchange".to_string());
+        report.utxos[1].label = Some("P2P".to_string());
+        report.utxos[1].quarantine_status = QuarantineStatus::Manual;
+        let selected = vec![report.utxos[0].clone(), report.utxos[1].clone()];
+
+        let simulation = build_spend_simulation(&selected, 100_000, 25);
+
+        assert!(simulation.change_amount_sats.is_some());
+        assert!(simulation
+            .warnings
+            .iter()
+            .any(|finding| finding.id == "quarantined_coin_risk"));
+        assert!(simulation
+            .warnings
+            .iter()
+            .any(|finding| finding.id == "label_mixing_risk"));
+    }
+
+    #[test]
+    fn label_patch_rejects_unknown_targets() {
+        let patch = LabelPatch {
+            target_type: "counterparty".to_string(),
+            target_id: "abc".to_string(),
+            label: "Nope".to_string(),
+            category: SourceCategory::Other,
+        };
+
+        assert!(validate_label_patch(&patch).is_err());
     }
 }

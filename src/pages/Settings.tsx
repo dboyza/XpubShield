@@ -2,10 +2,11 @@ import { Database, Download, HardDrive, Server, ShieldAlert, Trash2 } from "luci
 import { useEffect, useMemo, useState } from "react";
 import { MetricCard } from "../components/MetricCard";
 import { StatusPill } from "../components/StatusPill";
-import { clearLocalCache, getLocalDataPath } from "../api/tauri";
+import { clearLocalCache, getLocalDataPath, listLabels, upsertLabel } from "../api/tauri";
 import { backendLabel, humanize } from "../lib/format";
+import { SOURCE_CATEGORIES } from "../lib/phase2";
 import { buildRecoveryHealth } from "../lib/phase3";
-import type { WalletReport } from "../types/domain";
+import type { Label, SourceCategory, WalletReport } from "../types/domain";
 
 interface SettingsProps {
   report: WalletReport;
@@ -14,13 +15,30 @@ interface SettingsProps {
 
 export function Settings({ report, onCacheCleared }: SettingsProps) {
   const [dataPath, setDataPath] = useState<string | null>(null);
+  const [labels, setLabels] = useState<Label[]>([]);
+  const [labelTargetType, setLabelTargetType] = useState("utxo");
+  const [labelTargetId, setLabelTargetId] = useState(report.utxos[0]?.outpoint ?? "");
+  const [labelText, setLabelText] = useState("");
+  const [labelCategory, setLabelCategory] = useState<SourceCategory>("unknown");
   const [clearing, setClearing] = useState(false);
   const recovery = useMemo(() => buildRecoveryHealth(report), [report]);
   const publicMode = report.wallet.backend === "public_esplora";
 
   useEffect(() => {
     getLocalDataPath().then(setDataPath);
+    listLabels().then(setLabels).catch(() => setLabels([]));
   }, []);
+
+  async function saveLabel() {
+    const updated = await upsertLabel({
+      target_type: labelTargetType,
+      target_id: labelTargetId,
+      label: labelText,
+      category: labelCategory
+    });
+    setLabels(updated);
+    setLabelText("");
+  }
 
   async function clearCache() {
     const confirmed = window.confirm("Clear local XpubShield wallet cache on this device? This does not affect your Bitcoin wallet or signing devices.");
@@ -94,6 +112,68 @@ export function Settings({ report, onCacheCleared }: SettingsProps) {
           <p className="plain-text">
             Exports are created locally by your desktop app. Review files before storing them anywhere else because labels, descriptors, addresses, and wallet history are sensitive metadata.
           </p>
+        </div>
+      </section>
+
+      <section className="dashboard-grid">
+        <div className="panel">
+          <div className="panel-heading">
+            <h2>Label registry</h2>
+            <StatusPill label={`${labels.length} saved`} />
+          </div>
+          <div className="action-grid detail-grid">
+            <label>
+              Target type
+              <select value={labelTargetType} onChange={(event) => setLabelTargetType(event.target.value)}>
+                <option value="utxo">UTXO</option>
+                <option value="address">Address</option>
+                <option value="transaction">Transaction</option>
+                <option value="source">Source</option>
+                <option value="category">Category</option>
+              </select>
+            </label>
+            <label>
+              Target id
+              <input value={labelTargetId} onChange={(event) => setLabelTargetId(event.target.value)} />
+            </label>
+            <label>
+              Label
+              <input value={labelText} onChange={(event) => setLabelText(event.target.value)} />
+            </label>
+            <label>
+              Category
+              <select value={labelCategory} onChange={(event) => setLabelCategory(event.target.value as SourceCategory)}>
+                {SOURCE_CATEGORIES.map((category) => (
+                  <option key={category} value={category}>{humanize(category)}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="button-row settings-actions">
+            <button type="button" className="secondary-button" onClick={saveLabel} disabled={!labelTargetId || !labelText}>
+              Save label
+            </button>
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-heading">
+            <h2>Saved labels</h2>
+            <StatusPill label="SQLite" tone="good" />
+          </div>
+          {labels.length ? (
+            <div className="shape-list">
+              {labels.map((label) => (
+                <SettingRow
+                  key={label.id}
+                  label={`${humanize(label.target_type)}: ${label.target_id}`}
+                  value={`${label.label} (${humanize(label.category)})`}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="empty-state">No generic labels saved yet.</p>
+          )}
         </div>
       </section>
     </main>
