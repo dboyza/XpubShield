@@ -1,6 +1,6 @@
 # XpubShield Handoff
 
-Last updated: 2026-04-23
+Last updated: 2026-04-24
 
 ## Current State
 
@@ -79,7 +79,8 @@ Generated artifacts:
 - Descriptor diff uses deterministic previews, not real Bitcoin address derivation.
 - No graph visualization yet.
 - No local alerts yet.
-- Branch is ahead of GitHub by local commits unless pushed after this note.
+- Build artifacts are ignored and not tracked in Git.
+- The public backend privacy score is wired to the selected backend mode even while scan data remains mocked.
 
 ## Recommended Next Step
 
@@ -95,7 +96,7 @@ Most valuable next implementation order:
 
 ## Git Notes
 
-Recent local commits:
+Recent commits:
 
 - `f55e1ff add phase 3 wallet review tools`
 - `dd91192 add phase 2 wallet simulations`
@@ -106,3 +107,4 @@ Remote:
 
 - `origin` is `https://dboyza@github.com/dboyza/XpubShield.git`
 - Local Git Credential Manager is configured to prefer `dboyza` for GitHub.
+- `main` was synced with `origin/main` before the Phase 4 verification pass.

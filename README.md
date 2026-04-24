@@ -2,11 +2,11 @@
 
 XpubShield is a local-first, watch-only Bitcoin desktop app for personal custody observability. It helps users inspect wallet structure, xpub-derived descriptors, UTXO fee burden, labeling gaps, and basic privacy risks without signing or broadcasting transactions.
 
-This repository currently implements the Phase 1 MVP with a Tauri + React shell, Rust data models and commands, SQLite schema/migrations, a mock blockchain backend, descriptor/xpub import validation, private-material rejection, mock UTXO scanning, a dashboard, a UTXO table, and a deterministic audit engine.
+This repository currently implements Phases 1-3 as local/mock-data product slices. Phase 1 covers the Tauri + React shell, Rust data models and commands, SQLite schema/migrations, a mock blockchain backend, descriptor/xpub import validation, private-material rejection, mock UTXO scanning, a dashboard, a UTXO table, and a deterministic audit engine.
 
-Phase 2 UI surfaces are underway and currently include local label/quarantine editing, fee stress testing, a privacy impact simulator, and a consolidation planner using simulation-only mock wallet data.
+Phase 2 includes local label/quarantine editing, fee stress testing, a privacy impact simulator, and a consolidation planner using simulation-only mock wallet data.
 
-Phase 3 UI surfaces are underway and currently include a local PSBT linter, recovery health report, descriptor diff tool, and template-based transaction explanations.
+Phase 3 includes a local PSBT linter, recovery health report, descriptor diff tool, and template-based transaction explanations.
 
 ## Security Model
 
@@ -20,7 +20,7 @@ XpubShield is watch-only only.
 - Xpubs, descriptors, labels, wallet history, addresses, and PSBTs are treated as sensitive local data.
 - Raw xpubs and descriptors must never be sent to third-party APIs.
 
-Phase 1 only scans bundled mock data. Future live backends must preserve the same security boundary.
+The current app only scans bundled mock data. Future live backends must preserve the same security boundary.
 
 ## Privacy Model
 
@@ -117,7 +117,7 @@ Rust backend:
 - `src-tauri/src/database.rs`: SQLite migration bootstrap.
 - `src-tauri/src/tauri_commands.rs`: app commands exposed to React.
 
-Scaffolded future modules:
+Rust modules scaffolded for current and future phases:
 
 - Esplora backend
 - Bitcoin Core backend
@@ -168,7 +168,7 @@ Findings use heuristic language and avoid claiming certainty about ownership, sa
 ## MVP Limitations
 
 - Mock blockchain backend only.
-- Descriptor parsing is intentionally lightweight in Phase 1.
+- Descriptor parsing is intentionally lightweight in the current mock-data build.
 - Address derivation uses mock addresses for demonstration.
 - No live Bitcoin Core, Electrum, or Esplora scanning yet.
 - Phase 2 label/quarantine edits are held in the current app session for the mock wallet; durable SQLite persistence is a follow-up.
@@ -182,8 +182,8 @@ Findings use heuristic language and avoid claiming certainty about ownership, sa
 
 Phase 2:
 
-- Local labeling workflow: in progress
-- Quarantine status editing: in progress
+- Local labeling workflow: implemented for session-local mock wallet state
+- Quarantine status editing: implemented for session-local mock wallet state
 - Fee stress testing: implemented for mock wallet data
 - Privacy simulator: implemented for selected mock UTXOs
 - Consolidation planner simulation: implemented for selected mock UTXOs

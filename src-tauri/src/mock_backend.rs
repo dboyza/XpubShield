@@ -82,6 +82,7 @@ pub fn build_mock_wallet_report(import: &ValidatedImport) -> WalletReport {
     let transactions = mock_transactions();
     let mut utxos = mock_utxos(&wallet.network);
     let (findings, scores, totals) = audit_wallet(&wallet, &addresses, &mut utxos);
+    let backend_privacy = privacy_score_for_backend(wallet.backend);
 
     WalletReport {
         wallet,
@@ -91,8 +92,46 @@ pub fn build_mock_wallet_report(import: &ValidatedImport) -> WalletReport {
         utxos,
         findings,
         scores,
-        backend_privacy: MockBackend.privacy_score(),
+        backend_privacy,
         totals,
+    }
+}
+
+fn privacy_score_for_backend(kind: BackendKind) -> BackendPrivacyScore {
+    match kind {
+        BackendKind::Mock => BackendPrivacyScore {
+            score: 100,
+            mode: BackendKind::Mock,
+            summary: "Mock backend uses bundled local fixture data only.".to_string(),
+            warnings: Vec::new(),
+        },
+        BackendKind::BitcoinCoreRpc => BackendPrivacyScore {
+            score: 98,
+            mode: BackendKind::BitcoinCoreRpc,
+            summary: "Bitcoin Core RPC keeps address queries on your own node.".to_string(),
+            warnings: Vec::new(),
+        },
+        BackendKind::Electrum => BackendPrivacyScore {
+            score: 82,
+            mode: BackendKind::Electrum,
+            summary: "Personal Electrum mode can preserve strong privacy when it points at your own server.".to_string(),
+            warnings: vec!["Do not connect this mode to an untrusted public Electrum server.".to_string()],
+        },
+        BackendKind::Esplora => BackendPrivacyScore {
+            score: 82,
+            mode: BackendKind::Esplora,
+            summary: "Self-hosted Esplora mode avoids uploading raw xpubs and should query derived addresses only.".to_string(),
+            warnings: Vec::new(),
+        },
+        BackendKind::PublicEsplora => BackendPrivacyScore {
+            score: 35,
+            mode: BackendKind::PublicEsplora,
+            summary: "Public Esplora mode is weak privacy because address queries and timing metadata can leak.".to_string(),
+            warnings: vec![
+                "XpubShield must never send raw xpubs or descriptors to public APIs.".to_string(),
+                "Prefer Bitcoin Core RPC, personal Electrum, or self-hosted Esplora.".to_string(),
+            ],
+        },
     }
 }
 
@@ -349,7 +388,9 @@ fn script_pubkey_for(script_type: &ScriptType) -> String {
         ScriptType::Taproot => {
             "51200000000000000000000000000000000000000000000000000000000000000000".to_string()
         }
-        ScriptType::Multisig | ScriptType::Unknown => "00200000000000000000000000000000000000000000".to_string(),
+        ScriptType::Multisig | ScriptType::Unknown => {
+            "00200000000000000000000000000000000000000000".to_string()
+        }
     }
 }
 
@@ -362,7 +403,28 @@ mod tests {
         let report = MockBackend.scan_wallet(&build_demo_import());
 
         assert!(!report.utxos.is_empty());
-        assert!(report.findings.iter().any(|finding| finding.id == "address_reuse"));
-        assert!(report.findings.iter().any(|finding| finding.id == "dust_attack_suspicion"));
+        assert!(report
+            .findings
+            .iter()
+            .any(|finding| finding.id == "address_reuse"));
+        assert!(report
+            .findings
+            .iter()
+            .any(|finding| finding.id == "dust_attack_suspicion"));
+    }
+
+    #[test]
+    fn public_backend_selection_reports_weak_privacy() {
+        let mut import = build_demo_import();
+        import.backend = BackendKind::PublicEsplora;
+
+        let report = MockBackend.scan_wallet(&import);
+
+        assert_eq!(report.backend_privacy.score, 35);
+        assert_eq!(report.backend_privacy.mode, BackendKind::PublicEsplora);
+        assert!(report
+            .findings
+            .iter()
+            .any(|finding| finding.id == "public_api_privacy_leak"));
     }
 }
