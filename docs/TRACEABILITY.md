@@ -37,12 +37,12 @@ Status legend:
 | Esplora backend and public API mode | Phase 8 | Implemented | `src-tauri/src/esplora_backend.rs`, `src/pages/OnboardingImport.tsx`, `src-tauri/src/tauri_commands.rs` | Address UTXO scanning is implemented; richer transaction history details can expand later | Keep public API acknowledgement unavoidable and continue querying derived addresses only | Esplora URL/privacy tests, frontend build, desktop package build |
 | Settings page | Frontend pages / Phase 4+ | Missing | No Settings route/page in `src/App.tsx`; no settings UI in `src/pages` | Users cannot inspect backend configuration, privacy mode, data directory note, cache/label/report actions from the required Settings page | Add a local Settings page with backend/network/gap/privacy summary and local-data export/clear-cache placeholders that do not sync or transmit data | Frontend build; manual Settings smoke test |
 | Testing fixture coverage | Testing plan | Partial | Rust unit tests cover 32 focused cases; no dedicated fixture directory for all required wallet and PSBT shapes | Required fixture set is incomplete for address reuse, many tiny UTXOs, mixed labels, legacy UTXOs, unconfirmed UTXO, dust attack, and PSBT edge cases | Add fixture files and focused tests without live network dependency | `cargo test`; fixture inventory review |
-| Dependency audit baseline | Phase 9 | Blocked | `npm audit` on 2026-04-24 reports `GHSA-67mh-4wv8-2f99` through Vite/esbuild | Moderate dev-server advisory remains; forced audit fix jumps to `vite@8.0.10` | Upgrade Vite/esbuild path using the smallest compatible audited dependency path and rerun package build | `npm audit`; `npm run build`; `npm run tauri -- build` |
-| Demo preview to beta readiness | Phase 9 | Partial | `README.md`, `docs/HANDOFF.md`, `docs/RELEASE_READINESS.md`, this audit | Baseline builds/tests pass, but beta blockers remain: dependency audit, missing pages, partial persistence/analysis, broader fixtures, richer live history, background scan scheduling, and security review | Remediate confirmed blockers in milestone commits | `npm audit`, `npm run build`, `cargo test`, `npm run tauri -- build`, UI smoke test |
+| Dependency audit baseline | Phase 9 | Implemented | `package.json`, `package-lock.json`; `npm audit` on 2026-04-24 reports 0 vulnerabilities after Vite/plugin upgrade | None for current npm advisory baseline | Keep dependency audit in final verification | `npm audit`; `npm ls vite @vitejs/plugin-react`; `npm run build`; `npm run tauri -- build` |
+| Demo preview to beta readiness | Phase 9 | Partial | `README.md`, `docs/HANDOFF.md`, `docs/RELEASE_READINESS.md`, this audit | Baseline builds/tests pass and dependency audit is resolved, but beta blockers remain: missing pages, partial persistence/analysis, broader fixtures, richer live history, background scan scheduling, and security review | Remediate confirmed blockers in milestone commits | `npm audit`, `npm run build`, `cargo test`, `npm run tauri -- build`, UI smoke test |
 
 ## Earliest Incomplete Work
 
-The earliest incomplete remediation item is the dependency/security baseline. After that, product-surface gaps should be closed in this order: UTXO detail drawer, spend preview simulator, Settings page, generic label persistence, backend scan enrichment, analysis hardening, and fixture expansion.
+The earliest incomplete remediation item is product-surface completeness. Close gaps in this order: UTXO detail drawer, spend preview simulator, Settings page, generic label persistence, backend scan enrichment, analysis hardening, and fixture expansion.
 
 ## Full Audit Baseline
 
@@ -54,6 +54,13 @@ Verification results before remediation:
 - `npm run build`: passed with Vite 5.4.21.
 - `cargo test` in `src-tauri`: passed, 32 tests.
 - `npm run tauri -- build`: passed and produced Windows MSI/NSIS bundles.
+
+Dependency remediation result:
+
+- Upgraded Vite to `8.0.10` and `@vitejs/plugin-react` to `6.0.1`.
+- `npm audit`: passed with 0 vulnerabilities.
+- `npm ls vite @vitejs/plugin-react`: passed with valid Vite 8 peer dependencies.
+- `npm run build`, `cargo test`, and `npm run tauri -- build`: passed after the upgrade.
 
 Static review notes:
 

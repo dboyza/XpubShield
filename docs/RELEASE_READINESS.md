@@ -46,17 +46,16 @@ Package artifacts:
 
 ## Dependency Audit Decision
 
-`npm audit` reports 2 moderate findings through Vite/esbuild:
+The Vite/esbuild advisory has been remediated for the current dependency baseline:
 
-- Advisory: `GHSA-67mh-4wv8-2f99`
-- Scope: Vite development server exposure through vulnerable `esbuild`
-- Automated fix: `npm audit fix --force`, which currently jumps to `vite@8.0.10` and is a breaking upgrade
+- Vite was upgraded to `8.0.10`.
+- `@vitejs/plugin-react` was upgraded to `6.0.1` so its peer dependency supports Vite 8.
+- `npm audit` reports 0 vulnerabilities after the upgrade.
 
-Decision for Demo Preview: document and defer the forced Vite major upgrade. The packaged Tauri app uses the built static frontend, not the Vite dev server. Before beta, either upgrade Vite with compatibility testing or replace the affected dev-server path.
+The compatibility check passed through `npm run build`, `cargo test`, and `npm run tauri -- build`.
 
 ## Remaining Beta Blockers
 
-- Decide and execute the Vite/esbuild audit remediation path.
 - Add broader fixture coverage for descriptor imports, ypub/zpub normalization, backend scans, alerts, graph data, and PSBT edge cases.
 - Add richer live transaction history for Bitcoin Core/Esplora backends.
 - Add background scan scheduling before claiming monitoring completeness.
