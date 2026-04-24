@@ -6,6 +6,7 @@ use crate::database::{
 use crate::descriptor_diff::{compare_descriptor_inputs, DescriptorDiffSummary};
 use crate::mock_backend::{build_demo_import, MockBackend};
 use crate::models::{Network, QuarantineStatus, SourceCategory, UtxoStatus, WalletReport};
+use crate::psbt_linter::{analyze_psbt_text, PsbtAnalysisResult};
 use crate::wallet_import::{validate_import, ImportKind, ImportRequest};
 use rusqlite::Connection;
 use serde::Deserialize;
@@ -196,6 +197,20 @@ pub fn compare_descriptors(
     network: Network,
 ) -> DescriptorDiffSummary {
     compare_descriptor_inputs(&left, &right, network)
+}
+
+#[tauri::command]
+pub fn analyze_psbt(
+    psbt: String,
+    state: State<'_, AppState>,
+) -> Result<PsbtAnalysisResult, String> {
+    let report = state
+        .report
+        .lock()
+        .map_err(|_| "State lock poisoned".to_string())?
+        .clone()
+        .ok_or_else(|| "No wallet loaded".to_string())?;
+    analyze_psbt_text(&psbt, &report)
 }
 
 #[allow(dead_code)]
