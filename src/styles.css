@@ -726,6 +726,110 @@ td span {
   font-size: 12px;
 }
 
+.graph-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  align-items: start;
+}
+
+.graph-canvas {
+  position: relative;
+  min-height: 620px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    #0f151d;
+  background-size: 36px 36px;
+}
+
+.graph-edges {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.graph-edges line {
+  stroke: rgba(150, 164, 184, 0.45);
+  stroke-width: 1.4;
+}
+
+.graph-node {
+  position: absolute;
+  display: grid;
+  gap: 3px;
+  width: 150px;
+  min-height: 62px;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  color: var(--text-soft);
+  background: #131a23;
+  text-align: left;
+  cursor: pointer;
+}
+
+.graph-node:hover,
+.graph-node.selected {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(99, 167, 255, 0.14);
+}
+
+.graph-node svg {
+  color: var(--cyan);
+}
+
+.graph-node strong,
+.graph-node span {
+  overflow-wrap: anywhere;
+}
+
+.graph-node strong {
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.graph-node span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.graph-node-utxo {
+  background: #142018;
+}
+
+.graph-node-risk {
+  background: #25181b;
+}
+
+.graph-node-label {
+  background: #171f31;
+}
+
+.graph-detail {
+  position: sticky;
+  top: 20px;
+}
+
+.heat-good {
+  background: rgba(54, 211, 153, 0.12);
+}
+
+.heat-warn {
+  background: rgba(245, 184, 75, 0.14);
+}
+
+.heat-bad {
+  background: rgba(255, 107, 107, 0.14);
+}
+
 @media (max-width: 1100px) {
   body {
     min-width: 0;
@@ -757,7 +861,8 @@ td span {
   .dashboard-grid,
   .form-grid,
   .action-grid,
-  .simulator-grid {
+  .simulator-grid,
+  .graph-layout {
     grid-template-columns: 1fr;
   }
 

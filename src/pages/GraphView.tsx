@@ -1,0 +1,380 @@
+import { Filter, GitBranch, Info } from "lucide-react";
+import { useMemo, useState } from "react";
+import { StatusPill } from "../components/StatusPill";
+import { compactSats, humanize, txidPrefix } from "../lib/format";
+import type { ScriptType, SourceCategory, Utxo, WalletReport } from "../types/domain";
+
+type GraphMode = "wallet" | "lifecycle" | "labels" | "privacy" | "fees";
+
+interface ViewNode {
+  id: string;
+  type: "transaction" | "address" | "utxo" | "label" | "risk" | "spend";
+  label: string;
+  meta: string;
+  risk?: string;
+  amountSats?: number;
+  utxo?: Utxo;
+  x: number;
+  y: number;
+}
+
+interface ViewEdge {
+  id: string;
+  source: string;
+  target: string;
+  label: string;
+}
+
+interface GraphFilters {
+  label: string;
+  category: string;
+  scriptType: string;
+  riskFlag: string;
+  minAmount: number;
+  confirmations: string;
+}
+
+interface GraphViewProps {
+  report: WalletReport;
+}
+
+const NODE_LIMIT = 90;
+const FEE_RATES = [5, 10, 25, 50, 100, 200, 300];
+
+export function GraphView({ report }: GraphViewProps) {
+  const [mode, setMode] = useState<GraphMode>("wallet");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [filters, setFilters] = useState<GraphFilters>({
+    label: "all",
+    category: "all",
+    scriptType: "all",
+    riskFlag: "all",
+    minAmount: 0,
+    confirmations: "all"
+  });
+  const filteredUtxos = useMemo(() => filterUtxos(report.utxos, filters), [report.utxos, filters]);
+  const graph = useMemo(() => buildGraph(mode, filteredUtxos, report), [mode, filteredUtxos, report]);
+  const visibleGraph = useMemo(() => limitGraph(graph, NODE_LIMIT), [graph]);
+  const selected = visibleGraph.nodes.find((node) => node.id === selectedId) ?? visibleGraph.nodes[0] ?? null;
+
+  return (
+    <main className="page-shell">
+      <section className="page-header">
+        <div>
+          <p>{report.wallet.name}</p>
+          <h1>Graph view</h1>
+        </div>
+        <StatusPill
+          label={visibleGraph.limited ? `${visibleGraph.nodes.length}/${graph.nodes.length} nodes` : `${graph.nodes.length} nodes`}
+          tone={visibleGraph.limited ? "warn" : "good"}
+        />
+      </section>
+
+      <section className="toolbar">
+        <label>
+          View
+          <select value={mode} onChange={(event) => setMode(event.target.value as GraphMode)}>
+            <option value="wallet">Wallet graph</option>
+            <option value="lifecycle">UTXO lifecycle</option>
+            <option value="labels">Label clusters</option>
+            <option value="privacy">Privacy risk</option>
+            <option value="fees">Fee heatmap</option>
+          </select>
+        </label>
+        <Filter size={18} aria-hidden="true" />
+        <label>
+          Label
+          <select value={filters.label} onChange={(event) => setFilters({ ...filters, label: event.target.value })}>
+            <option value="all">All</option>
+            {unique(report.utxos.map((utxo) => utxo.label ?? "Unlabeled")).map((label) => (
+              <option key={label} value={label}>{label}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Category
+          <select value={filters.category} onChange={(event) => setFilters({ ...filters, category: event.target.value })}>
+            <option value="all">All</option>
+            {unique(report.utxos.map((utxo) => utxo.source_category)).map((category) => (
+              <option key={category} value={category}>{humanize(category)}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Script
+          <select value={filters.scriptType} onChange={(event) => setFilters({ ...filters, scriptType: event.target.value })}>
+            <option value="all">All</option>
+            {unique(report.utxos.map((utxo) => utxo.script_type)).map((scriptType) => (
+              <option key={scriptType} value={scriptType}>{humanize(scriptType)}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Risk
+          <select value={filters.riskFlag} onChange={(event) => setFilters({ ...filters, riskFlag: event.target.value })}>
+            <option value="all">All</option>
+            {unique(report.utxos.flatMap((utxo) => utxo.audit_flags)).map((flag) => (
+              <option key={flag} value={flag}>{humanize(flag)}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Min sats
+          <input
+            type="number"
+            min={0}
+            value={filters.minAmount}
+            onChange={(event) => setFilters({ ...filters, minAmount: Number(event.target.value) })}
+          />
+        </label>
+        <label>
+          Confirmations
+          <select value={filters.confirmations} onChange={(event) => setFilters({ ...filters, confirmations: event.target.value })}>
+            <option value="all">All</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="unconfirmed">Unconfirmed</option>
+          </select>
+        </label>
+      </section>
+
+      {mode === "fees" ? (
+        <FeeHeatmap utxos={filteredUtxos} />
+      ) : (
+        <section className="graph-layout">
+          <div className="graph-canvas" role="img" aria-label={`${humanize(mode)} graph`}>
+            <svg className="graph-edges" aria-hidden="true">
+              {visibleGraph.edges.map((edge) => {
+                const source = visibleGraph.nodes.find((node) => node.id === edge.source);
+                const target = visibleGraph.nodes.find((node) => node.id === edge.target);
+                if (!source || !target) return null;
+                return (
+                  <line
+                    key={edge.id}
+                    x1={`${source.x}%`}
+                    y1={`${source.y}%`}
+                    x2={`${target.x}%`}
+                    y2={`${target.y}%`}
+                  />
+                );
+              })}
+            </svg>
+            {visibleGraph.nodes.map((node) => (
+              <button
+                key={node.id}
+                type="button"
+                className={`graph-node graph-node-${node.type} ${selected?.id === node.id ? "selected" : ""}`}
+                style={{ left: `${node.x}%`, top: `${node.y}%` }}
+                onClick={() => setSelectedId(node.id)}
+              >
+                <GitBranch size={15} aria-hidden="true" />
+                <strong>{node.label}</strong>
+                <span>{node.meta}</span>
+              </button>
+            ))}
+          </div>
+          <DetailPanel node={selected} />
+        </section>
+      )}
+    </main>
+  );
+}
+
+function DetailPanel({ node }: { node: ViewNode | null }) {
+  if (!node) {
+    return (
+      <aside className="panel graph-detail">
+        <Info size={18} aria-hidden="true" />
+        <p className="empty-state">No node selected.</p>
+      </aside>
+    );
+  }
+  return (
+    <aside className="panel graph-detail">
+      <div className="panel-heading">
+        <h2>{node.label}</h2>
+        <StatusPill label={humanize(node.type)} />
+      </div>
+      <div className="shape-list">
+        <SummaryRow label="Node" value={node.id} />
+        <SummaryRow label="Context" value={node.meta} />
+        <SummaryRow label="Risk" value={node.risk ? humanize(node.risk) : "None flagged"} />
+        {node.utxo ? (
+          <>
+            <SummaryRow label="Amount" value={`${compactSats(node.utxo.amount_sats)} sats`} />
+            <SummaryRow label="Label" value={node.utxo.label ?? "Unlabeled"} />
+            <SummaryRow label="Category" value={humanize(node.utxo.source_category)} />
+            <SummaryRow label="Status" value={humanize(node.utxo.spendability_status)} />
+          </>
+        ) : null}
+      </div>
+    </aside>
+  );
+}
+
+function FeeHeatmap({ utxos }: { utxos: Utxo[] }) {
+  const visible = utxos.slice(0, NODE_LIMIT);
+  return (
+    <section className="table-panel">
+      <table>
+        <thead>
+          <tr>
+            <th>UTXO</th>
+            {FEE_RATES.map((rate) => (
+              <th key={rate}>{rate} sats/vB</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {visible.map((utxo) => (
+            <tr key={utxo.outpoint}>
+              <td>
+                <strong>{txidPrefix(utxo.txid)}:{utxo.vout}</strong>
+                <span>{compactSats(utxo.amount_sats)} sats</span>
+              </td>
+              {FEE_RATES.map((rate) => {
+                const cost = Math.round(rate * Math.max(utxo.spend_vbytes_estimate, 68));
+                const percent = (cost / Math.max(utxo.amount_sats, 1)) * 100;
+                return (
+                  <td key={rate} className={percent >= 25 ? "heat-bad" : percent >= 10 ? "heat-warn" : "heat-good"}>
+                    <strong>{cost}</strong>
+                    <span>{percent.toFixed(1)}%</span>
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+function buildGraph(mode: GraphMode, utxos: Utxo[], report: WalletReport): { nodes: ViewNode[]; edges: ViewEdge[] } {
+  if (mode === "lifecycle") return lifecycleGraph(utxos);
+  if (mode === "labels") return labelGraph(utxos);
+  if (mode === "privacy") return privacyGraph(utxos);
+  return walletGraph(utxos, report);
+}
+
+function walletGraph(utxos: Utxo[], report: WalletReport) {
+  const nodes: ViewNode[] = [];
+  const edges: ViewEdge[] = [];
+  const add = uniqueNode(nodes);
+  const txids = unique(utxos.map((utxo) => utxo.txid));
+  const addresses = unique(utxos.map((utxo) => utxo.address));
+  txids.forEach((txid, index) => add({ id: `tx:${txid}`, type: "transaction", label: txidPrefix(txid), meta: "transaction", x: 12, y: y(index, txids.length) }));
+  addresses.forEach((address, index) => {
+    const reused = report.derived_addresses.find((derived) => derived.address === address && derived.receive_count > 1);
+    add({ id: `addr:${address}`, type: "address", label: shortAddress(address), meta: reused ? "reused address" : "address", risk: reused ? "address_reuse" : undefined, x: 50, y: y(index, addresses.length) });
+  });
+  utxos.forEach((utxo, index) => {
+    add(utxoNode(utxo, 84, y(index, utxos.length)));
+    edges.push({ id: `creates:${utxo.outpoint}`, source: `tx:${utxo.txid}`, target: `utxo:${utxo.outpoint}`, label: "creates" });
+    edges.push({ id: `receives:${utxo.outpoint}`, source: `addr:${utxo.address}`, target: `utxo:${utxo.outpoint}`, label: "receives" });
+  });
+  return { nodes, edges };
+}
+
+function lifecycleGraph(utxos: Utxo[]) {
+  const nodes: ViewNode[] = [];
+  const edges: ViewEdge[] = [];
+  const add = uniqueNode(nodes);
+  utxos.forEach((utxo, index) => {
+    const rowY = y(index, utxos.length);
+    add({ id: `deposit:${utxo.txid}`, type: "transaction", label: txidPrefix(utxo.txid), meta: "deposit", x: 14, y: rowY });
+    add(utxoNode(utxo, 50, rowY));
+    add({ id: `future:${utxo.outpoint}`, type: "spend", label: "future spend", meta: utxo.spendability_status, risk: utxo.quarantine_status !== "none" ? utxo.quarantine_status : undefined, x: 84, y: rowY });
+    edges.push({ id: `life-a:${utxo.outpoint}`, source: `deposit:${utxo.txid}`, target: `utxo:${utxo.outpoint}`, label: "creates" });
+    edges.push({ id: `life-b:${utxo.outpoint}`, source: `utxo:${utxo.outpoint}`, target: `future:${utxo.outpoint}`, label: "simulates" });
+  });
+  return { nodes, edges };
+}
+
+function labelGraph(utxos: Utxo[]) {
+  const labels = unique(utxos.map((utxo) => utxo.label ?? "Unlabeled"));
+  const nodes: ViewNode[] = labels.map((label, index) => ({ id: `label:${label}`, type: "label", label, meta: "label cluster", x: 22, y: y(index, labels.length) }));
+  const edges: ViewEdge[] = [];
+  utxos.forEach((utxo, index) => {
+    nodes.push(utxoNode(utxo, 72, y(index, utxos.length)));
+    edges.push({ id: `label-edge:${utxo.outpoint}`, source: `label:${utxo.label ?? "Unlabeled"}`, target: `utxo:${utxo.outpoint}`, label: "groups" });
+  });
+  return { nodes, edges };
+}
+
+function privacyGraph(utxos: Utxo[]) {
+  const risks = unique(utxos.flatMap((utxo) => utxo.audit_flags.length ? utxo.audit_flags : ["no_current_flag"]));
+  const nodes: ViewNode[] = risks.map((risk, index) => ({ id: `risk:${risk}`, type: "risk", label: humanize(risk), meta: "privacy/fee heuristic", risk, x: 22, y: y(index, risks.length) }));
+  const edges: ViewEdge[] = [];
+  utxos.forEach((utxo, index) => {
+    nodes.push(utxoNode(utxo, 72, y(index, utxos.length)));
+    const flags = utxo.audit_flags.length ? utxo.audit_flags : ["no_current_flag"];
+    flags.forEach((flag) => edges.push({ id: `risk-edge:${flag}:${utxo.outpoint}`, source: `risk:${flag}`, target: `utxo:${utxo.outpoint}`, label: "flags" }));
+  });
+  return { nodes, edges };
+}
+
+function utxoNode(utxo: Utxo, x: number, yPosition: number): ViewNode {
+  return {
+    id: `utxo:${utxo.outpoint}`,
+    type: "utxo",
+    label: `${compactSats(utxo.amount_sats)} sats`,
+    meta: utxo.label ?? humanize(utxo.source_category),
+    risk: utxo.audit_flags[0],
+    amountSats: utxo.amount_sats,
+    utxo,
+    x,
+    y: yPosition
+  };
+}
+
+function limitGraph(graph: { nodes: ViewNode[]; edges: ViewEdge[] }, limit: number) {
+  if (graph.nodes.length <= limit) return { ...graph, limited: false };
+  const nodes = graph.nodes.slice(0, limit);
+  const kept = new Set(nodes.map((node) => node.id));
+  return {
+    nodes,
+    edges: graph.edges.filter((edge) => kept.has(edge.source) && kept.has(edge.target)),
+    limited: true
+  };
+}
+
+function filterUtxos(utxos: Utxo[], filters: GraphFilters) {
+  return utxos.filter((utxo) => {
+    if (filters.label !== "all" && (utxo.label ?? "Unlabeled") !== filters.label) return false;
+    if (filters.category !== "all" && utxo.source_category !== filters.category as SourceCategory) return false;
+    if (filters.scriptType !== "all" && utxo.script_type !== filters.scriptType as ScriptType) return false;
+    if (filters.riskFlag !== "all" && !utxo.audit_flags.includes(filters.riskFlag)) return false;
+    if (utxo.amount_sats < filters.minAmount) return false;
+    if (filters.confirmations === "confirmed" && utxo.confirmations === 0) return false;
+    if (filters.confirmations === "unconfirmed" && utxo.confirmations > 0) return false;
+    return true;
+  });
+}
+
+function uniqueNode(nodes: ViewNode[]) {
+  return (node: ViewNode) => {
+    if (!nodes.some((item) => item.id === node.id)) nodes.push(node);
+  };
+}
+
+function y(index: number, total: number) {
+  if (total <= 1) return 50;
+  return 10 + (index / Math.max(total - 1, 1)) * 80;
+}
+
+function unique<T extends string>(values: T[]): T[] {
+  return Array.from(new Set(values)).sort();
+}
+
+function shortAddress(address: string) {
+  return address.length > 18 ? `${address.slice(0, 18)}...` : address;
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="shape-row">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}

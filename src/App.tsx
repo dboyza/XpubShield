@@ -2,6 +2,7 @@ import {
   BarChart3,
   Combine,
   FileSearch,
+  GitBranch,
   GitCompareArrows,
   HeartPulse,
   LayoutDashboard,
@@ -17,6 +18,7 @@ import { ConsolidationPlanner } from "./pages/ConsolidationPlanner";
 import { Dashboard } from "./pages/Dashboard";
 import { DescriptorDiff } from "./pages/DescriptorDiff";
 import { FeeStressTest } from "./pages/FeeStressTest";
+import { GraphView } from "./pages/GraphView";
 import { OnboardingImport } from "./pages/OnboardingImport";
 import { PrivacySimulator } from "./pages/PrivacySimulator";
 import { PsbtLinter } from "./pages/PsbtLinter";
@@ -35,7 +37,8 @@ type Page =
   | "psbt"
   | "recovery"
   | "descriptor_diff"
-  | "explanations";
+  | "explanations"
+  | "graph";
 
 export default function App() {
   const [report, setReport] = useState<WalletReport | null>(null);
@@ -137,6 +140,9 @@ export default function App() {
           >
             <MessageSquareText size={18} /> Explanations
           </button>
+          <button className={page === "graph" ? "active" : ""} onClick={() => setPage("graph")} disabled={!report}>
+            <GitBranch size={18} /> Graph
+          </button>
         </nav>
       </aside>
       <div className="content-shell">
@@ -155,6 +161,7 @@ export default function App() {
         {page === "recovery" && report ? <RecoveryHealth report={report} /> : null}
         {page === "descriptor_diff" && report ? <DescriptorDiff report={report} /> : null}
         {page === "explanations" && report ? <TransactionExplanations report={report} /> : null}
+        {page === "graph" && report ? <GraphView report={report} /> : null}
       </div>
     </div>
   );
