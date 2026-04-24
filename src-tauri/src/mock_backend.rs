@@ -428,4 +428,50 @@ mod tests {
             .iter()
             .any(|finding| finding.id == "public_api_privacy_leak"));
     }
+
+    #[test]
+    fn fixture_manifest_covers_required_wallet_shapes() {
+        let manifest: serde_json::Value =
+            serde_json::from_str(include_str!("../fixtures/wallet_shapes.json")).unwrap();
+        let ids = manifest["fixtures"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|fixture| fixture["id"].as_str())
+            .collect::<std::collections::BTreeSet<_>>();
+
+        for required in [
+            "simple_native_segwit_wallet",
+            "address_reuse_wallet",
+            "many_tiny_utxos_wallet",
+            "mixed_labels_wallet",
+            "legacy_utxo_wallet",
+            "unconfirmed_utxo_wallet",
+            "dust_attack_wallet",
+        ] {
+            assert!(ids.contains(required), "missing fixture {required}");
+        }
+    }
+
+    #[test]
+    fn fixture_manifest_covers_required_psbt_cases() {
+        let manifest: serde_json::Value =
+            serde_json::from_str(include_str!("../fixtures/psbt_cases.json")).unwrap();
+        let ids = manifest["fixtures"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|fixture| fixture["id"].as_str())
+            .collect::<std::collections::BTreeSet<_>>();
+
+        for required in [
+            "normal_change",
+            "unknown_change",
+            "high_fee",
+            "mixed_labels",
+            "quarantined_input",
+        ] {
+            assert!(ids.contains(required), "missing fixture {required}");
+        }
+    }
 }

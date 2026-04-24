@@ -181,6 +181,37 @@ export interface Alert {
   created_at: string;
 }
 
+export interface Label {
+  id: string;
+  wallet_id: string;
+  target_type: string;
+  target_id: string;
+  label: string;
+  category: SourceCategory;
+}
+
+export interface FeeEstimate {
+  fee_rate: number;
+  estimated_vbytes: number;
+  estimated_fee_sats: number;
+}
+
+export interface SpendSimulation {
+  selected_outpoints: string[];
+  destination_amount_sats: number;
+  fee_estimate: FeeEstimate;
+  change_amount_sats?: number | null;
+  warnings: AuditFinding[];
+}
+
+export interface ConsolidationSimulation {
+  selected_outpoints: string[];
+  current_utxo_count: number;
+  proposed_utxo_count: number;
+  fee_estimate: FeeEstimate;
+  privacy_notes: string[];
+}
+
 export interface WalletTotals {
   balance_sats: number;
   utxo_count: number;

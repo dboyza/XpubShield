@@ -1,0 +1,24 @@
+{
+  "fixtures": [
+    {
+      "id": "normal_change",
+      "description": "PSBT with recipient output and wallet-recognized change output."
+    },
+    {
+      "id": "unknown_change",
+      "description": "PSBT whose change output cannot be verified against imported wallet descriptors."
+    },
+    {
+      "id": "high_fee",
+      "description": "PSBT with unusually high fee-rate estimate."
+    },
+    {
+      "id": "mixed_labels",
+      "description": "PSBT spending inputs from different source labels or categories."
+    },
+    {
+      "id": "quarantined_input",
+      "description": "PSBT spending at least one UTXO marked quarantined locally."
+    }
+  ]
+}

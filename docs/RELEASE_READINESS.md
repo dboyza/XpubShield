@@ -17,6 +17,7 @@ XpubShield has the planned Phase 1 through Phase 8 product slices implemented, b
 - Bitcoin Core RPC backend scans derived addresses only through local `scantxoutset` `addr(...)` scan objects.
 - Esplora backend scans derived address UTXO endpoints only and requires explicit acknowledgement for public API mode.
 - Graph visualization, local alerts, and Windows desktop packaging are implemented.
+- UTXO detail, spend preview, Settings, generic local labels, saved spend simulations, saved consolidation plans, and fixture manifests are implemented.
 
 ## Security Review Notes
 
@@ -56,8 +57,8 @@ The compatibility check passed through `npm run build`, `cargo test`, and `npm r
 
 ## Remaining Beta Blockers
 
-- Add broader fixture coverage for descriptor imports, ypub/zpub normalization, backend scans, alerts, graph data, and PSBT edge cases.
 - Add richer live transaction history for Bitcoin Core/Esplora backends.
 - Add background scan scheduling before claiming monitoring completeness.
+- Decide whether the frontend privacy simulator needs a Rust Tauri command to match the richer TypeScript presentation.
 - Review whether encrypted database support is required for beta.
 - Perform a fresh watch-only security review before tagging a beta release.

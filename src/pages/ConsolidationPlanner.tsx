@@ -2,9 +2,10 @@ import { Combine, Route } from "lucide-react";
 import { useMemo, useState } from "react";
 import { MetricCard } from "../components/MetricCard";
 import { StatusPill } from "../components/StatusPill";
+import { simulateConsolidation } from "../api/tauri";
 import { categoryLabel, compactSats, humanize, satsToBtc, txidPrefix } from "../lib/format";
 import { buildConsolidationPlan } from "../lib/phase2";
-import type { WalletReport } from "../types/domain";
+import type { ConsolidationSimulation, WalletReport } from "../types/domain";
 
 interface ConsolidationPlannerProps {
   report: WalletReport;
@@ -13,6 +14,7 @@ interface ConsolidationPlannerProps {
 export function ConsolidationPlanner({ report }: ConsolidationPlannerProps) {
   const [selected, setSelected] = useState<string[]>([]);
   const [feeRate, setFeeRate] = useState(25);
+  const [savedPlan, setSavedPlan] = useState<ConsolidationSimulation | null>(null);
   const selectedUtxos = useMemo(
     () => report.utxos.filter((utxo) => selected.includes(utxo.outpoint)),
     [report.utxos, selected]
@@ -23,6 +25,15 @@ export function ConsolidationPlanner({ report }: ConsolidationPlannerProps) {
     setSelected((current) =>
       current.includes(outpoint) ? current.filter((item) => item !== outpoint) : [...current, outpoint]
     );
+  }
+
+  async function persistPlan() {
+    try {
+      const next = await simulateConsolidation(selected, feeRate);
+      setSavedPlan(next);
+    } catch {
+      setSavedPlan(null);
+    }
   }
 
   return (
@@ -105,6 +116,12 @@ export function ConsolidationPlanner({ report }: ConsolidationPlannerProps) {
             Consolidation may reduce future fees, but it can also link histories together. XpubShield
             does not recommend consolidating everything by default.
           </p>
+          <div className="button-row settings-actions">
+            <button type="button" className="secondary-button" onClick={persistPlan} disabled={selected.length === 0}>
+              Save local plan
+            </button>
+            {savedPlan ? <StatusPill label={`${savedPlan.privacy_notes.length} persisted notes`} tone="good" /> : null}
+          </div>
         </div>
       </section>
 

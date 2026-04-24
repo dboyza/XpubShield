@@ -1,8 +1,8 @@
 use crate::audit_engine::audit_wallet;
 use crate::mock_backend::privacy_score_for_backend;
 use crate::models::{
-    Alert, Descriptor, QuarantineStatus, Severity, SourceCategory, Transaction, Utxo, UtxoStatus, Wallet,
-    WalletReport, WalletTotals,
+    Alert, ConsolidationPlan, Descriptor, Label, QuarantineStatus, Severity, SourceCategory,
+    SpendSimulation, Transaction, Utxo, UtxoStatus, Wallet, WalletReport, WalletTotals,
 };
 use rusqlite::types::Type;
 use rusqlite::{params, Connection, OptionalExtension, Result};
@@ -254,6 +254,97 @@ pub fn acknowledge_alert(connection: &Connection, alert_id: &str) -> Result<()> 
     connection.execute(
         "UPDATE alerts SET acknowledged = 1 WHERE id = ?1",
         params![alert_id],
+    )?;
+    Ok(())
+}
+
+pub fn save_label(connection: &Connection, label: &Label) -> Result<()> {
+    connection.execute(
+        "INSERT INTO labels (id, wallet_id, target_type, target_id, label, category, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, CURRENT_TIMESTAMP)
+         ON CONFLICT(wallet_id, target_type, target_id) DO UPDATE SET
+           label = excluded.label,
+           category = excluded.category,
+           updated_at = CURRENT_TIMESTAMP",
+        params![
+            label.id,
+            label.wallet_id,
+            label.target_type,
+            label.target_id,
+            label.label,
+            encode_enum(&label.category)?
+        ],
+    )?;
+    Ok(())
+}
+
+pub fn load_labels(connection: &Connection, wallet_id: &str) -> Result<Vec<Label>> {
+    let mut statement = connection.prepare(
+        "SELECT id, wallet_id, target_type, target_id, label, category
+         FROM labels WHERE wallet_id = ?1 ORDER BY target_type, target_id",
+    )?;
+    let rows = statement
+        .query_map(params![wallet_id], |row| {
+            Ok(Label {
+                id: row.get(0)?,
+                wallet_id: row.get(1)?,
+                target_type: row.get(2)?,
+                target_id: row.get(3)?,
+                label: row.get(4)?,
+                category: decode_enum(row.get::<_, String>(5)?)?,
+            })
+        })?
+        .collect();
+    rows
+}
+
+pub fn save_spend_simulation(
+    connection: &Connection,
+    wallet_id: &str,
+    simulation: &SpendSimulation,
+) -> Result<()> {
+    let id = format!("spend:{}:{}", wallet_id, chrono::Utc::now().timestamp_millis());
+    connection.execute(
+        "INSERT INTO spend_simulations
+         (id, wallet_id, selected_outpoints_json, destination_amount_sats, fee_rate,
+          estimated_vbytes, estimated_fee_sats, change_amount_sats, warnings_json)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![
+            id,
+            wallet_id,
+            encode_json(&simulation.selected_outpoints)?,
+            simulation.destination_amount_sats,
+            simulation.fee_estimate.fee_rate,
+            simulation.fee_estimate.estimated_vbytes,
+            simulation.fee_estimate.estimated_fee_sats,
+            simulation.change_amount_sats,
+            encode_json(&simulation.warnings)?
+        ],
+    )?;
+    Ok(())
+}
+
+pub fn save_consolidation_plan(
+    connection: &Connection,
+    wallet_id: &str,
+    plan: &ConsolidationPlan,
+) -> Result<()> {
+    let id = format!("consolidation:{}:{}", wallet_id, chrono::Utc::now().timestamp_millis());
+    connection.execute(
+        "INSERT INTO consolidation_plans
+         (id, wallet_id, selected_outpoints_json, current_utxo_count, proposed_utxo_count,
+          fee_rate, estimated_fee_sats, privacy_notes_json)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![
+            id,
+            wallet_id,
+            encode_json(&plan.selected_outpoints)?,
+            plan.current_utxo_count,
+            plan.proposed_utxo_count,
+            plan.fee_estimate.fee_rate,
+            plan.fee_estimate.estimated_fee_sats,
+            encode_json(&plan.privacy_notes)?
+        ],
     )?;
     Ok(())
 }
@@ -589,5 +680,74 @@ mod tests {
 
         clear_local_cache(&mut connection).unwrap();
         assert!(load_current_wallet_report(&connection).unwrap().is_none());
+    }
+
+    #[test]
+    fn labels_round_trip() {
+        use crate::blockchain_backend::BlockchainBackend;
+        use crate::mock_backend::{build_demo_import, MockBackend};
+
+        let mut connection = initialize_memory_database().unwrap();
+        let report = MockBackend.scan_wallet(&build_demo_import());
+        save_wallet_report(&mut connection, &report).unwrap();
+        let label = Label {
+            id: "label_wallet_utxo".to_string(),
+            wallet_id: report.wallet.id.clone(),
+            target_type: "utxo".to_string(),
+            target_id: report.utxos[0].outpoint.clone(),
+            label: "Accounting reviewed".to_string(),
+            category: SourceCategory::Business,
+        };
+
+        save_label(&connection, &label).unwrap();
+        let labels = load_labels(&connection, &report.wallet.id).unwrap();
+
+        assert_eq!(labels.len(), 1);
+        assert_eq!(labels[0].label, "Accounting reviewed");
+        assert_eq!(labels[0].category, SourceCategory::Business);
+    }
+
+    #[test]
+    fn simulations_persist() {
+        use crate::blockchain_backend::BlockchainBackend;
+        use crate::mock_backend::{build_demo_import, MockBackend};
+
+        let mut connection = initialize_memory_database().unwrap();
+        let report = MockBackend.scan_wallet(&build_demo_import());
+        save_wallet_report(&mut connection, &report).unwrap();
+        let simulation = SpendSimulation {
+            selected_outpoints: vec![report.utxos[0].outpoint.clone()],
+            destination_amount_sats: 100_000,
+            fee_estimate: crate::models::FeeEstimate {
+                fee_rate: 25,
+                estimated_vbytes: 109,
+                estimated_fee_sats: 2_725,
+            },
+            change_amount_sats: Some(24_897_275),
+            warnings: Vec::new(),
+        };
+        let plan = ConsolidationPlan {
+            selected_outpoints: vec![report.utxos[0].outpoint.clone()],
+            current_utxo_count: 1,
+            proposed_utxo_count: 1,
+            fee_estimate: crate::models::FeeEstimate {
+                fee_rate: 25,
+                estimated_vbytes: 111,
+                estimated_fee_sats: 2_775,
+            },
+            privacy_notes: vec!["Simulation only.".to_string()],
+        };
+
+        save_spend_simulation(&connection, &report.wallet.id, &simulation).unwrap();
+        save_consolidation_plan(&connection, &report.wallet.id, &plan).unwrap();
+
+        let spend_count: u32 = connection
+            .query_row("SELECT COUNT(*) FROM spend_simulations", [], |row| row.get(0))
+            .unwrap();
+        let consolidation_count: u32 = connection
+            .query_row("SELECT COUNT(*) FROM consolidation_plans", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(spend_count, 1);
+        assert_eq!(consolidation_count, 1);
     }
 }

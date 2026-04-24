@@ -1,0 +1,32 @@
+{
+  "fixtures": [
+    {
+      "id": "simple_native_segwit_wallet",
+      "description": "Simple native SegWit wallet with labeled exchange and change UTXOs."
+    },
+    {
+      "id": "address_reuse_wallet",
+      "description": "Wallet with more than one receive to the same external address."
+    },
+    {
+      "id": "many_tiny_utxos_wallet",
+      "description": "Wallet shape with many small UTXOs that become uneconomical under higher fee rates."
+    },
+    {
+      "id": "mixed_labels_wallet",
+      "description": "Wallet containing Exchange, P2P, Donation, Change, and Unknown source categories."
+    },
+    {
+      "id": "legacy_utxo_wallet",
+      "description": "Wallet containing a legacy P2PKH-style UTXO with higher spend-cost assumptions."
+    },
+    {
+      "id": "unconfirmed_utxo_wallet",
+      "description": "Wallet containing a zero-confirmation UTXO."
+    },
+    {
+      "id": "dust_attack_wallet",
+      "description": "Wallet containing a tiny unlabeled unknown-source UTXO for dust-attack suspicion checks."
+    }
+  ]
+}

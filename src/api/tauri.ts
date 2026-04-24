@@ -1,6 +1,15 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { DescriptorDiffResult, PsbtAnalysisResult } from "../lib/phase3";
-import type { Alert, ImportRequest, UtxoUpdate, WalletReport } from "../types/domain";
+import type {
+  Alert,
+  ConsolidationSimulation,
+  ImportRequest,
+  Label,
+  SourceCategory,
+  SpendSimulation,
+  UtxoUpdate,
+  WalletReport
+} from "../types/domain";
 
 export async function importWallet(request: ImportRequest): Promise<WalletReport> {
   return invoke<WalletReport>("import_wallet", { request });
@@ -56,6 +65,38 @@ export async function getLocalDataPath(): Promise<string | null> {
 
 export async function clearLocalCache(): Promise<void> {
   return invoke<void>("clear_local_cache");
+}
+
+export async function listLabels(): Promise<Label[]> {
+  return invoke<Label[]>("list_labels");
+}
+
+export async function upsertLabel(patch: {
+  target_type: string;
+  target_id: string;
+  label: string;
+  category: SourceCategory;
+}): Promise<Label[]> {
+  return invoke<Label[]>("upsert_label", { patch });
+}
+
+export async function simulateSpend(
+  outpoints: string[],
+  destinationAmountSats: number,
+  feeRate: number
+): Promise<SpendSimulation> {
+  return invoke<SpendSimulation>("simulate_spend", {
+    outpoints,
+    destinationAmountSats,
+    feeRate
+  });
+}
+
+export async function simulateConsolidation(
+  outpoints: string[],
+  feeRate: number
+): Promise<ConsolidationSimulation> {
+  return invoke<ConsolidationSimulation>("simulate_consolidation", { outpoints, feeRate });
 }
 
 export function looksLikePrivateMaterial(input: string): boolean {
