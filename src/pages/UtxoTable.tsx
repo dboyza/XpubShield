@@ -97,6 +97,11 @@ export function UtxoTable({ report, onUpdateUtxos }: UtxoTableProps) {
     () => report.utxos.find((utxo) => utxo.outpoint === detailOutpoint) ?? null,
     [detailOutpoint, report.utxos]
   );
+  const selectedUtxos = useMemo(
+    () => report.utxos.filter((utxo) => selected.includes(utxo.outpoint)),
+    [report.utxos, selected]
+  );
+  const selectedAmountSats = selectedUtxos.reduce((sum, utxo) => sum + utxo.amount_sats, 0);
 
   function toggle(outpoint: string) {
     setSelected((current) =>
@@ -161,95 +166,108 @@ export function UtxoTable({ report, onUpdateUtxos }: UtxoTableProps) {
       </section>
 
       {selected.length > 0 ? (
-        <section className="action-panel">
-          <div className="panel-heading">
-            <h2>Local labels and quarantine</h2>
-            <StatusPill label={`${selected.length} coins armed`} tone="warn" />
+        <section className="selected-coin-tray">
+          <div className="selected-tray-header">
+            <div>
+              <h2>Selected coin tray</h2>
+              <p className="plain-text">{selected.length} coins · {compactSats(selectedAmountSats)} sats under local review</p>
+            </div>
+            <StatusPill label="local metadata" tone="warn" />
           </div>
-          <div className="action-grid">
-            <label>
-              UTXO label
-              <input
-                value={batchLabel}
-                onChange={(event) => setBatchLabel(event.target.value)}
-                placeholder="e.g. cold storage deposit"
-              />
-            </label>
-            <label>
-              Source label
-              <input
-                value={batchSourceLabel}
-                onChange={(event) => setBatchSourceLabel(event.target.value)}
-                placeholder="e.g. exchange withdrawal"
-              />
-            </label>
-            <label>
-              Category
-              <select value={batchCategory} onChange={(event) => setBatchCategory(event.target.value as SourceCategory)}>
-                {SOURCE_CATEGORIES.map((item) => (
-                  <option key={item} value={item}>
-                    {categoryLabel(item)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Spend status
-              <select value={batchStatus} onChange={(event) => setBatchStatus(event.target.value as UtxoStatus)}>
-                {SPENDABILITY_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {humanize(status)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Quarantine
-              <select
-                value={batchQuarantine}
-                onChange={(event) => setBatchQuarantine(event.target.value as QuarantineStatus)}
-              >
-                {QUARANTINE_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {humanize(status)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div className="button-row">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() =>
-                applyBatchPatch({
-                  label: batchLabel || null,
-                  source_label: batchSourceLabel || null,
-                  source_category: batchCategory
-                })
-              }
-            >
-              <Tags size={17} /> Apply labels
-            </button>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() =>
-                applyBatchPatch({
-                  spendability_status: batchStatus,
-                  quarantine_status: batchQuarantine
-                })
-              }
-            >
-              <CheckSquare size={17} /> Apply status
-            </button>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() => applyBatchPatch({ quarantine_status: "none", spendability_status: "spendable" })}
-            >
-              Mark spendable
-            </button>
+          <div className="tray-grid">
+            <div>
+              <div className="panel-heading">
+                <h2>Labels and spend policy</h2>
+              </div>
+              <div className="tray-subgrid">
+                <label>
+                  UTXO label
+                  <input value={batchLabel} onChange={(event) => setBatchLabel(event.target.value)} placeholder="e.g. cold storage deposit" />
+                </label>
+                <label>
+                  Source label
+                  <input value={batchSourceLabel} onChange={(event) => setBatchSourceLabel(event.target.value)} placeholder="e.g. exchange withdrawal" />
+                </label>
+                <label>
+                  Category
+                  <select value={batchCategory} onChange={(event) => setBatchCategory(event.target.value as SourceCategory)}>
+                    {SOURCE_CATEGORIES.map((item) => (
+                      <option key={item} value={item}>{categoryLabel(item)}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Spend status
+                  <select value={batchStatus} onChange={(event) => setBatchStatus(event.target.value as UtxoStatus)}>
+                    {SPENDABILITY_STATUSES.map((status) => (
+                      <option key={status} value={status}>{humanize(status)}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Quarantine
+                  <select value={batchQuarantine} onChange={(event) => setBatchQuarantine(event.target.value as QuarantineStatus)}>
+                    {QUARANTINE_STATUSES.map((status) => (
+                      <option key={status} value={status}>{humanize(status)}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="button-row">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() =>
+                    applyBatchPatch({
+                      label: batchLabel || null,
+                      source_label: batchSourceLabel || null,
+                      source_category: batchCategory
+                    })
+                  }
+                >
+                  <Tags size={17} /> Apply labels
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() =>
+                    applyBatchPatch({
+                      spendability_status: batchStatus,
+                      quarantine_status: batchQuarantine
+                    })
+                  }
+                >
+                  <CheckSquare size={17} /> Apply status
+                </button>
+                <button type="button" className="secondary-button" onClick={() => applyBatchPatch({ quarantine_status: "none", spendability_status: "spendable" })}>
+                  Mark spendable
+                </button>
+              </div>
+            </div>
+            <div>
+              <div className="panel-heading">
+                <h2>Save review set</h2>
+              </div>
+              <div className="tray-subgrid">
+                <label>
+                  Set name
+                  <input value={coinSetName} onChange={(event) => setCoinSetName(event.target.value)} placeholder="KYC stack / recovery drill / avoid merge" />
+                </label>
+                <label>
+                  Intent
+                  <input value={coinSetIntent} onChange={(event) => setCoinSetIntent(event.target.value)} placeholder="spend preflight" />
+                </label>
+                <label>
+                  Notes
+                  <input value={coinSetNotes} onChange={(event) => setCoinSetNotes(event.target.value)} placeholder="local operator notes" />
+                </label>
+              </div>
+              <div className="button-row">
+                <button type="button" className="secondary-button" onClick={saveSelectedCoinSet}>
+                  <BookmarkPlus size={16} /> Save selected
+                </button>
+              </div>
+            </div>
           </div>
         </section>
       ) : null}
@@ -258,23 +276,6 @@ export function UtxoTable({ report, onUpdateUtxos }: UtxoTableProps) {
         <div className="panel-heading">
           <h2>Saved coin sets</h2>
           <StatusPill label={`${coinSets.length} sets`} tone={coinSets.length ? "good" : "neutral"} />
-        </div>
-        <div className="coinset-controls">
-          <label>
-            Set name
-            <input value={coinSetName} onChange={(event) => setCoinSetName(event.target.value)} placeholder="KYC stack / recovery drill / avoid merge" />
-          </label>
-          <label>
-            Intent
-            <input value={coinSetIntent} onChange={(event) => setCoinSetIntent(event.target.value)} placeholder="spend preflight" />
-          </label>
-          <label>
-            Notes
-            <input value={coinSetNotes} onChange={(event) => setCoinSetNotes(event.target.value)} placeholder="local operator notes" />
-          </label>
-          <button type="button" className="secondary-button" onClick={saveSelectedCoinSet} disabled={selected.length === 0}>
-            <BookmarkPlus size={16} /> Save selected
-          </button>
         </div>
         {coinSets.length ? (
           <div className="coinset-list">
@@ -345,7 +346,7 @@ export function UtxoTable({ report, onUpdateUtxos }: UtxoTableProps) {
         </label>
       </section>
 
-      <section className="table-panel">
+      <section className="table-panel workbench-table">
         <table>
           <thead>
             <tr>

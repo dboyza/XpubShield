@@ -187,14 +187,14 @@ export default function App() {
   return (
     <div className="app-frame">
       <div className={`boot-sweep ${booting ? "boot-sweep-active" : ""}`} aria-hidden="true">
-        <span>XpubShield local console initializing</span>
+        <span>XpubShield sovereign ops ready</span>
       </div>
       <aside className="sidebar">
         <div className="brand-lockup">
           <Bitcoin size={24} aria-hidden="true" />
           <div>
             <strong>XpubShield</strong>
-            <span>WATCH-ONLY TERMINAL</span>
+            <span>SOVEREIGN OPS</span>
           </div>
         </div>
         <div className="terminal-status" aria-label="Local security status">

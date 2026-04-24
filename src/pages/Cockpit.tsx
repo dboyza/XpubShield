@@ -24,6 +24,7 @@ export function Cockpit({ report, onNavigate, onDismissAction }: CockpitProps) {
   const topActions = [...report.actions].sort((a, b) => severityRank(b.severity) - severityRank(a.severity));
   const urgentCount = topActions.filter((action) => ["high", "critical"].includes(action.severity)).length;
   const unknownCount = report.provenance_summary.unknown_count;
+  const exchangeCount = report.provenance_summary.exchange_like_count;
 
   return (
     <main className="page-shell cockpit-shell">
@@ -36,6 +37,13 @@ export function Cockpit({ report, onNavigate, onDismissAction }: CockpitProps) {
           <StatusPill label={`${urgentCount} urgent`} tone={urgentCount ? "bad" : "good"} />
           <StatusPill label={`${report.actions.length} actions`} tone={report.actions.length ? "warn" : "good"} />
         </div>
+      </section>
+
+      <section className="cockpit-status-strip" aria-label="Operational status">
+        <SignalTile label="Backend" value={backendLabel(report.wallet.backend)} />
+        <SignalTile label="Network" value={humanize(report.wallet.network)} />
+        <SignalTile label="Provenance" value={`${report.provenance_summary.assessed_count - unknownCount}/${report.provenance_summary.assessed_count} known`} />
+        <SignalTile label="Source risk" value={`${exchangeCount} exchange-like`} />
       </section>
 
       <section className="metric-grid cockpit-metrics">
@@ -74,13 +82,13 @@ export function Cockpit({ report, onNavigate, onDismissAction }: CockpitProps) {
             <h2>Operator Briefing</h2>
             <StatusPill label="local only" tone="good" />
           </div>
-          <div className="shape-list">
-            <BriefingRow label="Manual provenance" value={`${report.provenance_summary.manual_count} coins`} />
-            <BriefingRow label="Registry evidence" value={`${report.provenance_summary.registry_count} coins`} />
-            <BriefingRow label="Unknown provenance" value={`${report.provenance_summary.unknown_count} coins`} />
-            <BriefingRow label="Findings" value={`${report.findings.length} active`} />
-            <BriefingRow label="Descriptors" value={`${report.descriptors.length} tracked`} />
-            <BriefingRow label="Derived addresses" value={`${report.derived_addresses.length} scanned`} />
+          <div className="briefing-grid">
+            <BriefingChip label="Manual provenance" value={`${report.provenance_summary.manual_count} coins`} />
+            <BriefingChip label="Registry evidence" value={`${report.provenance_summary.registry_count} coins`} />
+            <BriefingChip label="Unknown provenance" value={`${report.provenance_summary.unknown_count} coins`} />
+            <BriefingChip label="Findings" value={`${report.findings.length} active`} />
+            <BriefingChip label="Descriptors" value={`${report.descriptors.length} tracked`} />
+            <BriefingChip label="Derived addresses" value={`${report.derived_addresses.length} scanned`} />
           </div>
           <div className="button-row">
             <button type="button" className="secondary-button" onClick={() => onNavigate("utxos")}>
@@ -108,21 +116,23 @@ function ActionCard({
   return (
     <article className={`action-card action-card-${action.severity}`}>
       <div className="action-card-topline">
-        <RiskBadge severity={action.severity} />
-        <StatusPill label={humanize(action.confidence_level)} />
+        <div className="finding-title">
+          <RiskBadge severity={action.severity} />
+          <StatusPill label={humanize(action.confidence_level)} />
+        </div>
         <button type="button" className="icon-button action-dismiss" onClick={() => onDismissAction(action.id)} aria-label={`Dismiss ${action.title}`}>
           <X size={14} />
         </button>
       </div>
-      <h3>{action.title}</h3>
-      <p>{action.summary}</p>
-      <div className="action-card-detail">
-        <strong>Why it matters</strong>
-        <span>{action.why_it_matters}</span>
-      </div>
-      <div className="action-card-detail">
-        <strong>Recommended action</strong>
-        <span>{action.recommended_action}</span>
+      <div className="action-card-copy">
+        <div>
+          <h3>{action.title}</h3>
+          <p>{action.summary}</p>
+        </div>
+        <div className="action-card-detail">
+          <strong>Next</strong>
+          <span>{action.recommended_action}</span>
+        </div>
       </div>
       <div className="action-card-footer">
         <span>{action.affected_utxos.length ? `${action.affected_utxos.length} affected coins` : "wallet-level action"}</span>
@@ -134,9 +144,18 @@ function ActionCard({
   );
 }
 
-function BriefingRow({ label, value }: { label: string; value: string }) {
+function SignalTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="shape-row">
+    <div className="signal-tile">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function BriefingChip({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="briefing-chip">
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
