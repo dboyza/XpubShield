@@ -9,7 +9,7 @@ import {
   LayoutDashboard,
   MessageSquareText,
   Settings as SettingsIcon,
-  ShieldAlert,
+  Bitcoin,
   Send,
   Settings2,
   Table2,
@@ -157,7 +157,7 @@ export default function App() {
       </div>
       <aside className="sidebar">
         <div className="brand-lockup">
-          <ShieldAlert size={24} aria-hidden="true" />
+          <Bitcoin size={24} aria-hidden="true" />
           <div>
             <strong>XpubShield</strong>
             <span>WATCH-ONLY TERMINAL</span>
