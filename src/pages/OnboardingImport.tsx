@@ -167,7 +167,7 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
             </label>
           )}
 
-          <div className="form-grid">
+          <div className="form-grid essential-grid">
             <label>
               Network
               <select value={network} onChange={(event) => setNetwork(event.target.value as Network)}>
@@ -187,6 +187,14 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
                 <option value="public_esplora">Public Esplora</option>
               </select>
             </label>
+          </div>
+
+          <details className="advanced-section" open={importKind === "xpub"}>
+            <summary>
+              <span>Wallet metadata</span>
+              <small>Script hints, account path, and scan depth</small>
+            </summary>
+            <div className="form-grid">
             {importKind === "xpub" ? (
               <>
                 <label>
@@ -217,7 +225,8 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
                 onChange={(event) => setGapLimit(Number(event.target.value))}
               />
             </label>
-          </div>
+            </div>
+          </details>
 
           {publicApiMode ? (
             <label className="checkbox-row">
@@ -231,7 +240,11 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
           ) : null}
 
           {backend === "bitcoin_core_rpc" ? (
-            <section className="embedded-form">
+            <details className="advanced-section backend-config" open>
+              <summary>
+                <span>Bitcoin Core RPC</span>
+                <small>Local node connection, never raw xpub upload</small>
+              </summary>
               <div className="section-heading compact-heading">
                 <Database size={18} aria-hidden="true" />
                 <div>
@@ -261,11 +274,15 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
                   />
                 </label>
               </div>
-            </section>
+            </details>
           ) : null}
 
           {backend === "esplora" || backend === "public_esplora" ? (
-            <section className="embedded-form">
+            <details className="advanced-section backend-config" open>
+              <summary>
+                <span>{backend === "public_esplora" ? "Public Esplora endpoint" : "Self-hosted Esplora endpoint"}</span>
+                <small>Address/script queries only</small>
+              </summary>
               <div className="section-heading compact-heading">
                 <Database size={18} aria-hidden="true" />
                 <div>
@@ -287,7 +304,7 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
                   <span>Tor-routed endpoint</span>
                 </label>
               </div>
-            </section>
+            </details>
           ) : null}
 
           {error ? (
