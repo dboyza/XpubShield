@@ -52,7 +52,15 @@ export interface ImportRequest {
   account_path_guess?: string;
   gap_limit?: number;
   backend?: BackendKind;
+  bitcoin_core_rpc?: BitcoinCoreRpcConfig;
   public_api_acknowledged: boolean;
+}
+
+export interface BitcoinCoreRpcConfig {
+  url: string;
+  username?: string | null;
+  password?: string | null;
+  wallet?: string | null;
 }
 
 export interface Wallet {

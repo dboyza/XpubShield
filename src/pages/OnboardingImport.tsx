@@ -18,6 +18,10 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
   const [accountPath, setAccountPath] = useState("84h/0h/0h");
   const [gapLimit, setGapLimit] = useState(20);
   const [backend, setBackend] = useState<BackendKind>("mock");
+  const [bitcoinCoreUrl, setBitcoinCoreUrl] = useState("http://127.0.0.1:8332");
+  const [bitcoinCoreUsername, setBitcoinCoreUsername] = useState("");
+  const [bitcoinCorePassword, setBitcoinCorePassword] = useState("");
+  const [bitcoinCoreWallet, setBitcoinCoreWallet] = useState("");
   const [acknowledgedPublicApi, setAcknowledgedPublicApi] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -49,6 +53,15 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
       account_path_guess: importKind === "xpub" ? accountPath : undefined,
       gap_limit: gapLimit,
       backend,
+      bitcoin_core_rpc:
+        backend === "bitcoin_core_rpc"
+          ? {
+              url: bitcoinCoreUrl,
+              username: bitcoinCoreUsername || undefined,
+              password: bitcoinCorePassword || undefined,
+              wallet: bitcoinCoreWallet || undefined
+            }
+          : undefined,
       public_api_acknowledged: acknowledgedPublicApi
     };
 
@@ -195,6 +208,40 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
               />
               <span>I understand public API mode is weak privacy and must not receive raw xpubs or descriptors.</span>
             </label>
+          ) : null}
+
+          {backend === "bitcoin_core_rpc" ? (
+            <section className="embedded-form">
+              <div className="section-heading compact-heading">
+                <Database size={18} aria-hidden="true" />
+                <div>
+                  <p>Local node</p>
+                  <h2>Bitcoin Core RPC</h2>
+                </div>
+              </div>
+              <div className="form-grid">
+                <label>
+                  RPC URL
+                  <input value={bitcoinCoreUrl} onChange={(event) => setBitcoinCoreUrl(event.target.value)} />
+                </label>
+                <label>
+                  RPC wallet
+                  <input value={bitcoinCoreWallet} onChange={(event) => setBitcoinCoreWallet(event.target.value)} />
+                </label>
+                <label>
+                  RPC username
+                  <input value={bitcoinCoreUsername} onChange={(event) => setBitcoinCoreUsername(event.target.value)} />
+                </label>
+                <label>
+                  RPC password
+                  <input
+                    type="password"
+                    value={bitcoinCorePassword}
+                    onChange={(event) => setBitcoinCorePassword(event.target.value)}
+                  />
+                </label>
+              </div>
+            </section>
           ) : null}
 
           {error ? (

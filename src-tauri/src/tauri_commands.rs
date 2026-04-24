@@ -1,4 +1,5 @@
 use crate::blockchain_backend::BlockchainBackend;
+use crate::bitcoin_core_backend::BitcoinCoreBackend;
 use crate::database::{
     initialize_database, load_current_wallet_report, merge_persisted_utxo_metadata,
     save_wallet_report, wallet_totals_from_utxos,
@@ -53,8 +54,18 @@ pub fn import_wallet(
     request: ImportRequest,
     state: State<'_, AppState>,
 ) -> Result<WalletReport, String> {
+    let bitcoin_core_config = request.bitcoin_core_rpc.clone();
     let validated = validate_import(request).map_err(|error| error.to_string())?;
-    let mut report = MockBackend.scan_wallet(&validated);
+    let mut report = if matches!(validated.backend, crate::models::BackendKind::BitcoinCoreRpc) {
+        let config = bitcoin_core_config
+            .ok_or_else(|| "Bitcoin Core RPC mode requires local RPC configuration.".to_string())?;
+        BitcoinCoreBackend::new(config)
+            .map_err(|error| error.to_string())?
+            .scan_wallet(&validated)
+            .map_err(|error| error.to_string())?
+    } else {
+        MockBackend.scan_wallet(&validated)
+    };
     {
         let database = state
             .database
@@ -225,6 +236,7 @@ pub fn demo_request() -> ImportRequest {
         account_path_guess: None,
         gap_limit: Some(20),
         backend: Some(crate::models::BackendKind::Mock),
+        bitcoin_core_rpc: None,
         public_api_acknowledged: false,
     }
 }

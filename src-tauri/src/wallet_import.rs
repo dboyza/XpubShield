@@ -1,3 +1,4 @@
+use crate::bitcoin_core_backend::BitcoinCoreRpcConfig;
 use crate::descriptor_parser::parse_descriptor_metadata;
 use crate::descriptor_parser::parse_public_descriptor;
 use crate::models::{BackendKind, Descriptor, Keychain, Network, ScriptType};
@@ -23,6 +24,7 @@ pub struct ImportRequest {
     pub account_path_guess: Option<String>,
     pub gap_limit: Option<u32>,
     pub backend: Option<BackendKind>,
+    pub bitcoin_core_rpc: Option<BitcoinCoreRpcConfig>,
     pub public_api_acknowledged: bool,
 }
 
@@ -264,6 +266,7 @@ mod tests {
             account_path_guess: Some("84h/0h/0h".to_string()),
             gap_limit: Some(20),
             backend: Some(BackendKind::Mock),
+            bitcoin_core_rpc: None,
             public_api_acknowledged: false,
         }
     }
