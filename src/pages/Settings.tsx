@@ -1,4 +1,4 @@
-import { Database, Download, HardDrive, Server, ShieldAlert, Trash2 } from "lucide-react";
+import { BookOpenCheck, Database, Download, HardDrive, Server, ShieldAlert, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { MetricCard } from "../components/MetricCard";
 import { StatusPill } from "../components/StatusPill";
@@ -10,10 +10,11 @@ import type { Label, SourceCategory, WalletReport } from "../types/domain";
 
 interface SettingsProps {
   report: WalletReport;
+  onTutorialReset: () => void;
   onCacheCleared: () => void;
 }
 
-export function Settings({ report, onCacheCleared }: SettingsProps) {
+export function Settings({ report, onTutorialReset, onCacheCleared }: SettingsProps) {
   const [dataPath, setDataPath] = useState<string | null>(null);
   const [labels, setLabels] = useState<Label[]>([]);
   const [labelTargetType, setLabelTargetType] = useState("utxo");
@@ -111,6 +112,21 @@ export function Settings({ report, onCacheCleared }: SettingsProps) {
           </div>
           <p className="plain-text">
             Exports are created locally by your desktop app. Review files before storing them anywhere else because labels, descriptors, addresses, and wallet history are sensitive metadata.
+          </p>
+        </div>
+
+        <div className="panel">
+          <div className="panel-heading">
+            <h2>Tutorial</h2>
+            <StatusPill label="Optional" />
+          </div>
+          <div className="button-row settings-actions">
+            <button type="button" className="secondary-button" onClick={onTutorialReset}>
+              <BookOpenCheck size={17} /> Restart tutorial
+            </button>
+          </div>
+          <p className="plain-text">
+            Reopens the local Sovereign Ops walkthrough. This only resets tutorial state and does not clear wallet metadata.
           </p>
         </div>
       </section>
