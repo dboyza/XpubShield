@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "XpubShield",
   "version": "0.1.0",
-  "identifier": "com.xpubshield.app",
+  "identifier": "com.xpubshield.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
@@ -25,6 +25,9 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all"
+    "targets": "all",
+    "icon": [
+      "icons/icon.ico"
+    ]
   }
 }
