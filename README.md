@@ -6,6 +6,8 @@ This repository currently implements the Phase 1 MVP with a Tauri + React shell,
 
 Phase 2 UI surfaces are underway and currently include local label/quarantine editing, fee stress testing, a privacy impact simulator, and a consolidation planner using simulation-only mock wallet data.
 
+Phase 3 UI surfaces are underway and currently include a local PSBT linter, recovery health report, descriptor diff tool, and template-based transaction explanations.
+
 ## Security Model
 
 XpubShield is watch-only only.
@@ -96,6 +98,10 @@ Frontend:
 - `src/pages/FeeStressTest.tsx`: deterministic fee-rate stress test across wallet UTXOs.
 - `src/pages/PrivacySimulator.tsx`: “What does the chain know?” selected-UTXO privacy simulator.
 - `src/pages/ConsolidationPlanner.tsx`: label-aware consolidation simulation.
+- `src/pages/PsbtLinter.tsx`: local PSBT fixture linter and raw PSBT envelope detector.
+- `src/pages/RecoveryHealth.tsx`: watch-only recovery metadata report with JSON/Markdown export.
+- `src/pages/DescriptorDiff.tsx`: descriptor/xpub identity comparison tool.
+- `src/pages/TransactionExplanations.tsx`: deterministic transaction explanation templates.
 - `src/api/tauri.ts`: Tauri command bridge plus browser demo fallback.
 - `src/types/domain.ts`: TypeScript domain model mirror of Rust structs.
 
@@ -166,7 +172,7 @@ Findings use heuristic language and avoid claiming certainty about ownership, sa
 - Address derivation uses mock addresses for demonstration.
 - No live Bitcoin Core, Electrum, or Esplora scanning yet.
 - Phase 2 label/quarantine edits are held in the current app session for the mock wallet; durable SQLite persistence is a follow-up.
-- No PSBT linting beyond private-material rejection scaffold.
+- Phase 3 PSBT linting supports mock JSON fixtures and raw PSBT envelope detection; full Rust PSBT parsing is a follow-up.
 - No transaction signing.
 - No transaction broadcasting.
 - No encrypted database yet.
@@ -184,10 +190,10 @@ Phase 2:
 
 Phase 3:
 
-- PSBT linter
-- Recovery health report
-- Descriptor diff tool
-- Transaction explanation templates
+- PSBT linter: implemented for mock fixtures and PSBT envelope detection
+- Recovery health report: implemented for current watch-only metadata
+- Descriptor diff tool: implemented with deterministic metadata/address-preview comparison
+- Transaction explanation templates: implemented for mock transaction data
 
 Phase 4:
 

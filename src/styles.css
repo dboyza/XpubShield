@@ -54,6 +54,8 @@ button {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  max-height: 100vh;
+  overflow-y: auto;
   border-right: 1px solid var(--line);
   background: #0f151d;
   padding: 20px;
@@ -691,6 +693,25 @@ td span {
   grid-template-columns: auto 90px;
   align-items: center;
   gap: 8px;
+  font-size: 12px;
+}
+
+.embedded-table {
+  margin-top: 16px;
+  border-radius: 8px;
+}
+
+.preview-list {
+  display: grid;
+  gap: 0;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.preview-list .shape-row strong {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
   font-size: 12px;
 }
 

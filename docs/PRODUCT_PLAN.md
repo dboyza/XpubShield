@@ -684,6 +684,14 @@ Current implementation note:
 - Descriptor diff tool
 - Transaction explanation templates
 
+Current implementation note:
+
+- Initial Phase 3 UI surfaces are implemented against current mock wallet state.
+- The PSBT linter supports mock JSON PSBT fixtures and detects raw PSBT envelopes, but full Rust PSBT parsing remains a follow-up.
+- The recovery report scores current descriptor metadata and exports JSON/Markdown locally.
+- The descriptor diff tool compares metadata and deterministic previews; real Bitcoin address derivation remains a later backend-backed enhancement.
+- Transaction explanations are deterministic templates and avoid unsupported certainty.
+
 ### Phase 4
 
 - Graph visualization
