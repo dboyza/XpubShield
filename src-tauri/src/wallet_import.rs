@@ -235,9 +235,7 @@ fn looks_like_wif(input: &str) -> bool {
             let len = word.len();
             (len == 51 || len == 52)
                 && matches!(word.as_bytes().first(), Some(b'5' | b'K' | b'L' | b'c' | b'9'))
-                && word
-                    .chars()
-                    .all(|c| "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz".contains(c))
+                && word.chars().all(|c| c.is_ascii_alphanumeric())
         })
 }
 

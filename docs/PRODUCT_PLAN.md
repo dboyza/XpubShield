@@ -670,6 +670,13 @@ Initial deliverables:
 - Privacy simulator
 - Consolidation planner using simulation only
 
+Current implementation note:
+
+- Initial Phase 2 UI surfaces are implemented against the mock wallet state.
+- Label and quarantine edits update the active app session.
+- Fee stress testing, privacy simulation, and consolidation planning are deterministic and do not create, sign, or broadcast transactions.
+- Durable SQLite persistence for edited labels/quarantine status remains a follow-up.
+
 ### Phase 3
 
 - PSBT linter

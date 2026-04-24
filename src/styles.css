@@ -182,7 +182,8 @@ h2 {
 .panel,
 .table-panel,
 .toolbar,
-.metric {
+.metric,
+.action-panel {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
@@ -494,6 +495,18 @@ td input[type="checkbox"] {
   padding: 12px;
 }
 
+.action-panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(140px, 1fr));
+  gap: 12px;
+}
+
 .toolbar label {
   display: flex;
   align-items: center;
@@ -557,7 +570,8 @@ td span {
 }
 
 .flag-stack,
-.fee-stack {
+.fee-stack,
+.status-editor {
   display: grid;
   gap: 5px;
 }
@@ -569,6 +583,115 @@ td span {
   padding: 4px 7px;
   color: var(--text-soft);
   background: #202b39;
+}
+
+.table-input,
+.table-select {
+  min-height: 32px;
+  max-width: 220px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.table-input + span,
+.table-select + span,
+.table-select + .table-input {
+  margin-top: 6px;
+}
+
+.simulator-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.8fr) minmax(0, 1.2fr);
+  gap: 16px;
+}
+
+.utxo-pick-list,
+.risk-list,
+.stress-list {
+  display: grid;
+  gap: 10px;
+}
+
+.utxo-pick-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0f151d;
+}
+
+.utxo-pick-row input {
+  width: 16px;
+  min-height: 16px;
+  margin-top: 2px;
+}
+
+.utxo-pick-row strong,
+.utxo-pick-row span {
+  display: block;
+}
+
+.utxo-pick-row span {
+  min-width: 0;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.risk-card,
+.stress-item {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0f151d;
+}
+
+.risk-card p,
+.plain-text {
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+
+.risk-card > span,
+.risk-meta,
+.empty-state {
+  color: var(--text-muted);
+}
+
+.risk-meta,
+.stress-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.stress-item > div span {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+}
+
+.compact-field {
+  display: grid;
+  grid-template-columns: auto 90px;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
 }
 
 @media (max-width: 1100px) {
@@ -600,7 +723,9 @@ td span {
 
   .metric-grid,
   .dashboard-grid,
-  .form-grid {
+  .form-grid,
+  .action-grid,
+  .simulator-grid {
     grid-template-columns: 1fr;
   }
 

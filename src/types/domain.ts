@@ -176,3 +176,14 @@ export interface WalletReport {
   backend_privacy: BackendPrivacyScore;
   totals: WalletTotals;
 }
+
+export type UtxoUpdate = Partial<
+  Pick<
+    Utxo,
+    | "label"
+    | "source_label"
+    | "source_category"
+    | "quarantine_status"
+    | "spendability_status"
+  >
+>;
