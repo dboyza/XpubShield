@@ -258,6 +258,30 @@ pub fn acknowledge_alert(connection: &Connection, alert_id: &str) -> Result<()> 
     Ok(())
 }
 
+pub fn clear_local_cache(connection: &mut Connection) -> Result<()> {
+    let tx = connection.transaction()?;
+    for table in [
+        "backend_configs",
+        "settings",
+        "alerts",
+        "psbt_analyses",
+        "consolidation_plans",
+        "spend_simulations",
+        "audit_findings",
+        "labels",
+        "transaction_outputs",
+        "transaction_inputs",
+        "transactions",
+        "utxos",
+        "derived_addresses",
+        "descriptors",
+        "wallets",
+    ] {
+        tx.execute(&format!("DELETE FROM {table}"), [])?;
+    }
+    tx.commit()
+}
+
 fn load_current_wallet(connection: &Connection) -> Result<Option<Wallet>> {
     connection
         .query_row(
@@ -551,5 +575,19 @@ mod tests {
         acknowledge_alert(&connection, "alert_test").unwrap();
         let loaded = load_alerts(&connection, &report.wallet.id).unwrap();
         assert!(loaded[0].acknowledged);
+    }
+
+    #[test]
+    fn clear_local_cache_removes_wallet_state() {
+        use crate::blockchain_backend::BlockchainBackend;
+        use crate::mock_backend::{build_demo_import, MockBackend};
+
+        let mut connection = initialize_memory_database().unwrap();
+        let report = MockBackend.scan_wallet(&build_demo_import());
+        save_wallet_report(&mut connection, &report).unwrap();
+        assert!(load_current_wallet_report(&connection).unwrap().is_some());
+
+        clear_local_cache(&mut connection).unwrap();
+        assert!(load_current_wallet_report(&connection).unwrap().is_none());
     }
 }

@@ -20,8 +20,9 @@ pub mod wallet_import;
 
 use tauri::Manager;
 use tauri_commands::{
-    acknowledge_alert, analyze_psbt, compare_descriptors, get_alerts, get_current_wallet,
-    import_wallet, load_demo_wallet, update_utxos, AppState,
+    acknowledge_alert, analyze_psbt, clear_local_cache, compare_descriptors, get_alerts,
+    get_current_wallet, get_local_data_path, import_wallet, load_demo_wallet, update_utxos,
+    AppState,
 };
 
 pub fn run() {
@@ -40,7 +41,9 @@ pub fn run() {
             compare_descriptors,
             analyze_psbt,
             get_alerts,
-            acknowledge_alert
+            acknowledge_alert,
+            get_local_data_path,
+            clear_local_cache
         ])
         .run(tauri::generate_context!())
         .expect("failed to run XpubShield");

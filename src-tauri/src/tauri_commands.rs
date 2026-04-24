@@ -2,9 +2,9 @@ use crate::alert_engine::{generate_wallet_alerts, psbt_quarantine_alert};
 use crate::blockchain_backend::BlockchainBackend;
 use crate::bitcoin_core_backend::BitcoinCoreBackend;
 use crate::database::{
-    acknowledge_alert as acknowledge_alert_in_database, initialize_database, load_alerts,
-    load_current_wallet_report, merge_persisted_utxo_metadata, save_alerts, save_wallet_report,
-    wallet_totals_from_utxos,
+    acknowledge_alert as acknowledge_alert_in_database, clear_local_cache as clear_database_cache,
+    initialize_database, load_alerts, load_current_wallet_report, merge_persisted_utxo_metadata,
+    save_alerts, save_wallet_report, wallet_totals_from_utxos,
 };
 use crate::descriptor_diff::{compare_descriptor_inputs, DescriptorDiffSummary};
 use crate::esplora_backend::EsploraBackend;
@@ -21,6 +21,7 @@ use tauri::State;
 pub struct AppState {
     report: Mutex<Option<WalletReport>>,
     database: Mutex<Connection>,
+    data_path: Option<String>,
 }
 
 impl Default for AppState {
@@ -30,15 +31,18 @@ impl Default for AppState {
             database: Mutex::new(
                 crate::database::initialize_memory_database().expect("memory database initializes"),
             ),
+            data_path: None,
         }
     }
 }
 
 impl AppState {
     pub fn new(path: impl AsRef<Path>) -> rusqlite::Result<Self> {
+        let data_path = path.as_ref().display().to_string();
         Ok(Self {
             report: Mutex::new(None),
             database: Mutex::new(initialize_database(path)?),
+            data_path: Some(data_path),
         })
     }
 }
@@ -287,6 +291,29 @@ pub fn acknowledge_alert(
         .map_err(|_| "Database lock poisoned".to_string())?;
     acknowledge_alert_in_database(&database, &alert_id).map_err(|error| error.to_string())?;
     load_alerts(&database, &report.wallet.id).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn get_local_data_path(state: State<'_, AppState>) -> Option<String> {
+    state.data_path.clone()
+}
+
+#[tauri::command]
+pub fn clear_local_cache(state: State<'_, AppState>) -> Result<(), String> {
+    {
+        let mut database = state
+            .database
+            .lock()
+            .map_err(|_| "Database lock poisoned".to_string())?;
+        clear_database_cache(&mut database).map_err(|error| error.to_string())?;
+    }
+
+    *state
+        .report
+        .lock()
+        .map_err(|_| "State lock poisoned".to_string())? = None;
+
+    Ok(())
 }
 
 #[allow(dead_code)]
