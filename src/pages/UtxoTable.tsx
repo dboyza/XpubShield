@@ -1,9 +1,11 @@
 import { ArrowDownUp, BookmarkPlus, CheckSquare, Filter, Info, Search, Tags, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { EvidenceDrawer } from "../components/EvidenceDrawer";
 import { RiskBadge } from "../components/RiskBadge";
 import { StatusPill } from "../components/StatusPill";
 import { deleteCoinSet, listCoinSets, saveCoinSet } from "../api/tauri";
 import { categoryLabel, compactSats, humanize, satsToBtc, scriptTypeLabel, txidPrefix } from "../lib/format";
+import { coinDecisionEvidence, getCoinDecision, type EvidenceItem } from "../lib/ops";
 import { SOURCE_CATEGORIES } from "../lib/phase2";
 import type { CoinSet, ProvenanceSourceKind, QuarantineStatus, SourceCategory, Utxo, UtxoStatus, UtxoUpdate, WalletReport } from "../types/domain";
 
@@ -56,6 +58,7 @@ export function UtxoTable({ report, onUpdateUtxos, onNavigate }: UtxoTableProps)
   const [batchStatus, setBatchStatus] = useState<UtxoStatus>("spendable");
   const [batchQuarantine, setBatchQuarantine] = useState<QuarantineStatus>("none");
   const [detailOutpoint, setDetailOutpoint] = useState<string | null>(null);
+  const [activeEvidence, setActiveEvidence] = useState<EvidenceItem | null>(null);
 
   const riskFlags = useMemo(
     () => Array.from(new Set(report.utxos.flatMap((utxo) => utxo.audit_flags))).sort(),
@@ -383,6 +386,7 @@ export function UtxoTable({ report, onUpdateUtxos, onNavigate }: UtxoTableProps)
               <th>Path</th>
               <th>Confirmations</th>
               <th>Spend cost</th>
+              <th>Decision</th>
               <th>Risk</th>
               <th>Status</th>
               <th>Detail</th>
@@ -448,6 +452,9 @@ export function UtxoTable({ report, onUpdateUtxos, onNavigate }: UtxoTableProps)
                   <FeeStack utxo={utxo} />
                 </td>
                 <td>
+                  <DecisionStack utxo={utxo} onEvidence={setActiveEvidence} />
+                </td>
+                <td>
                   <div className="flag-stack">
                     {utxo.audit_flags.length ? (
                       utxo.audit_flags.slice(0, 2).map((flag) => <span key={flag}>{humanize(flag)}</span>)
@@ -506,8 +513,10 @@ export function UtxoTable({ report, onUpdateUtxos, onNavigate }: UtxoTableProps)
           utxo={detailUtxo}
           onClose={() => setDetailOutpoint(null)}
           onUpdate={(patch) => onUpdateUtxos([detailUtxo.outpoint], patch)}
+          onOpenEvidence={setActiveEvidence}
         />
       ) : null}
+      <EvidenceDrawer item={activeEvidence} onClose={() => setActiveEvidence(null)} />
     </main>
   );
 }
@@ -552,20 +561,38 @@ function ProvenanceStack({ utxo }: { utxo: Utxo }) {
   );
 }
 
+function DecisionStack({ utxo, onEvidence }: { utxo: Utxo; onEvidence: (item: EvidenceItem) => void }) {
+  const decision = getCoinDecision(utxo);
+
+  return (
+    <button
+      type="button"
+      className={`coin-decision coin-decision-${decision.state}`}
+      onClick={() => onEvidence(coinDecisionEvidence(utxo))}
+    >
+      <strong>{decision.label}</strong>
+      <span>{humanize(decision.confidence)} confidence</span>
+    </button>
+  );
+}
+
 function UtxoDetailDrawer({
   report,
   utxo,
   onClose,
-  onUpdate
+  onUpdate,
+  onOpenEvidence
 }: {
   report: WalletReport;
   utxo: Utxo;
   onClose: () => void;
   onUpdate: (patch: UtxoUpdate) => void;
+  onOpenEvidence: (item: EvidenceItem) => void;
 }) {
   const transaction = report.transactions.find((item) => item.txid === utxo.txid);
   const address = report.derived_addresses.find((item) => item.address === utxo.address);
   const relatedFindings = report.findings.filter((finding) => finding.affected_utxos.includes(utxo.outpoint));
+  const decision = getCoinDecision(utxo);
 
   return (
     <aside className="detail-drawer" aria-label="UTXO detail drawer">
@@ -585,6 +612,21 @@ function UtxoDetailDrawer({
           <StatusPill label={utxo.quarantine_status === "none" ? "Review" : "Quarantined"} tone={utxo.quarantine_status === "none" ? "neutral" : "warn"} />
         </div>
         <p className="plain-text">{describeUtxo(utxo, relatedFindings.length)}</p>
+      </section>
+
+      <section className="panel embedded-form coin-decision-panel">
+        <div className="panel-heading">
+          <h2>Coin decision</h2>
+          <StatusPill label={decision.label} tone={decision.tone} />
+        </div>
+        <p className="plain-text">{decision.reason}</p>
+        <div className="shape-list">
+          <DetailRow label="Confidence" value={humanize(decision.confidence)} />
+          <DetailRow label="Action" value={decision.action} />
+        </div>
+        <button type="button" className="ghost-button" onClick={() => onOpenEvidence(coinDecisionEvidence(utxo))}>
+          Open evidence
+        </button>
       </section>
 
       <section className="panel embedded-form">
@@ -706,6 +748,27 @@ function UtxoDetailDrawer({
               <article className="finding-row" key={finding.id}>
                 <strong>{finding.title}</strong>
                 <p>{finding.explanation}</p>
+                <button
+                  type="button"
+                  className="ghost-button evidence-link"
+                  onClick={() =>
+                    onOpenEvidence({
+                      id: `finding:${finding.id}`,
+                      title: finding.title,
+                      severity: finding.severity,
+                      confidence: finding.confidence_level,
+                      why: finding.explanation,
+                      action: finding.recommended_action,
+                      evidence: [
+                        finding.heuristic_notes || "Local wallet report finding.",
+                        ...finding.affected_utxos.slice(0, 4)
+                      ],
+                      affectedCount: finding.affected_utxos.length
+                    })
+                  }
+                >
+                  Open evidence
+                </button>
               </article>
             ))}
           </div>

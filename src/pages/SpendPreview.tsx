@@ -1,9 +1,17 @@
 import { Calculator, CircleDollarSign, ShieldAlert } from "lucide-react";
 import { useMemo, useState } from "react";
+import { EvidenceDrawer } from "../components/EvidenceDrawer";
 import { MetricCard } from "../components/MetricCard";
 import { StatusPill } from "../components/StatusPill";
 import { simulateSpend } from "../api/tauri";
 import { compactSats, humanize, satsToBtc, txidPrefix } from "../lib/format";
+import {
+  buildSpendScenarios,
+  severityToTone,
+  spendScenarioEvidence,
+  type EvidenceItem,
+  type SpendScenario
+} from "../lib/ops";
 import { buildSpendPreview, STRESS_FEE_RATES } from "../lib/phase2";
 import type { SpendSimulation, Utxo, WalletReport } from "../types/domain";
 
@@ -19,6 +27,7 @@ export function SpendPreview({ report, onNavigate }: SpendPreviewProps) {
   const [changePolicy, setChangePolicy] = useState<"auto" | "avoid_change">("auto");
   const [singleContextOnly, setSingleContextOnly] = useState(false);
   const [savedSimulation, setSavedSimulation] = useState<SpendSimulation | null>(null);
+  const [activeEvidence, setActiveEvidence] = useState<EvidenceItem | null>(null);
 
   const eligibleUtxos = useMemo(() => {
     if (!singleContextOnly || selected.length === 0) return report.utxos;
@@ -45,6 +54,7 @@ export function SpendPreview({ report, onNavigate }: SpendPreviewProps) {
       ),
     [changePolicy, destinationAmount, feeRate, report.utxos, selectedUtxos]
   );
+  const scenarios = useMemo(() => buildSpendScenarios(selectedUtxos, preview), [preview, selectedUtxos]);
 
   function toggle(outpoint: string) {
     setSelected((current) =>
@@ -158,9 +168,43 @@ export function SpendPreview({ report, onNavigate }: SpendPreviewProps) {
             <MetricCard icon={CircleDollarSign} label="Change amount" value={`${compactSats(preview.changeAmountSats)} sats`} />
           </section>
 
+          <section className="scenario-builder">
+            <div className="panel-heading">
+              <h2>Spend scenario builder</h2>
+              <StatusPill label="observer narrative" tone={preview.privacyRisk === "high" ? "bad" : preview.privacyRisk === "medium" ? "warn" : "good"} />
+            </div>
+            <div className="scenario-grid">
+              {scenarios.map((scenario) => (
+                <ScenarioCard key={scenario.id} scenario={scenario} onEvidence={setActiveEvidence} />
+              ))}
+            </div>
+          </section>
+
           <div className="finding-list">
             <article className="finding-row observer-card">
-              <strong>What an observer could infer</strong>
+              <div className="finding-title">
+                <strong>What an observer could infer</strong>
+                <button
+                  type="button"
+                  className="ghost-button evidence-link"
+                  onClick={() =>
+                    setActiveEvidence({
+                      id: "spend-observer-notes",
+                      title: "Observer inference",
+                      severity: riskToSeverity(preview.privacyRisk),
+                      confidence: "medium",
+                      why: preview.observerNotes.join(" "),
+                      action: "Use the scenario builder to remove risky inputs before signing elsewhere.",
+                      evidence: selectedUtxos.length
+                        ? selectedUtxos.map((utxo) => `${txidPrefix(utxo.txid)}: ${utxo.label || "Unlabeled"} / ${humanize(utxo.source_category)}`)
+                        : ["No selected inputs."],
+                      affectedCount: selectedUtxos.length
+                    })
+                  }
+                >
+                  Evidence
+                </button>
+              </div>
               <ul>
                 {preview.observerNotes.map((note) => (
                   <li key={note}>{note}</li>
@@ -168,20 +212,107 @@ export function SpendPreview({ report, onNavigate }: SpendPreviewProps) {
               </ul>
             </article>
             <article className="finding-row">
-              <strong>{preview.createsChange ? "Change likely created" : "No economical change estimated"}</strong>
+              <div className="finding-title">
+                <strong>{preview.createsChange ? "Change likely created" : "No economical change estimated"}</strong>
+                <button
+                  type="button"
+                  className="ghost-button evidence-link"
+                  onClick={() =>
+                    setActiveEvidence({
+                      id: "spend-change",
+                      title: "Change outcome",
+                      severity: preview.createsChange ? "medium" : "low",
+                      confidence: "medium",
+                      why: preview.summary,
+                      action: "Adjust amount, fee rate, or coin selection if change would inherit mixed history.",
+                      evidence: [
+                        `Input amount: ${compactSats(preview.inputAmountSats)} sats`,
+                        `Destination amount: ${compactSats(preview.destinationAmountSats)} sats`,
+                        `Estimated fee: ${compactSats(preview.estimatedFeeSats)} sats`,
+                        `Estimated change: ${compactSats(preview.changeAmountSats)} sats`
+                      ],
+                      affectedCount: selectedUtxos.length
+                    })
+                  }
+                >
+                  Evidence
+                </button>
+              </div>
               <p>{preview.summary}</p>
             </article>
             <article className="finding-row">
-              <strong>Label mixing risk: {humanize(preview.labelMixingRisk)}</strong>
+              <div className="finding-title">
+                <strong>Label mixing risk: {humanize(preview.labelMixingRisk)}</strong>
+                <button
+                  type="button"
+                  className="ghost-button evidence-link"
+                  onClick={() =>
+                    setActiveEvidence({
+                      id: "spend-label-mixing",
+                      title: "Label mixing risk",
+                      severity: riskToSeverity(preview.labelMixingRisk),
+                      confidence: "high",
+                      why: "The selected inputs are compared by local labels, source categories, and quarantine status.",
+                      action: "Prefer inputs with the same label and source category for a single spend.",
+                      evidence: selectedUtxos.map((utxo) => `${txidPrefix(utxo.txid)}: ${utxo.label || "Unlabeled"} / ${humanize(utxo.source_category)}`),
+                      affectedCount: selectedUtxos.length
+                    })
+                  }
+                >
+                  Evidence
+                </button>
+              </div>
               <p>This heuristic checks selected labels, source categories, and quarantine flags. It is not definitive.</p>
             </article>
             <article className="finding-row">
-              <strong>Provenance mixing risk: {humanize(preview.provenanceMixingRisk)}</strong>
+              <div className="finding-title">
+                <strong>Provenance mixing risk: {humanize(preview.provenanceMixingRisk)}</strong>
+                <button
+                  type="button"
+                  className="ghost-button evidence-link"
+                  onClick={() =>
+                    setActiveEvidence({
+                      id: "spend-provenance-mixing",
+                      title: "Provenance mixing risk",
+                      severity: riskToSeverity(preview.provenanceMixingRisk),
+                      confidence: "medium",
+                      why: "Manual labels, local registry guesses, and provenance categories are compared for the selected inputs.",
+                      action: "Keep exchange-like, unknown, and non-KYC contexts separated unless the merge is deliberate.",
+                      evidence: selectedUtxos.map((utxo) => `${txidPrefix(utxo.txid)}: ${utxo.provenance.entity_label ?? humanize(utxo.provenance.category)} (${humanize(utxo.provenance.confidence_level)})`),
+                      affectedCount: selectedUtxos.length
+                    })
+                  }
+                >
+                  Evidence
+                </button>
+              </div>
               <p>Local registry and manual labels are used to spot exchange/non-exchange and entity-context mixing without remote attribution calls.</p>
             </article>
             {preview.quarantineWarnings.map((warning) => (
               <article className="finding-row" key={warning}>
-                <strong>Quarantine warning</strong>
+                <div className="finding-title">
+                  <strong>Quarantine warning</strong>
+                  <button
+                    type="button"
+                    className="ghost-button evidence-link"
+                    onClick={() =>
+                      setActiveEvidence({
+                        id: `spend-quarantine:${warning}`,
+                        title: "Quarantine warning",
+                        severity: "high",
+                        confidence: "high",
+                        why: warning,
+                        action: "Remove quarantined coins unless the policy exception is intentional.",
+                        evidence: selectedUtxos
+                          .filter((utxo) => utxo.quarantine_status !== "none")
+                          .map((utxo) => `${txidPrefix(utxo.txid)}: ${humanize(utxo.quarantine_status)}`),
+                        affectedCount: selectedUtxos.filter((utxo) => utxo.quarantine_status !== "none").length
+                      })
+                    }
+                  >
+                    Evidence
+                  </button>
+                </div>
                 <p>{warning}</p>
               </article>
             ))}
@@ -227,7 +358,25 @@ export function SpendPreview({ report, onNavigate }: SpendPreviewProps) {
           </div>
         </div>
       </section>
+      <EvidenceDrawer item={activeEvidence} onClose={() => setActiveEvidence(null)} />
     </main>
+  );
+}
+
+function ScenarioCard({ scenario, onEvidence }: { scenario: SpendScenario; onEvidence: (item: EvidenceItem) => void }) {
+  return (
+    <article className={`scenario-card scenario-card-${scenario.severity}`}>
+      <div className="scenario-card-top">
+        <StatusPill label={humanize(scenario.severity)} tone={severityToTone(scenario.severity)} />
+        <span>{humanize(scenario.confidence)} confidence</span>
+      </div>
+      <h3>{scenario.title}</h3>
+      <p>{scenario.narrative}</p>
+      <span>{scenario.observerInference}</span>
+      <button type="button" className="ghost-button evidence-link" onClick={() => onEvidence(spendScenarioEvidence(scenario))}>
+        Evidence
+      </button>
+    </article>
   );
 }
 
@@ -243,4 +392,10 @@ function SpendPickRow({ utxo, checked, onToggle }: { utxo: Utxo; checked: boolea
       </span>
     </label>
   );
+}
+
+function riskToSeverity(risk: "low" | "medium" | "high") {
+  if (risk === "high") return "high";
+  if (risk === "medium") return "medium";
+  return "low";
 }
