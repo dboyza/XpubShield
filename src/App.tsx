@@ -6,7 +6,6 @@ import {
   HeartPulse,
   LayoutDashboard,
   Settings as SettingsIcon,
-  Bitcoin,
   Send,
   Server,
   Settings2,
@@ -14,6 +13,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { dismissAction, getCurrentWallet, updateUtxos as persistUtxos } from "./api/tauri";
+import { BrandMark } from "./components/BrandMark";
 import { clearMissionQueueState, MissionQueue } from "./components/MissionQueue";
 import {
   SovereignOpsTutorial,
@@ -384,7 +384,7 @@ export default function App() {
         <>
           <aside className="sidebar">
             <div className="brand-lockup">
-              <Bitcoin size={24} aria-hidden="true" />
+              <BrandMark />
               <div>
                 <strong>XpubShield</strong>
                 <span>SOVEREIGN OPS</span>
