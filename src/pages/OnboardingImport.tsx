@@ -1,6 +1,7 @@
-import { AlertTriangle, ArrowLeft, ArrowRight, Bitcoin, Database, FileKey2, Lock, Server, Upload, WalletCards } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Database, FileKey2, Lock, Server, Upload, WalletCards } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { importWallet, isTauriRuntime, loadDemoWallet, looksLikePrivateMaterial } from "../api/tauri";
+import { BrandMark } from "../components/BrandMark";
 import { PrivacyWarning } from "../components/PrivacyWarning";
 import { backendLabel } from "../lib/format";
 import { ELECTRUM_PRESETS, type BackendPreferences, type ElectrumPresetId } from "../lib/setupPreferences";
@@ -254,7 +255,7 @@ export function OnboardingImport({
       <section className="import-panel">
         {firstRun ? (
           <div className="onboarding-brand">
-            <Bitcoin size={28} aria-hidden="true" />
+            <BrandMark className="brand-mark-large" />
             <div>
               <strong>XpubShield</strong>
               <span>Watch-only setup</span>
