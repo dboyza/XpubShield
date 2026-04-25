@@ -6,17 +6,28 @@ import { clearLocalCache, getLocalDataPath, listLabels, upsertLabel } from "../a
 import { backendLabel, humanize } from "../lib/format";
 import { SOURCE_CATEGORIES } from "../lib/phase2";
 import { buildRecoveryHealth } from "../lib/phase3";
-import type { Label, NetworkPolicy, SourceCategory, WalletReport } from "../types/domain";
+import { ELECTRUM_PRESETS, type BackendPreferences, type ElectrumPresetId } from "../lib/setupPreferences";
+import type { BackendKind, Label, Network, NetworkPolicy, ScriptType, SourceCategory, WalletReport } from "../types/domain";
 
 interface SettingsProps {
   report: WalletReport;
+  backendPreferences: BackendPreferences;
   networkPolicy: NetworkPolicy;
+  onBackendPreferencesChange: (patch: Partial<BackendPreferences>) => void;
   onNetworkPolicyChange: (policy: NetworkPolicy) => void;
   onTutorialReset: () => void;
   onCacheCleared: () => void;
 }
 
-export function Settings({ report, networkPolicy, onNetworkPolicyChange, onTutorialReset, onCacheCleared }: SettingsProps) {
+export function Settings({
+  report,
+  backendPreferences,
+  networkPolicy,
+  onBackendPreferencesChange,
+  onNetworkPolicyChange,
+  onTutorialReset,
+  onCacheCleared
+}: SettingsProps) {
   const [dataPath, setDataPath] = useState<string | null>(null);
   const [labels, setLabels] = useState<Label[]>([]);
   const [labelTargetType, setLabelTargetType] = useState("utxo");
@@ -54,6 +65,54 @@ export function Settings({ report, networkPolicy, onNetworkPolicyChange, onTutor
     } finally {
       setClearing(false);
     }
+  }
+
+  function changeNetworkLock(checked: boolean) {
+    const nextPolicy = checked ? "local_only" : "normal";
+    onNetworkPolicyChange(nextPolicy);
+    if (checked && backendPreferences.backend !== "mock" && backendPreferences.backend !== "bitcoin_core_rpc") {
+      onBackendPreferencesChange({ backend: "mock" });
+    }
+  }
+
+  function changeDefaultBackend(nextBackend: BackendKind) {
+    if (nextBackend === "public_electrum") {
+      const preset = ELECTRUM_PRESETS[0];
+      onBackendPreferencesChange({
+        backend: nextBackend,
+        electrumPreset: preset.id,
+        electrumServerUrl: preset.url,
+        electrumDisplayName: preset.label
+      });
+      return;
+    }
+    if (nextBackend === "electrum") {
+      const preset = ELECTRUM_PRESETS[1];
+      onBackendPreferencesChange({
+        backend: nextBackend,
+        electrumPreset: preset.id,
+        electrumServerUrl: preset.url,
+        electrumDisplayName: preset.label
+      });
+      return;
+    }
+    if (nextBackend === "public_esplora") {
+      onBackendPreferencesChange({
+        backend: nextBackend,
+        esploraBaseUrl: "https://mempool.space/api",
+        esploraUseTor: false
+      });
+      return;
+    }
+    if (nextBackend === "esplora") {
+      onBackendPreferencesChange({
+        backend: nextBackend,
+        esploraBaseUrl: "http://127.0.0.1:3000",
+        esploraUseTor: false
+      });
+      return;
+    }
+    onBackendPreferencesChange({ backend: nextBackend });
   }
 
   return (
@@ -100,13 +159,174 @@ export function Settings({ report, networkPolicy, onNetworkPolicyChange, onTutor
             <input
               type="checkbox"
               checked={networkLocked}
-              onChange={(event) => onNetworkPolicyChange(event.target.checked ? "local_only" : "normal")}
+              onChange={(event) => changeNetworkLock(event.target.checked)}
             />
             <span>
               <strong>Network Lock</strong>
               Restrict future imports to mock/offline mode or localhost Bitcoin Core RPC.
             </span>
           </label>
+          <div className="settings-subsection">
+            <div className="panel-heading compact-heading">
+              <h2>Future import defaults</h2>
+              <StatusPill label={backendLabel(backendPreferences.backend)} />
+            </div>
+            <div className="action-grid detail-grid">
+              <label>
+                Network
+                <select
+                  value={backendPreferences.network}
+                  onChange={(event) => onBackendPreferencesChange({ network: event.target.value as Network })}
+                >
+                  <option value="mainnet">Mainnet</option>
+                  <option value="testnet">Testnet</option>
+                  <option value="signet">Signet</option>
+                  <option value="regtest">Regtest</option>
+                </select>
+              </label>
+              <label>
+                Backend
+                <select
+                  value={backendPreferences.backend}
+                  onChange={(event) => changeDefaultBackend(event.target.value as BackendKind)}
+                >
+                  <option value="mock">Demo / mock backend</option>
+                  <option value="bitcoin_core_rpc">Bitcoin Core RPC</option>
+                  <option value="electrum" disabled={networkLocked}>Private Electrum</option>
+                  <option value="public_electrum" disabled={networkLocked}>Public Electrum</option>
+                  <option value="esplora" disabled={networkLocked}>Self-hosted Esplora</option>
+                  <option value="public_esplora" disabled={networkLocked}>Public Esplora</option>
+                </select>
+              </label>
+              <label>
+                Gap limit
+                <input
+                  type="number"
+                  min={5}
+                  max={1000}
+                  value={backendPreferences.gapLimit}
+                  onChange={(event) => onBackendPreferencesChange({ gapLimit: Number(event.target.value) })}
+                />
+              </label>
+              <label>
+                Xpub script type
+                <select
+                  value={backendPreferences.scriptType}
+                  onChange={(event) => onBackendPreferencesChange({ scriptType: event.target.value as ScriptType })}
+                >
+                  <option value="legacy">Legacy</option>
+                  <option value="nested_segwit">Nested SegWit</option>
+                  <option value="native_segwit">Native SegWit</option>
+                  <option value="taproot">Taproot</option>
+                </select>
+              </label>
+              <label>
+                Xpub account path
+                <input
+                  value={backendPreferences.accountPath}
+                  onChange={(event) => onBackendPreferencesChange({ accountPath: event.target.value })}
+                />
+              </label>
+            </div>
+
+            {backendPreferences.backend === "bitcoin_core_rpc" ? (
+              <div className="action-grid detail-grid settings-backend-fields">
+                <label>
+                  RPC URL
+                  <input
+                    value={backendPreferences.bitcoinCoreUrl}
+                    onChange={(event) => onBackendPreferencesChange({ bitcoinCoreUrl: event.target.value })}
+                  />
+                </label>
+                <label>
+                  RPC wallet
+                  <input
+                    value={backendPreferences.bitcoinCoreWallet}
+                    onChange={(event) => onBackendPreferencesChange({ bitcoinCoreWallet: event.target.value })}
+                  />
+                </label>
+                <label>
+                  RPC username
+                  <input
+                    value={backendPreferences.bitcoinCoreUsername}
+                    onChange={(event) => onBackendPreferencesChange({ bitcoinCoreUsername: event.target.value })}
+                  />
+                </label>
+                <label>
+                  RPC password
+                  <input
+                    type="password"
+                    value={backendPreferences.bitcoinCorePassword}
+                    onChange={(event) => onBackendPreferencesChange({ bitcoinCorePassword: event.target.value })}
+                  />
+                </label>
+              </div>
+            ) : null}
+
+            {backendPreferences.backend === "electrum" || backendPreferences.backend === "public_electrum" ? (
+              <div className="action-grid detail-grid settings-backend-fields">
+                <label>
+                  Electrum preset
+                  <select
+                    value={backendPreferences.electrumPreset}
+                    onChange={(event) => {
+                      const preset = ELECTRUM_PRESETS.find((item) => item.id === event.target.value) ?? ELECTRUM_PRESETS[2];
+                      onBackendPreferencesChange({
+                        electrumPreset: preset.id as ElectrumPresetId,
+                        electrumServerUrl: preset.url || backendPreferences.electrumServerUrl,
+                        electrumDisplayName: preset.label
+                      });
+                    }}
+                  >
+                    {ELECTRUM_PRESETS.map((preset) => (
+                      <option key={preset.id} value={preset.id}>{preset.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Electrum URL
+                  <input
+                    value={backendPreferences.electrumServerUrl}
+                    onChange={(event) => onBackendPreferencesChange({
+                      electrumPreset: "manual",
+                      electrumServerUrl: event.target.value
+                    })}
+                  />
+                </label>
+                <label>
+                  Display name
+                  <input
+                    value={backendPreferences.electrumDisplayName}
+                    onChange={(event) => onBackendPreferencesChange({ electrumDisplayName: event.target.value })}
+                  />
+                </label>
+              </div>
+            ) : null}
+
+            {backendPreferences.backend === "esplora" || backendPreferences.backend === "public_esplora" ? (
+              <div className="action-grid detail-grid settings-backend-fields">
+                <label>
+                  Esplora base URL
+                  <input
+                    value={backendPreferences.esploraBaseUrl}
+                    onChange={(event) => onBackendPreferencesChange({ esploraBaseUrl: event.target.value })}
+                  />
+                </label>
+                <label className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={backendPreferences.esploraUseTor}
+                    onChange={(event) => onBackendPreferencesChange({ esploraUseTor: event.target.checked })}
+                  />
+                  <span>Tor-routed endpoint</span>
+                </label>
+              </div>
+            ) : null}
+            <p className="plain-text">
+              These defaults are used by first-run onboarding and future imports. They do not rewrite
+              the currently loaded wallet report.
+            </p>
+          </div>
         </div>
 
         <div className="panel">
