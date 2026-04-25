@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowLeft, ArrowRight, Database, FileKey2, Lock, Server, Upload, WalletCards } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Bitcoin, Database, FileKey2, Lock, Server, Upload, WalletCards } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { importWallet, isTauriRuntime, loadDemoWallet, looksLikePrivateMaterial } from "../api/tauri";
 import { PrivacyWarning } from "../components/PrivacyWarning";
@@ -252,10 +252,19 @@ export function OnboardingImport({
   return (
     <main className={`import-layout ${firstRun ? "first-run-layout" : ""}`}>
       <section className="import-panel">
+        {firstRun ? (
+          <div className="onboarding-brand">
+            <Bitcoin size={28} aria-hidden="true" />
+            <div>
+              <strong>XpubShield</strong>
+              <span>Watch-only setup</span>
+            </div>
+          </div>
+        ) : null}
         <div className="section-heading">
           {firstRun && setupStep === "server" ? <Server size={22} aria-hidden="true" /> : <WalletCards size={22} aria-hidden="true" />}
           <div>
-            <p>{firstRun ? (setupStep === "server" ? "First run / node" : "First run / wallet") : "Phase 1"}</p>
+            <p>{firstRun ? (setupStep === "server" ? "Setup / node" : "Setup / wallet") : "Setup / wallet"}</p>
             <h1>{firstRun ? (setupStep === "server" ? "Choose your node server" : "Import watch-only wallet") : "Import watch-only wallet"}</h1>
           </div>
         </div>

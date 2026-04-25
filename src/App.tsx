@@ -8,9 +8,9 @@ import {
   Settings as SettingsIcon,
   Bitcoin,
   Send,
+  Server,
   Settings2,
-  Table2,
-  Upload
+  Table2
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { dismissAction, getCurrentWallet, updateUtxos as persistUtxos } from "./api/tauri";
@@ -71,7 +71,7 @@ type TutorialState = {
 };
 
 const PAGE_META: Record<Page, { code: string; label: string }> = {
-  import: { code: "SYS-01", label: "Watch-only intake" },
+  import: { code: "SYS-01", label: "Onboarding" },
   cockpit: { code: "CMD-00", label: "Action command" },
   graph: { code: "CMD-01", label: "Lineage map" },
   utxos: { code: "COIN-10", label: "Coin workbench" },
@@ -118,7 +118,7 @@ const NAV_MODULES: NavModule[] = [
     title: "System",
     signal: "local config",
     pages: [
-      { id: "import", label: "Import", icon: Upload },
+      { id: "import", label: "Setup", icon: Server },
       { id: "tutorial", label: "Tutorial", icon: BookOpenCheck },
       { id: "docs", label: "Documentation", icon: FileText },
       { id: "settings", label: "Settings", icon: SettingsIcon, requiresWallet: true }
@@ -205,6 +205,7 @@ export default function App() {
   useEffect(() => {
     if (
       booting ||
+      page === "import" ||
       (!onboardingComplete && !report) ||
       tutorialOpen ||
       tutorialPromptOpen ||
@@ -216,7 +217,7 @@ export default function App() {
     }
 
     setTutorialPromptOpen(true);
-  }, [booting, onboardingComplete, report, tutorialOpen, tutorialPromptOpen, tutorialState]);
+  }, [booting, onboardingComplete, page, report, tutorialOpen, tutorialPromptOpen, tutorialState]);
 
   function applyUtxoPatch(current: WalletReport | null, outpoints: string[], patch: UtxoUpdate) {
     if (!current) return current;
@@ -355,82 +356,17 @@ export default function App() {
 
   const pageMeta = PAGE_META[page];
   const activeNavItem: NavItemId = page;
+  const onboardingActive = page === "import";
 
   return (
-    <div className="app-frame">
+    <div className={`app-frame ${onboardingActive ? "setup-frame" : ""}`}>
       <div className={`boot-sweep ${booting ? "boot-sweep-active" : ""}`} aria-hidden="true">
         <span>XpubShield sovereign ops ready</span>
       </div>
-      <aside className="sidebar">
-        <div className="brand-lockup">
-          <Bitcoin size={24} aria-hidden="true" />
-          <div>
-            <strong>XpubShield</strong>
-            <span>SOVEREIGN OPS</span>
-          </div>
-        </div>
-        <div className="terminal-status" aria-label="Local security status">
-          <Settings2 size={16} aria-hidden="true" />
-          <div>
-            <strong>{report ? report.wallet.network.toUpperCase() : "NO WALLET"}</strong>
-            <span>{report ? "local metadata armed" : "import required"}</span>
-          </div>
-        </div>
-        <nav className="module-nav" aria-label="XpubShield modules">
-          {NAV_MODULES.map((module) => (
-            <section className="nav-module" key={module.title}>
-              <div className="nav-module-heading">
-                <span>{module.title}</span>
-                <small>{module.signal}</small>
-              </div>
-              <div className="nav-module-buttons">
-                {module.pages.map((item) => {
-                  const Icon = item.icon;
-                  const isTutorialItem = item.id === "tutorial";
-                  return (
-                    <button
-                      key={item.id}
-                      className={isTutorialItem ? tutorialOpen || tutorialPromptOpen ? "active" : "" : activeNavItem === item.id ? "active" : ""}
-                      onClick={() => (isTutorialItem ? openTutorial(0) : selectPage(item.id as Page))}
-                      disabled={!isTutorialItem && item.requiresWallet && !report}
-                      data-tutorial-target={`nav-${item.id}`}
-                    >
-                      <Icon size={18} />
-                      <span>{item.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
-        </nav>
-      </aside>
-      <div className="content-shell">
-        <div className="ops-ribbon" aria-label="XpubShield operations state">
-          <div>
-            <span>{pageMeta.code}</span>
-            <strong>{pageMeta.label}</strong>
-          </div>
-          <div>
-            <span>Mode</span>
-            <strong>pre-sign / local</strong>
-          </div>
-          <div>
-            <span>Wallet</span>
-            <strong>{report ? report.wallet.network : "not loaded"}</strong>
-          </div>
-        </div>
-        {report && page !== "import" ? (
-          <MissionQueue
-            report={report}
-            onNavigate={navigateToAction}
-            workspaceCollapsed={workspace?.missionQueueCollapsed}
-            onWorkspaceCollapsedChange={(missionQueueCollapsed) => saveWorkspacePatch({ missionQueueCollapsed })}
-          />
-        ) : null}
-        {page === "import" ? (
+      {onboardingActive ? (
+        <div className="onboarding-shell">
           <OnboardingImport
-            firstRun={!booting && !onboardingComplete && !report}
+            firstRun
             backendPreferences={backendPreferences}
             networkPolicy={networkPolicy}
             onBackendPreferencesChange={changeBackendPreferences}
@@ -442,6 +378,75 @@ export default function App() {
               setWorkspace(nextWorkspace);
               setPage("cockpit");
             }}
+          />
+        </div>
+      ) : (
+        <>
+          <aside className="sidebar">
+            <div className="brand-lockup">
+              <Bitcoin size={24} aria-hidden="true" />
+              <div>
+                <strong>XpubShield</strong>
+                <span>SOVEREIGN OPS</span>
+              </div>
+            </div>
+            <div className="terminal-status" aria-label="Local security status">
+              <Settings2 size={16} aria-hidden="true" />
+              <div>
+                <strong>{report ? report.wallet.network.toUpperCase() : "NO WALLET"}</strong>
+                <span>{report ? "local metadata armed" : "import required"}</span>
+              </div>
+            </div>
+            <nav className="module-nav" aria-label="XpubShield modules">
+              {NAV_MODULES.map((module) => (
+                <section className="nav-module" key={module.title}>
+                  <div className="nav-module-heading">
+                    <span>{module.title}</span>
+                    <small>{module.signal}</small>
+                  </div>
+                  <div className="nav-module-buttons">
+                    {module.pages.map((item) => {
+                      const Icon = item.icon;
+                      const isTutorialItem = item.id === "tutorial";
+                      return (
+                        <button
+                          key={item.id}
+                          className={isTutorialItem ? tutorialOpen || tutorialPromptOpen ? "active" : "" : activeNavItem === item.id ? "active" : ""}
+                          onClick={() => (isTutorialItem ? openTutorial(0) : selectPage(item.id as Page))}
+                          disabled={!isTutorialItem && item.requiresWallet && !report}
+                          data-tutorial-target={`nav-${item.id}`}
+                        >
+                          <Icon size={18} />
+                          <span>{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
+            </nav>
+          </aside>
+          <div className="content-shell">
+            <div className="ops-ribbon" aria-label="XpubShield operations state">
+              <div>
+                <span>{pageMeta.code}</span>
+                <strong>{pageMeta.label}</strong>
+              </div>
+              <div>
+                <span>Mode</span>
+                <strong>pre-sign / local</strong>
+              </div>
+              <div>
+                <span>Wallet</span>
+                <strong>{report ? report.wallet.network : "not loaded"}</strong>
+              </div>
+            </div>
+            {report ? (
+          <MissionQueue
+            report={report}
+            onNavigate={navigateToAction}
+            workspaceCollapsed={workspace?.missionQueueCollapsed}
+            onWorkspaceCollapsedChange={(missionQueueCollapsed) => saveWorkspacePatch({ missionQueueCollapsed })}
           />
         ) : null}
         {page === "cockpit" && report ? (
@@ -496,7 +501,9 @@ export default function App() {
             }}
           />
         ) : null}
-      </div>
+          </div>
+        </>
+      )}
       {tutorialPromptOpen || tutorialOpen ? (
         <SovereignOpsTutorial
           mode={tutorialOpen ? "mission" : "prompt"}
