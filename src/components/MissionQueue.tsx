@@ -141,7 +141,6 @@ function MissionCard({
             onClick={() => onComplete(mission.id)}
             aria-label={`Complete ${mission.title}`}
             data-tooltip="Mark mission complete"
-            title="Mark mission complete"
           >
             <Check size={14} />
           </button>
@@ -151,7 +150,6 @@ function MissionCard({
             onClick={() => onHide(mission.id)}
             aria-label={`Snooze ${mission.title}`}
             data-tooltip="Snooze mission for later"
-            title="Snooze mission for later"
           >
             <TimerReset size={14} />
           </button>
