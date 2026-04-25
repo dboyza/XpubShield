@@ -1499,6 +1499,23 @@ td span {
   height: 30px;
 }
 
+.cockpit-alert-log {
+  border-top: 1px solid var(--line);
+  padding: 14px 16px 16px;
+}
+
+.cockpit-alert-log .panel-heading {
+  margin-bottom: 10px;
+}
+
+.compact-risk-list {
+  gap: 8px;
+}
+
+.compact-risk-list .risk-card {
+  padding: 10px;
+}
+
 .cockpit-briefing {
   display: grid;
   gap: 12px;
@@ -1543,6 +1560,41 @@ td span {
   background:
     linear-gradient(90deg, rgba(247, 147, 26, 0.1), transparent 45%),
     var(--surface);
+}
+
+.workflow-dock {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.workflow-lens-card {
+  display: grid;
+  gap: 9px;
+  align-content: start;
+  border: 1px solid rgba(255, 248, 232, 0.16);
+  border-radius: var(--radius);
+  padding: 14px;
+  background:
+    linear-gradient(90deg, rgba(247, 147, 26, 0.08), transparent 42%),
+    rgba(255, 248, 232, 0.025);
+}
+
+.workflow-lens-card span {
+  color: var(--accent-2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.workflow-lens-card strong {
+  color: var(--text-soft);
+  line-height: 1.45;
+}
+
+.workflow-lens-card .secondary-button {
+  justify-self: start;
 }
 
 .selected-tray-header {
@@ -2145,7 +2197,8 @@ td span {
   .action-grid,
   .tray-grid,
   .tray-subgrid,
-  .compact-metrics {
+  .compact-metrics,
+  .workflow-dock {
     grid-template-columns: 1fr;
   }
 

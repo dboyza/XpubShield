@@ -23,8 +23,8 @@ export function FeeStressTest({ report }: FeeStressTestProps) {
     <main className="page-shell">
       <section className="page-header">
         <div>
-          <p>{report.wallet.name}</p>
-          <h1>Fee stress test</h1>
+          <p>{report.wallet.name} · Coin Workbench lens</p>
+          <h1>Fee exposure</h1>
         </div>
         <StatusPill label="Simulation only" tone="good" />
       </section>

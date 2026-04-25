@@ -1,21 +1,15 @@
 import {
-  BarChart3,
-  Bell,
   BookOpenCheck,
-  Combine,
   FileSearch,
   FileText,
   GitBranch,
-  GitCompareArrows,
   HeartPulse,
   LayoutDashboard,
-  MessageSquareText,
   Settings as SettingsIcon,
   Bitcoin,
   Send,
   Settings2,
   Table2,
-  Telescope,
   Upload
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -26,7 +20,6 @@ import {
   type TutorialPageId
 } from "./components/SovereignOpsTutorial";
 import { ConsolidationPlanner } from "./pages/ConsolidationPlanner";
-import { Alerts } from "./pages/Alerts";
 import { Cockpit } from "./pages/Cockpit";
 import { DescriptorDiff } from "./pages/DescriptorDiff";
 import { Documentation } from "./pages/Documentation";
@@ -38,13 +31,12 @@ import { PsbtLinter } from "./pages/PsbtLinter";
 import { RecoveryHealth } from "./pages/RecoveryHealth";
 import { Settings } from "./pages/Settings";
 import { SpendPreview } from "./pages/SpendPreview";
-import { TransactionExplanations } from "./pages/TransactionExplanations";
 import { UtxoTable } from "./pages/UtxoTable";
 import type { UtxoUpdate, WalletReport } from "./types/domain";
 
 type Page =
   | "import"
-  | "dashboard"
+  | "cockpit"
   | "utxos"
   | "fees"
   | "spend_preflight"
@@ -53,9 +45,7 @@ type Page =
   | "psbt"
   | "recovery"
   | "descriptor_diff"
-  | "explanations"
   | "graph"
-  | "alerts"
   | "docs"
   | "settings";
 
@@ -81,18 +71,16 @@ type TutorialState = {
 
 const PAGE_META: Record<Page, { code: string; label: string }> = {
   import: { code: "SYS-01", label: "Watch-only intake" },
-  dashboard: { code: "CMD-00", label: "Action command" },
-  alerts: { code: "CMD-01", label: "Signal watch" },
-  graph: { code: "CMD-02", label: "Lineage map" },
+  cockpit: { code: "CMD-00", label: "Action command" },
+  graph: { code: "CMD-01", label: "Lineage map" },
   utxos: { code: "COIN-10", label: "Coin workbench" },
-  fees: { code: "COIN-11", label: "Fee exposure" },
+  fees: { code: "COIN-11", label: "Workbench fee lens" },
   spend_preflight: { code: "SIM-20", label: "Spend preflight" },
-  privacy: { code: "SIM-21", label: "Privacy model" },
-  consolidation: { code: "SIM-22", label: "Consolidation plan" },
+  privacy: { code: "SIM-21", label: "Observer model" },
+  consolidation: { code: "SIM-22", label: "Consolidation lens" },
   psbt: { code: "VRF-30", label: "PSBT preflight" },
   recovery: { code: "VRF-31", label: "Recovery drill" },
-  descriptor_diff: { code: "VRF-32", label: "Descriptor diff" },
-  explanations: { code: "VRF-33", label: "Transaction notes" },
+  descriptor_diff: { code: "VRF-32", label: "Recovery diagnostic" },
   docs: { code: "SYS-02", label: "Operator handbook" },
   settings: { code: "SYS-03", label: "Local config" }
 };
@@ -107,38 +95,26 @@ const DEFAULT_TUTORIAL_STATE: TutorialState = {
 const NAV_MODULES: NavModule[] = [
   {
     title: "Command",
-    signal: "overview / live state",
+    signal: "action / lineage",
     pages: [
-      { id: "dashboard", label: "Cockpit", icon: LayoutDashboard, requiresWallet: true },
-      { id: "alerts", label: "Alerts", icon: Bell, requiresWallet: true },
+      { id: "cockpit", label: "Cockpit", icon: LayoutDashboard, requiresWallet: true },
       { id: "graph", label: "Lineage", icon: GitBranch, requiresWallet: true }
     ]
   },
   {
     title: "Coins",
-    signal: "utxo control",
+    signal: "control surface",
     pages: [
-      { id: "utxos", label: "Coin Workbench", icon: Table2, requiresWallet: true },
-      { id: "fees", label: "Fee Stress", icon: BarChart3, requiresWallet: true }
+      { id: "utxos", label: "Coin Workbench", icon: Table2, requiresWallet: true }
     ]
   },
   {
-    title: "Simulate",
-    signal: "future moves",
-    pages: [
-      { id: "spend_preflight", label: "Spend Preflight", icon: Send, requiresWallet: true },
-      { id: "privacy", label: "Privacy", icon: Telescope, requiresWallet: true },
-      { id: "consolidation", label: "Consolidation", icon: Combine, requiresWallet: true }
-    ]
-  },
-  {
-    title: "Verify",
+    title: "Preflight",
     signal: "before signing",
     pages: [
+      { id: "spend_preflight", label: "Spend Preflight", icon: Send, requiresWallet: true },
       { id: "psbt", label: "PSBT Preflight", icon: FileSearch, requiresWallet: true },
-      { id: "recovery", label: "Recovery", icon: HeartPulse, requiresWallet: true },
-      { id: "descriptor_diff", label: "Descriptor Diff", icon: GitCompareArrows, requiresWallet: true },
-      { id: "explanations", label: "Explanations", icon: MessageSquareText, requiresWallet: true }
+      { id: "recovery", label: "Recovery", icon: HeartPulse, requiresWallet: true }
     ]
   },
   {
@@ -192,7 +168,7 @@ export default function App() {
     getCurrentWallet().then((current) => {
       if (current) {
         setReport(current);
-        setPage("dashboard");
+        setPage("cockpit");
       }
     });
   }, []);
@@ -253,9 +229,14 @@ export default function App() {
   }
 
   function navigateToAction(pageId: string) {
+    const pageAliases: Record<string, Page> = {
+      dashboard: "cockpit",
+      alerts: "cockpit",
+      explanations: "docs"
+    };
     const validPages: Page[] = [
       "import",
-      "dashboard",
+      "cockpit",
       "utxos",
       "fees",
       "spend_preflight",
@@ -264,14 +245,13 @@ export default function App() {
       "psbt",
       "recovery",
       "descriptor_diff",
-      "explanations",
       "graph",
-      "alerts",
       "docs",
       "settings"
     ];
-    if (validPages.includes(pageId as Page)) {
-      setPage(pageId as Page);
+    const targetPage = pageAliases[pageId] ?? pageId;
+    if (validPages.includes(targetPage as Page)) {
+      setPage(targetPage as Page);
     }
   }
 
@@ -336,6 +316,14 @@ export default function App() {
   }
 
   const pageMeta = PAGE_META[page];
+  const activeNavItem: NavItemId =
+    page === "fees"
+      ? "utxos"
+      : page === "privacy" || page === "consolidation"
+        ? "spend_preflight"
+        : page === "descriptor_diff"
+          ? "recovery"
+          : page;
 
   return (
     <div className="app-frame">
@@ -371,7 +359,7 @@ export default function App() {
                   return (
                     <button
                       key={item.id}
-                      className={isTutorialItem ? tutorialOpen || tutorialPromptOpen ? "active" : "" : page === item.id ? "active" : ""}
+                      className={isTutorialItem ? tutorialOpen || tutorialPromptOpen ? "active" : "" : activeNavItem === item.id ? "active" : ""}
                       onClick={() => (isTutorialItem ? openTutorial(0) : setPage(item.id as Page))}
                       disabled={!isTutorialItem && item.requiresWallet && !report}
                       data-tutorial-target={`nav-${item.id}`}
@@ -404,23 +392,21 @@ export default function App() {
         {page === "import" ? (
           <OnboardingImport onImported={(next) => {
             setReport(next);
-            setPage("dashboard");
+            setPage("cockpit");
           }} />
         ) : null}
-        {page === "dashboard" && report ? (
+        {page === "cockpit" && report ? (
           <Cockpit report={report} onNavigate={navigateToAction} onDismissAction={dismissCockpitAction} />
         ) : null}
-        {page === "utxos" && report ? <UtxoTable report={report} onUpdateUtxos={updateUtxos} /> : null}
+        {page === "utxos" && report ? <UtxoTable report={report} onUpdateUtxos={updateUtxos} onNavigate={navigateToAction} /> : null}
         {page === "fees" && report ? <FeeStressTest report={report} /> : null}
-        {page === "spend_preflight" && report ? <SpendPreview report={report} /> : null}
+        {page === "spend_preflight" && report ? <SpendPreview report={report} onNavigate={navigateToAction} /> : null}
         {page === "privacy" && report ? <PrivacySimulator report={report} /> : null}
         {page === "consolidation" && report ? <ConsolidationPlanner report={report} /> : null}
         {page === "psbt" && report ? <PsbtLinter report={report} /> : null}
-        {page === "recovery" && report ? <RecoveryHealth report={report} /> : null}
+        {page === "recovery" && report ? <RecoveryHealth report={report} onNavigate={navigateToAction} /> : null}
         {page === "descriptor_diff" && report ? <DescriptorDiff report={report} /> : null}
-        {page === "explanations" && report ? <TransactionExplanations report={report} /> : null}
         {page === "graph" && report ? <GraphView report={report} /> : null}
-        {page === "alerts" && report ? <Alerts report={report} /> : null}
         {page === "docs" ? <Documentation reportLoaded={Boolean(report)} /> : null}
         {page === "settings" && report ? <Settings report={report} onTutorialReset={resetTutorial} onCacheCleared={() => {
           setReport(null);

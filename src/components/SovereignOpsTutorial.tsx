@@ -3,7 +3,7 @@ import { KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 
 export type TutorialPageId =
   | "import"
-  | "dashboard"
+  | "cockpit"
   | "utxos"
   | "spend_preflight"
   | "recovery"
@@ -32,7 +32,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: "read-cockpit",
-    page: "dashboard",
+    page: "cockpit",
     targetSelector: ".action-center-panel",
     title: "Read the Cockpit first",
     body: "The Cockpit turns wallet findings into an action queue so you know what deserves attention before opening individual modules.",

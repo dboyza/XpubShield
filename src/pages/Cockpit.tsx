@@ -11,6 +11,7 @@ import {
 import { MetricCard } from "../components/MetricCard";
 import { StatusPill } from "../components/StatusPill";
 import { backendLabel, compactSats, humanize, satsToBtc, severityRank } from "../lib/format";
+import { AlertSignalPanel } from "./Alerts";
 import type { ActionItem, WalletReport } from "../types/domain";
 
 interface CockpitProps {
@@ -74,6 +75,7 @@ export function Cockpit({ report, onNavigate, onDismissAction }: CockpitProps) {
           ) : (
             <p className="empty-state">No active operational actions. Keep labels and recovery metadata current.</p>
           )}
+          <AlertSignalPanel report={report} />
         </div>
 
         <div className="panel cockpit-briefing">

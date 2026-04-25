@@ -29,8 +29,8 @@ export function PrivacySimulator({ report }: PrivacySimulatorProps) {
     <main className="page-shell">
       <section className="page-header">
         <div>
-          <p>{report.wallet.name}</p>
-          <h1>What does the chain know?</h1>
+          <p>{report.wallet.name} · Spend Preflight lens</p>
+          <h1>Observer model</h1>
         </div>
         <StatusPill label={`${selected.length} selected`} tone={selected.length ? "warn" : "neutral"} />
       </section>
