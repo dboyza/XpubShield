@@ -1,229 +1,427 @@
 # XpubShield
 
-XpubShield is a local-first, watch-only Bitcoin desktop app for personal custody observability. It helps users inspect wallet structure, xpub-derived descriptors, UTXO fee burden, labeling gaps, and basic privacy risks without signing or broadcasting transactions.
+XpubShield is a local-first Bitcoin operational security cockpit for watch-only wallet analysis. It helps sovereign operators inspect wallet posture, coin provenance, UTXO risk, fee exposure, recovery readiness, and PSBT safety before they sign anywhere else.
 
-This repository currently implements Phases 1-8 as local-first product slices. Phase 1 covers the Tauri + React shell, Rust data models and commands, SQLite schema/migrations, a mock blockchain backend, descriptor/xpub import validation, private-material rejection, mock UTXO scanning, a dashboard, a UTXO table, and a deterministic audit engine.
+The app is intentionally **pre-sign only**. It does not hold private keys, create transactions, sign transactions, finalize transactions, extract transactions, broadcast transactions, or provide custody.
 
-Phase 2 includes local label/quarantine editing, fee stress testing, a privacy impact simulator, and a consolidation planner using simulation-only mock wallet data.
+## Status
 
-Phase 3 includes a local PSBT linter, recovery health report, descriptor diff tool, and template-based transaction explanations. Phase 4 hardens persistence, descriptor derivation, descriptor diff previews, and raw PSBT parsing. Phase 5 adds a local Bitcoin Core RPC backend that scans derived addresses with `scantxoutset` `addr(...)` scan objects. Phases 6-8 add graph visualization, local alerts, and Esplora-compatible address scanning.
+XpubShield is currently a **closed-beta candidate**. It is suitable for demo workflows and controlled tester feedback, but it should not be treated as public stable software yet.
 
-Current release posture is **Demo Preview**, not beta. Release-readiness notes, packaging artifacts, and the dependency audit decision are tracked in `docs/RELEASE_READINESS.md`.
+Current strengths:
 
-## Security Model
+- Local desktop app built with Tauri, React, TypeScript, Rust, and SQLite.
+- Watch-only descriptor/xpub import with private-material rejection.
+- Demo wallet for safe evaluation without real wallet metadata.
+- Local provenance, risk scoring, action ranking, labels, coin sets, recovery checks, PSBT analysis, and packaging builds.
 
-XpubShield is watch-only only.
+Not stable-release ready yet:
 
-- It must never ask for, import, store, transmit, or process seed phrases, mnemonics, private keys, xprv values, WIF keys, or signing material.
-- Pasted private material is rejected before import.
-- The app does not sign transactions.
-- The app does not broadcast transactions.
-- The app does not provide hosted accounts, cloud sync, or default telemetry.
-- Xpubs, descriptors, labels, wallet history, addresses, and PSBTs are treated as sensitive local data.
-- Raw xpubs and descriptors must never be sent to third-party APIs.
+- SQLite metadata is not encrypted.
+- Live backend monitoring is not a full background indexer.
+- Bitcoin Core and Esplora support are address-scan oriented and should be tested carefully with real infrastructure.
+- A fresh watch-only security review should happen before a public beta or stable release.
 
-The app supports bundled mock data and local Bitcoin Core RPC scanning. Live backend code must preserve the same security boundary and must query derived addresses only.
+## Safety Boundary
 
-## Privacy Model
+XpubShield is designed for sensitive wallet metadata, not signing material.
 
-Backend privacy is modeled as a user-visible score:
+Never paste or import:
 
-- Local Bitcoin Core RPC: best privacy.
-- Personal Electrum server: good privacy.
-- Self-hosted Esplora-compatible API: good privacy.
-- Tor-routed public API: medium privacy.
-- Public API without Tor: weak privacy.
-- Uploading xpubs to third-party services: severe privacy leak and prohibited by the app.
+- Seed phrases or mnemonics
+- Private keys
+- `xprv`, `tprv`, `yprv`, `zprv`, `uprv`, or `vprv` values
+- WIF keys
+- Hardware wallet PINs, passphrases, or signing-device secrets
 
-The local SQLite database contains sensitive wallet metadata. It may include descriptors, xpub-derived descriptors, addresses, labels, transactions, UTXOs, audit findings, and backend settings. Keep the data directory private and backed up appropriately. Encrypted database support is a future feature.
+The app may process:
 
-## Development Setup
+- Public descriptors
+- Public extended keys such as xpubs
+- Derived addresses
+- UTXOs and transactions
+- Labels, coin sets, provenance notes, and recovery metadata
+- PSBT text for local analysis
 
-Prerequisites:
+Descriptors, xpubs, addresses, labels, transaction history, and PSBTs are still sensitive. They can reveal wallet structure, balances, future receive addresses, and operational context.
 
-- Node.js 20+
+## Features
+
+### Cockpit
+
+The Cockpit is the primary command surface. It summarizes wallet risk posture, the top risk driver, confidence, affected coins, and the safest next action.
+
+- Risk-led landing page
+- Prioritized Action Center
+- Mission Queue for guided operations
+- Local alert signals folded into the command surface
+- Compact posture instruments for privacy, recovery, spend readiness, backend privacy, balance, and provenance
+
+### Coin Workbench
+
+The Coin Workbench is the main UTXO control surface.
+
+- Search, filter, sort, and inspect UTXOs
+- Label coins and source context
+- Mark spendability and quarantine status
+- Save named coin sets with intent and notes
+- Review operational coin decision states such as ready, review, quarantine, do not merge, and label needed
+- Open UTXO detail drawers with provenance evidence, spend costs, labels, wallet path, transaction context, and related risks
+
+### Provenance Intelligence
+
+XpubShield uses local evidence to explain where coins may have come from.
+
+- Manual source labels and categories
+- Bundled registry/demo heuristics
+- Wallet-change and unknown-source heuristics
+- Confidence levels and evidence history
+- Clear "heuristic, not definitive" product stance
+
+No remote chain-surveillance attribution service is used.
+
+### Spend Preflight
+
+Spend Preflight models what an observer could learn if selected coins are spent together.
+
+- Selected coin workflow
+- Destination amount and fee-rate inputs
+- Change policy modeling
+- Common-input ownership warnings
+- KYC/non-KYC and provenance mixing analysis
+- Toxic change and quarantine exposure checks
+- Safer alternative suggestions
+- Optional local simulation persistence
+
+Spend Preflight does not construct, sign, or broadcast transactions.
+
+### Transaction Lineage
+
+Lineage gives an interactive graph view of wallet activity and coin context.
+
+- Lineage map
+- Wallet graph
+- UTXO lifecycle view
+- Label clusters
+- Privacy-risk graph
+- Fee heatmap
+- Pan and zoom controls
+- Selected-node detail panel
+
+### Recovery
+
+Recovery helps operators verify whether watch-only metadata is complete enough to rely on under pressure.
+
+- Descriptor completeness checks
+- Fingerprint and derivation-path review
+- Change descriptor coverage
+- Gap-risk signals
+- Multisig metadata readiness where available
+- Local recovery report export
+
+### PSBT Preflight
+
+PSBT Preflight analyzes proposed PSBTs before external signing.
+
+- Local PSBT parsing/linting
+- Fee and input/output risk checks
+- Quarantined-input warnings
+- Change and descriptor-context review
+- No signing, finalization, extraction, or broadcast
+
+### Import and Backends
+
+The import flow accepts descriptor or xpub watch-only data.
+
+- Descriptor and xpub import modes
+- Network selection
+- Gap limit control
+- Mock backend for demo workflows
+- Local Bitcoin Core RPC backend
+- Self-hosted Esplora-compatible backend
+- Public Esplora mode with explicit privacy acknowledgement
+- Browser demo fallback when Tauri IPC is unavailable
+
+### Documentation and Tutorial
+
+The app includes local learning surfaces.
+
+- Optional Sovereign Ops tutorial
+- In-app Documentation tab
+- Bitcoin primer
+- Operator workflow guidance
+- Privacy and safety notes
+- Closed-beta operator test script
+
+### Local Persistence
+
+The desktop app stores app data locally.
+
+- Wallet reports
+- Descriptors and derived addresses
+- Transactions and UTXOs
+- Provenance assessments
+- Labels and quarantine/spend status
+- Coin sets
+- Dismissed actions
+- Alerts and acknowledgements
+- Spend and consolidation simulations
+- Workspace resume state
+- Tutorial state
+
+The packaged desktop app stores the SQLite database in the platform app data directory as `xpubshield.sqlite3`.
+
+## Install
+
+### Prerequisites
+
+Install these before running from source:
+
+- Node.js 20 or newer
+- npm
 - Rust stable with Cargo
-- Platform dependencies required by Tauri
+- Tauri platform dependencies for your operating system
 
-On Windows, install Rust through rustup:
-
-1. Download and run `rustup-init.exe` from `https://rustup.rs`.
-2. Choose the default installation.
-3. Close and reopen PowerShell.
-4. Verify Cargo is available:
+On Windows, install Rust with rustup:
 
 ```powershell
+winget install Rustlang.Rustup
 rustc --version
 cargo --version
 ```
 
-If `npm run tauri dev` fails with `program not found` while running `cargo metadata`, Rust/Cargo is not installed or is not on `PATH`.
+If `cargo` is not found after installation, close and reopen PowerShell.
 
-Install dependencies:
+### Clone and Install Dependencies
 
 ```bash
+git clone https://github.com/dboyza/XpubShield.git
+cd XpubShield
 npm install
 ```
 
-Run the web UI in a browser:
+## Run the App
+
+### Browser Development Mode
 
 ```bash
 npm run dev
 ```
 
-Run the desktop app:
+Open the printed Vite URL, usually:
 
-```powershell
-npm run tauri dev
+```text
+http://localhost:5173
 ```
 
-Build the frontend:
+Browser mode is useful for UI development and demo workflows. Some desktop features depend on Tauri IPC and local SQLite, so the app will show a browser-demo notice when those features are unavailable.
+
+### Desktop Development Mode
+
+```bash
+npm run tauri -- dev
+```
+
+Use this mode when testing desktop persistence, local app data paths, Tauri commands, and packaged-app behavior.
+
+## Build
+
+### Frontend Build
 
 ```bash
 npm run build
 ```
 
-Run Rust tests:
+### Rust Tests
 
 ```bash
 cd src-tauri
 cargo test
 ```
 
-## Architecture Overview
+### Desktop Package
 
-Frontend:
+From the repository root:
 
-- `src/pages/OnboardingImport.tsx`: descriptor/xpub import flow, backend selection, privacy warning, client-side private-material rejection.
-- `src/pages/Dashboard.tsx`: balance, UTXO count, risk scores, findings, wallet-shape summary.
-- `src/pages/UtxoTable.tsx`: sortable/filterable UTXO table with fee-cost visibility, inline labels, and a UTXO detail drawer.
-- `src/pages/FeeStressTest.tsx`: deterministic fee-rate stress test across wallet UTXOs.
-- `src/pages/SpendPreview.tsx`: simulation-only spend preview with fee, change, label-mixing, and quarantine warnings.
-- `src/pages/PrivacySimulator.tsx`: “What does the chain know?” selected-UTXO privacy simulator.
-- `src/pages/ConsolidationPlanner.tsx`: label-aware consolidation simulation with local plan persistence.
-- `src/pages/PsbtLinter.tsx`: local PSBT fixture linter and raw PSBT parser handoff.
-- `src/pages/RecoveryHealth.tsx`: watch-only recovery metadata report with JSON/Markdown export.
-- `src/pages/DescriptorDiff.tsx`: descriptor/xpub identity comparison tool.
-- `src/pages/TransactionExplanations.tsx`: deterministic transaction explanation templates.
-- `src/pages/GraphView.tsx`: interactive wallet, lifecycle, label, privacy-risk, and fee heatmap views.
-- `src/pages/Alerts.tsx`: local alert list with acknowledgement controls.
-- `src/pages/Settings.tsx`: backend/privacy summary, local data path, generic label registry, local exports, and clear-cache action.
-- `src/api/tauri.ts`: Tauri command bridge plus browser demo fallback.
-- `src/types/domain.ts`: TypeScript domain model mirror of Rust structs.
+```bash
+npm run tauri -- build
+```
 
-Rust backend:
+On Windows, successful packaging creates artifacts similar to:
 
-- `src-tauri/src/alert_engine.rs`: deterministic local alert generation.
-- `src-tauri/src/wallet_import.rs`: descriptor/xpub validation and private-material rejection.
-- `src-tauri/src/descriptor_parser.rs`: descriptor metadata extraction and miniscript-backed public descriptor validation.
-- `src-tauri/src/address_derivation.rs`: mock demo derivation plus miniscript-backed descriptor address derivation.
-- `src-tauri/src/blockchain_backend.rs`: backend trait.
-- `src-tauri/src/mock_backend.rs`: deterministic mock scan data.
-- `src-tauri/src/bitcoin_core_backend.rs`: local-only Bitcoin Core RPC scan flow using derived address scan objects.
-- `src-tauri/src/esplora_backend.rs`: self-hosted/public Esplora address-UTXO scan flow.
-- `src-tauri/src/audit_engine.rs`: deterministic Phase 1 checks and risk scoring.
-- `src-tauri/src/fee_estimator.rs`: script-type spend-cost estimates.
-- `src-tauri/src/database.rs`: SQLite migration bootstrap plus wallet, UTXO metadata, label, alert, and simulation persistence.
-- `src-tauri/src/graph_builder.rs`: bounded wallet graph node/edge construction.
-- `src-tauri/src/tauri_commands.rs`: app commands exposed to React.
+```text
+src-tauri/target/release/xpubshield.exe
+src-tauri/target/release/bundle/msi/XpubShield_0.1.0_x64_en-US.msi
+src-tauri/target/release/bundle/nsis/XpubShield_0.1.0_x64-setup.exe
+```
 
-Rust modules scaffolded for current and future phases:
+## Basic Usage
 
-- Esplora backend
-- Privacy simulator
-- Consolidation planner
-- Recovery report
-- Graph builder
+### 1. Start with the Demo Wallet
 
-## SQLite Schema
+Use the demo wallet before importing real watch-only data.
 
-The initial migration is in `src-tauri/migrations/001_initial_schema.sql` and creates:
+1. Open the app.
+2. Go to **Import**.
+3. Select **Demo wallet**.
+4. Review the Cockpit risk posture and Mission Queue.
 
-- `wallets`
-- `descriptors`
-- `derived_addresses`
-- `transactions`
-- `transaction_inputs`
-- `transaction_outputs`
-- `utxos`
-- `labels`
-- `audit_findings`
-- `spend_simulations`
-- `consolidation_plans`
-- `psbt_analyses`
-- `alerts`
-- `settings`
-- `backend_configs`
+### 2. Import Watch-Only Data
 
-## Phase 1 Audit Checks
+Use a public descriptor when possible. Bare xpub import is supported, but descriptors carry richer script and origin metadata.
 
-Implemented:
+1. Go to **Import**.
+2. Choose **Descriptor** or **Xpub**.
+3. Select the network and backend.
+4. Set the gap limit.
+5. Acknowledge public backend privacy warnings if using public Esplora.
+6. Import and scan.
 
-- Address reuse
-- Tiny UTXO
-- Uneconomical-to-spend threshold
-- UTXO sprawl
-- Legacy script type fee warning
-- Unconfirmed UTXO
-- Derivation gap risk
-- Label hygiene
-- Public API privacy warning
-- Dust attack suspicion
+### 3. Triage in Cockpit
 
-Findings use heuristic language and avoid claiming certainty about ownership, safety, or counterparty identity.
+Start every session from Cockpit.
 
-## MVP Limitations
+1. Read the Risk Posture panel first.
+2. Review the top risk driver and confidence.
+3. Open the suggested next step.
+4. Work through the Action Center and Mission Queue.
 
-- Bitcoin Core RPC scanning requires a local node and local RPC credentials; it rejects non-local RPC URLs.
-- Electrum scanning is not implemented yet.
-- Esplora scanning currently uses address UTXO endpoints; richer transaction history details can expand later.
-- Bare ypub/zpub alternate-prefix normalization remains an import-hardening follow-up.
-- Address, transaction, source, and category label records are managed through the Settings label registry; dedicated per-target editing can expand later.
-- No transaction signing.
-- No transaction broadcasting.
-- No encrypted database yet.
-- Graph rendering is bounded in-app and does not yet use a dedicated graph library for very large wallets.
-- Background scan scheduling and richer spent-output monitoring are not implemented yet.
+### 4. Review Coins in Workbench
+
+Use Coin Workbench to turn raw UTXOs into operational decisions.
+
+1. Search and filter UTXOs.
+2. Label known sources.
+3. Mark suspicious or unknown coins for review or quarantine.
+4. Save coin sets for later preflight review.
+5. Open evidence drawers before clearing risk states.
+
+### 5. Run Spend Preflight
+
+Before signing elsewhere:
+
+1. Select candidate coins.
+2. Enter the destination amount.
+3. Choose a fee rate and change policy.
+4. Read observer inferences and warning evidence.
+5. Adjust the coin group before using an external wallet or signer.
+
+### 6. Verify Recovery and PSBTs
+
+Use Recovery and PSBT Preflight as final checks.
+
+- Recovery checks whether metadata is sufficient for future restoration.
+- PSBT Preflight checks a proposed PSBT before external signing.
+
+## Backends
+
+| Backend | Use case | Privacy posture |
+| --- | --- | --- |
+| Mock | Demo and UI testing | Local fixture data |
+| Bitcoin Core RPC | Local node scans | Best when RPC is local |
+| Self-hosted Esplora | Address UTXO scans | Good when you control the server |
+| Public Esplora | Emergency/demo lookup | Weak privacy; requires acknowledgement |
+| Electrum | Planned/placeholder behavior | Not fully implemented as a live scanner |
+
+Raw xpubs and descriptors should never be sent to third-party APIs. Live backends should query derived addresses only.
+
+## Architecture
+
+### Frontend
+
+- React 18
+- TypeScript
+- Vite
+- Lucide icons
+- Tauri API bridge
+
+Key areas:
+
+- `src/App.tsx`: app shell, sidebar navigation, tutorial state, workspace restore, module routing
+- `src/pages`: primary app pages
+- `src/components`: shared UI components
+- `src/lib`: formatting, workflow logic, workspace persistence, local scenario helpers
+- `src/types/domain.ts`: TypeScript mirror of Rust domain models
+
+### Backend
+
+- Rust
+- Tauri commands
+- SQLite via `rusqlite`
+- Descriptor parsing and derivation via `miniscript`
+- Local mock, Bitcoin Core, and Esplora-style backend modules
+
+Key areas:
+
+- `src-tauri/src/tauri_commands.rs`: commands exposed to the frontend
+- `src-tauri/src/database.rs`: SQLite migrations and persistence
+- `src-tauri/src/wallet_import.rs`: descriptor/xpub import validation
+- `src-tauri/src/provenance_engine.rs`: local provenance assessment
+- `src-tauri/src/action_engine.rs`: Cockpit action ranking
+- `src-tauri/src/psbt_linter.rs`: local PSBT analysis
+- `src-tauri/src/recovery_report.rs`: recovery posture checks
+
+## Storage and Privacy
+
+The desktop app stores local data in the operating system app data directory. Use **Settings -> Local exports** to export labels or recovery reports, and **Settings -> Clear local cache** to remove local wallet data from the app.
+
+Protect exported files. They may contain wallet metadata, labels, descriptors, addresses, and transaction context.
+
+Browser development mode may use local browser storage for demo reports, tutorial state, mission queue state, and workspace resume state. Desktop mode uses Tauri and SQLite for durable app data.
+
+## Tests and Verification
+
+Recommended checks before sharing a build:
+
+```bash
+npm run build
+cd src-tauri
+cargo test
+cd ..
+npm run tauri -- build
+```
+
+Recommended smoke test:
+
+- Fresh launch opens Import.
+- Demo wallet loads.
+- Cockpit Risk Posture is the first obvious read.
+- Mission Queue can collapse and reopen.
+- Coin Workbench filters, selected coins, and drawers behave correctly.
+- Spend Preflight selections and scenario inputs persist after reload.
+- Lineage pan/zoom works.
+- Documentation is searchable and includes the closed-beta operator script.
+- Recovery and PSBT Preflight render without console errors.
+- Clear local cache removes wallet/workspace state.
+
+## Limitations
+
+- XpubShield is not a wallet and cannot spend Bitcoin.
+- SQLite metadata is not encrypted yet.
+- Public backend use can leak address-query metadata.
+- Live backend coverage is not a complete wallet monitor.
+- Electrum scanning is not complete.
+- Very large wallet graphs are bounded in-app and may need a dedicated graph engine later.
+- Provenance assessment is heuristic and local; it is not definitive counterparty attribution.
 
 ## Roadmap
 
-Phase 2:
+Near-term priorities:
 
-- Local labeling workflow: implemented for UTXO metadata with SQLite persistence
-- Quarantine status editing: implemented for UTXO metadata with SQLite persistence
-- Fee stress testing: implemented for mock wallet data
-- Privacy simulator: implemented for selected mock UTXOs
-- Consolidation planner simulation: implemented for selected mock UTXOs
+- Fresh watch-only security review
+- Better live backend transaction history
+- Background scan scheduling
+- Encrypted local database option
+- More robust large-wallet graph handling
+- Richer import diagnostics for ambiguous xpub paths
+- Expanded closed-beta tester scripts
 
-Phase 3:
+## Contributing
 
-- PSBT linter: implemented for mock fixtures and local raw PSBT parsing
-- Recovery health report: implemented for current watch-only metadata
-- Descriptor diff tool: implemented with Rust-derived descriptor previews when descriptors are parseable
-- Transaction explanation templates: implemented for mock transaction data
+This repository is still early. Keep changes aligned with the safety boundary:
 
-Phase 4:
-
-- Durable wallet/UTXO metadata persistence: implemented
-- Rust-backed descriptor parsing/address derivation: implemented for parseable public descriptors
-- Raw PSBT parsing/linting: implemented
-
-Phase 5:
-
-- Bitcoin Core RPC backend: implemented for local `scantxoutset` address scanning
-
-Phase 6:
-
-- Graph visualization: implemented with wallet, lifecycle, label cluster, privacy risk, and fee heatmap views
-
-Phase 7:
-
-- Local-only alerts: implemented for wallet state, public API mode, address reuse, gap/unconfirmed findings, and quarantined PSBT attempts
-
-Phase 8:
-
-- Esplora-compatible backend: implemented for self-hosted/public address UTXO scanning with public API acknowledgement
-
-Next:
-
-- Resolve the remaining live-backend monitoring and final security-review items listed in `docs/RELEASE_READINESS.md`
+- Do not add signing, finalization, extraction, or broadcast behavior.
+- Do not send raw xpubs or descriptors to third-party APIs.
+- Keep sensitive metadata local by default.
+- Prefer clear evidence and confidence language over definitive claims.
+- Run the build and Rust tests before committing.
