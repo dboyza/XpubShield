@@ -99,6 +99,15 @@ export function writeOnboardingComplete(): boolean {
   return true;
 }
 
+export function clearOnboardingComplete(): boolean {
+  try {
+    window.localStorage.removeItem(ONBOARDING_STORAGE_KEY);
+  } catch {
+    // First-run state is local convenience; an unavailable store should not block app use.
+  }
+  return false;
+}
+
 function normalizeBackendPreferences(value: Partial<BackendPreferences>): BackendPreferences {
   return {
     ...DEFAULT_BACKEND_PREFERENCES,
