@@ -465,17 +465,20 @@ label {
 
 .mission-queue-list {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr));
+  gap: 10px;
 }
 
 .mission-card {
   position: relative;
-  justify-content: space-between;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  align-content: start;
+  gap: 9px;
   min-width: 0;
   border: 1px solid rgba(255, 248, 232, 0.15);
   border-radius: var(--radius-sm);
-  padding: 10px 10px 10px 14px;
+  padding: 12px 12px 10px 15px;
   background: rgba(255, 248, 232, 0.028);
   overflow: hidden;
 }
@@ -505,27 +508,30 @@ label {
 .mission-copy {
   display: grid;
   min-width: 0;
-  gap: 5px;
+  gap: 6px;
 }
 
 .mission-copy h3 {
   color: var(--text);
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1.25;
 }
 
 .mission-copy p {
   color: var(--text-soft);
   font-size: 12px;
-  line-height: 1.35;
+  line-height: 1.45;
 }
 
 .mission-meta {
-  align-items: flex-end;
-  flex-direction: column;
-  flex: 0 0 auto;
+  justify-content: space-between;
+  border-top: 1px solid rgba(255, 248, 232, 0.1);
+  padding-top: 9px;
 }
 
 .mission-buttons {
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 6px;
 }
 
