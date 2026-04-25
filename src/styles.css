@@ -681,8 +681,8 @@ label {
   right: -1px;
   width: 34px;
   height: 34px;
-  border-top: 1px solid rgba(143, 216, 255, 0.32);
-  border-right: 1px solid rgba(143, 216, 255, 0.32);
+  border-top: 1px solid rgba(255, 248, 232, 0.16);
+  border-right: 1px solid rgba(255, 248, 232, 0.16);
   border-top-right-radius: var(--radius);
   pointer-events: none;
 }
@@ -699,22 +699,9 @@ label {
 .page-header {
   min-height: 78px;
   background:
-    radial-gradient(circle at top right, var(--signal-soft), transparent 11rem),
-    linear-gradient(90deg, rgba(247, 147, 26, 0.095), transparent 38%),
+    linear-gradient(90deg, rgba(247, 147, 26, 0.075), transparent 36%),
     var(--surface);
   overflow: hidden;
-}
-
-.page-header::after {
-  content: "";
-  position: absolute;
-  inset: auto 16px 13px auto;
-  width: 118px;
-  height: 6px;
-  opacity: 0.4;
-  background:
-    linear-gradient(90deg, var(--accent) 0 22px, transparent 22px 30px, var(--signal) 30px 48px, transparent 48px 58px, rgba(255, 248, 232, 0.42) 58px 100%);
-  pointer-events: none;
 }
 
 .section-heading {
@@ -992,49 +979,51 @@ td input[type="checkbox"],
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 24px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  padding: 0 8px;
-  font-size: 11px;
+  gap: 6px;
+  min-height: 18px;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  font-size: 10px;
   font-weight: 800;
-  text-transform: capitalize;
+  line-height: 1.2;
+  text-transform: uppercase;
   white-space: nowrap;
+  background: transparent;
 }
 
-.status-neutral,
-.flag-stack span {
-  border-color: var(--line);
-  color: var(--text-soft);
-  background: rgba(255, 248, 232, 0.045);
+.status-pill::before,
+.risk-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.78;
+}
+
+.status-neutral {
+  color: var(--text-muted);
 }
 
 .status-good {
-  border-color: rgba(118, 169, 133, 0.42);
-  color: #e7f1e8;
-  background: var(--good-bg);
+  color: var(--good);
 }
 
 .status-warn,
 .risk-medium {
-  border-color: rgba(247, 184, 75, 0.48);
-  color: #1d1100;
-  background: var(--warn);
+  color: var(--warn);
 }
 
 .status-bad,
 .risk-high,
 .risk-critical {
-  border-color: rgba(224, 93, 79, 0.5);
-  color: #fff0ed;
-  background: #8d3028;
+  color: #ffb0a7;
 }
 
 .risk-info,
 .risk-low {
-  border-color: rgba(141, 184, 216, 0.48);
-  color: #e8f4fb;
-  background: var(--info-bg);
+  color: var(--text-muted);
 }
 
 .action-severity-text {
@@ -1319,7 +1308,11 @@ td span {
 .flag-stack span {
   width: fit-content;
   max-width: 190px;
-  padding: 4px 7px;
+  border-left: 2px solid rgba(255, 248, 232, 0.18);
+  padding: 2px 0 2px 7px;
+  color: var(--text-muted);
+  background: transparent;
+  font-family: var(--font-mono);
   font-size: 11px;
 }
 
@@ -2200,24 +2193,27 @@ td span {
 
 .docs-index-list button,
 .docs-tags button {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
   color: var(--text);
-  background: rgba(255, 248, 232, 0.035);
   cursor: pointer;
 }
 
 .docs-index-list button {
   display: grid;
   gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
   padding: 10px;
+  background: rgba(255, 248, 232, 0.035);
   text-align: left;
 }
 
-.docs-index-list button:hover,
-.docs-tags button:hover {
+.docs-index-list button:hover {
   border-color: var(--line-hot);
   background: rgba(247, 147, 26, 0.08);
+}
+
+.docs-tags button:hover {
+  color: var(--accent-2);
 }
 
 .docs-index-list strong {
@@ -2272,8 +2268,12 @@ td span {
 }
 
 .docs-tags button {
-  padding: 5px 8px;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 248, 232, 0.16);
+  border-radius: 0;
+  padding: 2px 0;
   color: var(--text-soft);
+  background: transparent;
   font-family: var(--font-mono);
   font-size: 11px;
 }
