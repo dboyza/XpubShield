@@ -38,7 +38,7 @@ export interface CoinDecision {
   evidence: string[];
 }
 
-export interface MissionQueueItem extends EvidenceItem {
+export interface GuidedActionItem extends EvidenceItem {
   page: string;
   ctaLabel: string;
   affectedOutpoints: string[];
@@ -159,7 +159,7 @@ export function coinDecisionEvidence(utxo: Utxo): EvidenceItem {
   };
 }
 
-export function buildMissionQueue(report: WalletReport): MissionQueueItem[] {
+export function buildGuidedActions(report: WalletReport): GuidedActionItem[] {
   const exchangeLike = report.utxos.filter(isExchangeLike);
   const quarantined = report.utxos.filter((utxo) => {
     const decision = getCoinDecision(utxo);
@@ -167,10 +167,10 @@ export function buildMissionQueue(report: WalletReport): MissionQueueItem[] {
   });
   const labelNeeded = report.utxos.filter((utxo) => getCoinDecision(utxo).state === "label_needed");
   const recoveryIssues = recoveryIssueEvidence(report);
-  const missions: MissionQueueItem[] = [];
+  const actions: GuidedActionItem[] = [];
 
   if (exchangeLike.length > 0) {
-    missions.push({
+    actions.push({
       id: "review-exchange-like-coins",
       title: "Review exchange-like coins",
       severity: "high",
@@ -189,7 +189,7 @@ export function buildMissionQueue(report: WalletReport): MissionQueueItem[] {
   }
 
   if (quarantined.length > 0) {
-    missions.push({
+    actions.push({
       id: "quarantine-dust-and-isolated-coins",
       title: "Quarantine dust and isolated coins",
       severity: "high",
@@ -210,7 +210,7 @@ export function buildMissionQueue(report: WalletReport): MissionQueueItem[] {
   }
 
   if (labelNeeded.length > 0) {
-    missions.push({
+    actions.push({
       id: "label-unknown-coins",
       title: "Resolve label-needed coins",
       severity: "medium",
@@ -229,7 +229,7 @@ export function buildMissionQueue(report: WalletReport): MissionQueueItem[] {
   }
 
   if (recoveryIssues.length > 0 || report.scores.recovery_readiness < 95) {
-    missions.push({
+    actions.push({
       id: "verify-recovery-metadata",
       title: "Verify recovery metadata",
       severity: report.scores.recovery_readiness < 70 ? "high" : "medium",
@@ -248,7 +248,7 @@ export function buildMissionQueue(report: WalletReport): MissionQueueItem[] {
   }
 
   if (report.utxos.length > 0) {
-    missions.push({
+    actions.push({
       id: "run-spend-preflight",
       title: "Run spend scenario preflight",
       severity: report.scores.spend_readiness < 90 ? "medium" : "low",
@@ -266,7 +266,7 @@ export function buildMissionQueue(report: WalletReport): MissionQueueItem[] {
     });
   }
 
-  return missions.sort((a, b) => severityRank(b.severity) - severityRank(a.severity));
+  return actions.sort((a, b) => severityRank(b.severity) - severityRank(a.severity));
 }
 
 export function buildSpendScenarios(selected: Utxo[], preview: SpendPreviewModel): SpendScenario[] {

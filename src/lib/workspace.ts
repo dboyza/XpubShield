@@ -52,7 +52,6 @@ export interface DocumentationWorkspaceState {
 export interface WorkspaceSnapshot {
   walletId: string;
   lastPage?: WorkspacePage;
-  missionQueueCollapsed?: boolean;
   workbench?: WorkbenchWorkspaceState;
   spendPreflight?: SpendPreflightWorkspaceState;
   graph?: GraphWorkspaceState;
@@ -116,7 +115,6 @@ function emptyWorkspaceSnapshot(walletId: string): WorkspaceSnapshot {
   return {
     walletId,
     lastPage: "cockpit",
-    missionQueueCollapsed: true,
     updatedAt: new Date().toISOString()
   };
 }
@@ -125,7 +123,6 @@ function normalizeWorkspaceSnapshot(walletId: string, value: Partial<WorkspaceSn
   return {
     walletId,
     lastPage: isWorkspacePage(value.lastPage) ? value.lastPage : "cockpit",
-    missionQueueCollapsed: Boolean(value.missionQueueCollapsed),
     workbench: value.workbench,
     spendPreflight: value.spendPreflight,
     graph: value.graph,

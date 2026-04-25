@@ -502,10 +502,6 @@ label {
   z-index: 8;
 }
 
-.content-shell > .mission-queue {
-  z-index: 7;
-}
-
 .content-shell > main {
   animation: pageIn 180ms ease-out both;
 }
@@ -549,65 +545,6 @@ label {
   text-transform: uppercase;
 }
 
-.mission-queue {
-  position: sticky;
-  top: 36px;
-  display: grid;
-  gap: 10px;
-  border-bottom: 1px solid rgba(255, 248, 232, 0.1);
-  padding: 10px var(--space-page);
-  background:
-    linear-gradient(90deg, rgba(246, 160, 45, 0.055), transparent 50%),
-    rgba(9, 9, 7, 0.92);
-  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.18);
-  backdrop-filter: blur(14px);
-  transition:
-    border-color var(--motion-fast),
-    background var(--motion-fast),
-    box-shadow var(--motion-fast);
-}
-
-.mission-queue-collapsed {
-  gap: 0;
-  border-bottom-color: rgba(246, 160, 45, 0.26);
-  padding-top: 10px;
-  padding-bottom: 10px;
-  background:
-    linear-gradient(90deg, rgba(246, 160, 45, 0.12), transparent 52%),
-    rgba(12, 10, 7, 0.95);
-  box-shadow:
-    inset 3px 0 0 var(--accent),
-    0 16px 50px rgba(0, 0, 0, 0.2);
-}
-
-.mission-queue-header,
-.mission-queue-actions,
-.mission-card,
-.mission-meta,
-.mission-buttons,
-.mission-kicker {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.mission-queue-header {
-  justify-content: space-between;
-}
-
-.mission-queue-collapsed .mission-queue-header strong {
-  color: var(--accent-2);
-}
-
-.mission-queue-collapsed .mission-toggle {
-  border-color: rgba(246, 160, 45, 0.42);
-  color: var(--text);
-  background: rgba(246, 160, 45, 0.09);
-}
-
-.mission-queue-header span,
-.mission-kicker span,
-.mission-meta > span,
 .scenario-card span,
 .evidence-count,
 .evidence-block span {
@@ -616,115 +553,6 @@ label {
   font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
-}
-
-.mission-queue-header strong {
-  display: block;
-  margin-top: 2px;
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: 13px;
-}
-
-.mission-queue-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr));
-  gap: 10px;
-}
-
-.mission-card {
-  position: relative;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  align-content: start;
-  gap: 9px;
-  min-width: 0;
-  border: 1px solid rgba(255, 248, 232, 0.12);
-  border-radius: var(--radius-sm);
-  padding: 12px 12px 10px 15px;
-  background:
-    linear-gradient(180deg, rgba(255, 248, 232, 0.02), transparent),
-    rgba(255, 248, 232, 0.022);
-  box-shadow: var(--shadow-xs);
-  overflow: visible;
-  transition:
-    border-color var(--motion-fast),
-    box-shadow var(--motion-fast),
-    transform var(--motion-fast);
-}
-
-.mission-card:hover {
-  border-color: rgba(255, 248, 232, 0.2);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
-}
-
-.mission-card::before {
-  content: "";
-  position: absolute;
-  inset: 10px auto 10px 0;
-  width: 3px;
-  border-radius: 999px;
-  background: var(--info);
-}
-
-.mission-card-critical::before,
-.mission-card-high::before {
-  background: var(--bad);
-}
-
-.mission-card-medium::before {
-  background: var(--warn);
-}
-
-.mission-card-low::before {
-  background: var(--good);
-}
-
-.mission-copy {
-  display: grid;
-  min-width: 0;
-  gap: 6px;
-}
-
-.mission-copy h3 {
-  color: var(--text);
-  font-size: 14px;
-  line-height: 1.25;
-}
-
-.mission-copy p {
-  color: var(--text-soft);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.mission-meta {
-  justify-content: space-between;
-  border-top: 1px solid rgba(255, 248, 232, 0.1);
-  padding-top: 9px;
-}
-
-.mission-buttons {
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-.mission-buttons .secondary-button {
-  min-height: 32px;
-  padding: 0 10px;
-  font-size: 11px;
-}
-
-.mission-buttons .icon-button {
-  width: 32px;
-  height: 32px;
-}
-
-.mission-toggle {
-  min-height: 28px;
-  padding: 0 9px;
 }
 
 .tooltip-button {
@@ -1017,9 +845,46 @@ label {
   justify-content: flex-end;
 }
 
-.collapse-button {
-  min-height: 28px;
-  padding-inline: 9px;
+.collapsible-panel-heading {
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background var(--motion-fast),
+    border-color var(--motion-fast),
+    color var(--motion-fast);
+}
+
+.collapsible-panel-heading:hover,
+.collapsible-panel-heading:focus-visible {
+  background:
+    linear-gradient(90deg, rgba(246, 160, 45, 0.09), transparent 70%),
+    rgba(255, 248, 232, 0.018);
+  outline: none;
+}
+
+.collapse-affordance,
+.action-count-signal,
+.action-source-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.collapse-affordance {
+  color: var(--text-soft);
+}
+
+.action-count-signal {
+  color: var(--accent-2);
+}
+
+.action-count-clear {
+  color: var(--good);
 }
 
 .metric-grid {
@@ -2065,10 +1930,6 @@ td span {
   background: rgba(224, 93, 79, 0.14);
 }
 
-.alert-card.acknowledged {
-  opacity: 0.66;
-}
-
 .compact-metrics {
   grid-template-columns: repeat(2, minmax(160px, 1fr));
   margin-bottom: 14px;
@@ -2448,6 +2309,17 @@ td span {
   box-shadow: inset 0 1px 0 rgba(255, 248, 232, 0.035);
 }
 
+.action-card-highlight {
+  animation: actionFlash 900ms ease-in-out 2;
+  background:
+    linear-gradient(90deg, rgba(246, 160, 45, 0.16), transparent 76%),
+    rgba(255, 248, 232, 0.035);
+  box-shadow:
+    inset 0 0 0 1px rgba(246, 160, 45, 0.48),
+    0 0 0 1px rgba(246, 160, 45, 0.12),
+    var(--shadow-sm);
+}
+
 .action-card::before {
   content: "";
   position: absolute;
@@ -2489,6 +2361,10 @@ td span {
   color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: 11px;
+}
+
+.action-source-text {
+  color: var(--accent);
 }
 
 .action-card-copy {
@@ -2533,24 +2409,6 @@ td span {
 .action-dismiss {
   width: 30px;
   height: 30px;
-}
-
-.cockpit-alert-log {
-  border-top: 1px solid var(--line-subtle);
-  padding: 14px 16px 16px;
-  background: rgba(0, 0, 0, 0.12);
-}
-
-.cockpit-alert-log .panel-heading {
-  margin-bottom: 10px;
-}
-
-.compact-risk-list {
-  gap: 8px;
-}
-
-.compact-risk-list .risk-card {
-  padding: 10px;
 }
 
 .cockpit-briefing {
@@ -3338,6 +3196,24 @@ td span {
   }
 }
 
+@keyframes actionFlash {
+  0%,
+  100% {
+    border-color: rgba(246, 160, 45, 0.22);
+    box-shadow:
+      inset 0 0 0 1px rgba(246, 160, 45, 0.2),
+      var(--shadow-xs);
+  }
+
+  50% {
+    border-color: rgba(246, 160, 45, 0.72);
+    box-shadow:
+      inset 0 0 0 1px rgba(246, 160, 45, 0.54),
+      0 0 34px rgba(246, 160, 45, 0.2),
+      var(--shadow-md);
+  }
+}
+
 @keyframes gridDrift {
   from {
     background-position: 0 0, 0 0, 0 0;
@@ -3420,11 +3296,6 @@ td span {
     min-width: 0;
   }
 
-  .mission-queue {
-    position: static;
-    padding: 10px 16px;
-  }
-
   .metric-grid,
   .cockpit-metrics,
   .cockpit-status-strip,
@@ -3435,7 +3306,6 @@ td span {
   .dashboard-grid,
   .simulator-grid,
   .preflight-grid,
-  .mission-queue-list,
   .scenario-grid,
   .graph-layout,
   .docs-layout,
@@ -3517,10 +3387,6 @@ td span {
   .docs-section-header,
   .selected-tray-header,
   .action-card-copy,
-  .mission-card,
-  .mission-meta,
-  .mission-queue-header,
-  .mission-queue-actions,
   .scenario-card-top,
   .evidence-actions {
     align-items: flex-start;
@@ -3580,14 +3446,6 @@ td span {
 
   .detail-drawer {
     width: 100vw;
-  }
-
-  .mission-buttons {
-    width: 100%;
-  }
-
-  .mission-buttons .secondary-button {
-    flex: 1;
   }
 
   .tutorial-layer-prompt,
