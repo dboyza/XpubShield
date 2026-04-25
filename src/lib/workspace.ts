@@ -116,7 +116,7 @@ function emptyWorkspaceSnapshot(walletId: string): WorkspaceSnapshot {
   return {
     walletId,
     lastPage: "cockpit",
-    missionQueueCollapsed: false,
+    missionQueueCollapsed: true,
     updatedAt: new Date().toISOString()
   };
 }

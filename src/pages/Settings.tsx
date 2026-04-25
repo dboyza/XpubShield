@@ -16,6 +16,7 @@ interface SettingsProps {
   onBackendPreferencesChange: (patch: Partial<BackendPreferences>) => void;
   onNetworkPolicyChange: (policy: NetworkPolicy) => void;
   onTutorialReset: () => void;
+  onOpenSetup: () => void;
   onCacheCleared: () => void;
 }
 
@@ -26,6 +27,7 @@ export function Settings({
   onBackendPreferencesChange,
   onNetworkPolicyChange,
   onTutorialReset,
+  onOpenSetup,
   onCacheCleared
 }: SettingsProps) {
   const [dataPath, setDataPath] = useState<string | null>(null);
@@ -65,6 +67,11 @@ export function Settings({
     } finally {
       setClearing(false);
     }
+  }
+
+  function openSetup() {
+    const confirmed = window.confirm("Are you sure you want to reopen setup onboarding? This will leave the current cockpit view so you can choose a node server and import source again. It does not clear local wallet cache.");
+    if (confirmed) onOpenSetup();
   }
 
   function changeNetworkLock(checked: boolean) {
@@ -326,6 +333,11 @@ export function Settings({
               These defaults are used by first-run onboarding and future imports. They do not rewrite
               the currently loaded wallet report.
             </p>
+            <div className="button-row settings-actions">
+              <button type="button" className="secondary-button" onClick={openSetup}>
+                <Server size={17} /> Reopen setup onboarding
+              </button>
+            </div>
           </div>
         </div>
 

@@ -195,13 +195,13 @@ export function UtxoTable({ report, onUpdateUtxos, workspaceState, onWorkspaceCh
         <StatusPill label={`${selected.length} selected`} tone={selected.length ? "warn" : "neutral"} />
       </section>
 
-      <section className="workflow-dock" aria-label="Coin workbench subviews">
-        <article className="workflow-lens-card">
+      <section className="workflow-dock workflow-lens-strip" aria-label="Coin workbench lenses">
+        <article className="workflow-lens-item">
           <span>Fee exposure</span>
           <strong>Stress-test coin economics without leaving the workbench context.</strong>
           <p>Use the spend-cost column and fee heatmap in Lineage for coin-level fee pressure.</p>
         </article>
-        <article className="workflow-lens-card">
+        <article className="workflow-lens-item">
           <span>Observer model</span>
           <strong>Inspect label, source, and quarantine linkage before choosing coins.</strong>
           <p>Use provenance, decision state, and saved sets to avoid accidental context merges.</p>

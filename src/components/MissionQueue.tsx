@@ -21,7 +21,7 @@ interface MissionQueueState {
 const EMPTY_QUEUE_STATE: MissionQueueState = {
   hiddenIds: [],
   completedIds: [],
-  collapsed: false
+  collapsed: true
 };
 
 export function MissionQueue({ report, onNavigate, workspaceCollapsed, onWorkspaceCollapsedChange }: MissionQueueProps) {
@@ -76,7 +76,7 @@ export function MissionQueue({ report, onNavigate, workspaceCollapsed, onWorkspa
       <div className="mission-queue-header">
         <div>
           <span>Mission Queue</span>
-          <strong>{visibleMissions.length ? queueState.collapsed ? "Queue hidden" : "Do this next" : "Queue clear"}</strong>
+          <strong>{visibleMissions.length ? queueState.collapsed ? `${visibleMissions.length} guided ops waiting` : "Do this next" : "Queue clear"}</strong>
         </div>
         <div className="mission-queue-actions">
           <StatusPill label={`${visibleMissions.length} active`} tone={visibleMissions.length ? "warn" : "good"} />
@@ -88,7 +88,7 @@ export function MissionQueue({ report, onNavigate, workspaceCollapsed, onWorkspa
             aria-controls="mission-queue-list"
           >
             {queueState.collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-            {queueState.collapsed ? "Show" : "Hide"}
+            {queueState.collapsed ? "Open queue" : "Hide"}
           </button>
           {hiddenCount > 0 ? (
             <button type="button" className="ghost-button" onClick={resetQueue}>
