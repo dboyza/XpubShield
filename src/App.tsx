@@ -4,6 +4,7 @@ import {
   BookOpenCheck,
   Combine,
   FileSearch,
+  FileText,
   GitBranch,
   GitCompareArrows,
   HeartPulse,
@@ -28,6 +29,7 @@ import { ConsolidationPlanner } from "./pages/ConsolidationPlanner";
 import { Alerts } from "./pages/Alerts";
 import { Cockpit } from "./pages/Cockpit";
 import { DescriptorDiff } from "./pages/DescriptorDiff";
+import { Documentation } from "./pages/Documentation";
 import { FeeStressTest } from "./pages/FeeStressTest";
 import { GraphView } from "./pages/GraphView";
 import { OnboardingImport } from "./pages/OnboardingImport";
@@ -54,6 +56,7 @@ type Page =
   | "explanations"
   | "graph"
   | "alerts"
+  | "docs"
   | "settings";
 
 type NavItemId = Page | "tutorial";
@@ -126,6 +129,7 @@ const NAV_MODULES: NavModule[] = [
     pages: [
       { id: "import", label: "Import", icon: Upload },
       { id: "tutorial", label: "Tutorial", icon: BookOpenCheck },
+      { id: "docs", label: "Documentation", icon: FileText },
       { id: "settings", label: "Settings", icon: SettingsIcon, requiresWallet: true }
     ]
   }
@@ -245,6 +249,7 @@ export default function App() {
       "explanations",
       "graph",
       "alerts",
+      "docs",
       "settings"
     ];
     if (validPages.includes(pageId as Page)) {
@@ -382,6 +387,7 @@ export default function App() {
         {page === "explanations" && report ? <TransactionExplanations report={report} /> : null}
         {page === "graph" && report ? <GraphView report={report} /> : null}
         {page === "alerts" && report ? <Alerts report={report} /> : null}
+        {page === "docs" ? <Documentation reportLoaded={Boolean(report)} /> : null}
         {page === "settings" && report ? <Settings report={report} onTutorialReset={resetTutorial} onCacheCleared={() => {
           setReport(null);
           setPage("import");
