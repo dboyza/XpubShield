@@ -607,7 +607,7 @@ label {
 .tooltip-button:focus-visible::after {
   opacity: 1;
   transform: translateY(0);
-  transition-delay: 700ms;
+  transition-delay: 250ms;
 }
 
 .boot-sweep {
