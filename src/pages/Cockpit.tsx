@@ -9,7 +9,6 @@ import {
   X
 } from "lucide-react";
 import { MetricCard } from "../components/MetricCard";
-import { RiskBadge } from "../components/RiskBadge";
 import { StatusPill } from "../components/StatusPill";
 import { backendLabel, compactSats, humanize, satsToBtc, severityRank } from "../lib/format";
 import type { ActionItem, WalletReport } from "../types/domain";
@@ -117,8 +116,8 @@ function ActionCard({
     <article className={`action-card action-card-${action.severity}`}>
       <div className="action-card-topline">
         <div className="finding-title">
-          <RiskBadge severity={action.severity} />
-          <StatusPill label={humanize(action.confidence_level)} />
+          <span className={`action-severity-text action-severity-${action.severity}`}>{humanize(action.severity)}</span>
+          <span>{humanize(action.confidence_level)} confidence</span>
         </div>
         <button type="button" className="icon-button action-dismiss" onClick={() => onDismissAction(action.id)} aria-label={`Dismiss ${action.title}`}>
           <X size={14} />
@@ -135,13 +134,18 @@ function ActionCard({
         </div>
       </div>
       <div className="action-card-footer">
-        <span>{action.affected_utxos.length ? `${action.affected_utxos.length} affected coins` : "wallet-level action"}</span>
+        <span>{affectedCoinText(action.affected_utxos.length)}</span>
         <button type="button" className="secondary-button" onClick={() => onNavigate(action.cta_page)}>
           Open module <ArrowRight size={15} />
         </button>
       </div>
     </article>
   );
+}
+
+function affectedCoinText(count: number) {
+  if (count === 0) return "wallet-level action";
+  return `${count} affected ${count === 1 ? "coin" : "coins"}`;
 }
 
 function SignalTile({ label, value }: { label: string; value: string }) {
