@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Settings as SettingsIcon,
   Send,
-  Server,
   Settings2,
   Table2
 } from "lucide-react";
@@ -118,7 +117,6 @@ const NAV_MODULES: NavModule[] = [
     title: "System",
     signal: "local config",
     pages: [
-      { id: "import", label: "Setup", icon: Server },
       { id: "tutorial", label: "Tutorial", icon: BookOpenCheck },
       { id: "docs", label: "Documentation", icon: FileText },
       { id: "settings", label: "Settings", icon: SettingsIcon, requiresWallet: true }
@@ -354,6 +352,10 @@ export default function App() {
     navigateToAction(pageId);
   }
 
+  function openSetupOnboarding() {
+    setPage("import");
+  }
+
   const pageMeta = PAGE_META[page];
   const activeNavItem: NavItemId = page;
   const onboardingActive = page === "import";
@@ -491,6 +493,7 @@ export default function App() {
             onBackendPreferencesChange={changeBackendPreferences}
             onNetworkPolicyChange={changeNetworkPolicy}
             onTutorialReset={resetTutorial}
+            onOpenSetup={openSetupOnboarding}
             onCacheCleared={() => {
               clearWorkspaceSnapshot(report.wallet.id);
               clearMissionQueueState(report.wallet.id);
