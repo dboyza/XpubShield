@@ -79,6 +79,24 @@ type TutorialState = {
   lastStepId?: string;
 };
 
+const PAGE_META: Record<Page, { code: string; label: string }> = {
+  import: { code: "SYS-01", label: "Watch-only intake" },
+  dashboard: { code: "CMD-00", label: "Action command" },
+  alerts: { code: "CMD-01", label: "Signal watch" },
+  graph: { code: "CMD-02", label: "Lineage map" },
+  utxos: { code: "COIN-10", label: "Coin workbench" },
+  fees: { code: "COIN-11", label: "Fee exposure" },
+  spend_preflight: { code: "SIM-20", label: "Spend preflight" },
+  privacy: { code: "SIM-21", label: "Privacy model" },
+  consolidation: { code: "SIM-22", label: "Consolidation plan" },
+  psbt: { code: "VRF-30", label: "PSBT preflight" },
+  recovery: { code: "VRF-31", label: "Recovery drill" },
+  descriptor_diff: { code: "VRF-32", label: "Descriptor diff" },
+  explanations: { code: "VRF-33", label: "Transaction notes" },
+  docs: { code: "SYS-02", label: "Operator handbook" },
+  settings: { code: "SYS-03", label: "Local config" }
+};
+
 const TUTORIAL_STORAGE_KEY = "xpubshield.tutorial.v1";
 
 const DEFAULT_TUTORIAL_STATE: TutorialState = {
@@ -317,6 +335,8 @@ export default function App() {
     navigateToAction(pageId);
   }
 
+  const pageMeta = PAGE_META[page];
+
   return (
     <div className="app-frame">
       <div className={`boot-sweep ${booting ? "boot-sweep-active" : ""}`} aria-hidden="true">
@@ -367,6 +387,20 @@ export default function App() {
         </nav>
       </aside>
       <div className="content-shell">
+        <div className="ops-ribbon" aria-label="XpubShield operations state">
+          <div>
+            <span>{pageMeta.code}</span>
+            <strong>{pageMeta.label}</strong>
+          </div>
+          <div>
+            <span>Mode</span>
+            <strong>pre-sign / local</strong>
+          </div>
+          <div>
+            <span>Wallet</span>
+            <strong>{report ? report.wallet.network : "not loaded"}</strong>
+          </div>
+        </div>
         {page === "import" ? (
           <OnboardingImport onImported={(next) => {
             setReport(next);
