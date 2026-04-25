@@ -319,9 +319,9 @@ export function Documentation({ reportLoaded }: DocumentationProps) {
 
   function jumpToSection(sectionId: string) {
     const section = sectionRefs.current[sectionId];
-    const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
-    section?.scrollIntoView({ behavior: motionPreference, block: "start" });
-    section?.focus({ preventScroll: true });
+    if (!section) return;
+    section.focus({ preventScroll: true });
+    section.scrollIntoView({ behavior: "auto", block: "start" });
   }
 
   return (

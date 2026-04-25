@@ -1733,9 +1733,11 @@ td span {
 
 .docs-index {
   position: sticky;
-  top: 16px;
+  top: 52px;
   display: grid;
   gap: 12px;
+  max-height: calc(100vh - 68px);
+  overflow: hidden;
   padding: 12px;
 }
 
@@ -1759,7 +1761,7 @@ td span {
 .docs-index-list {
   display: grid;
   gap: 6px;
-  max-height: calc(100vh - 190px);
+  max-height: calc(100vh - 162px);
   overflow: auto;
 }
 
@@ -1796,7 +1798,7 @@ td span {
 }
 
 .docs-section {
-  scroll-margin-top: 18px;
+  scroll-margin-top: 64px;
   padding: 16px;
 }
 
