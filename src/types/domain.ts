@@ -1,5 +1,12 @@
 export type Network = "mainnet" | "testnet" | "signet" | "regtest";
-export type BackendKind = "mock" | "bitcoin_core_rpc" | "electrum" | "esplora" | "public_esplora";
+export type BackendKind =
+  | "mock"
+  | "bitcoin_core_rpc"
+  | "electrum"
+  | "public_electrum"
+  | "esplora"
+  | "public_esplora";
+export type NetworkPolicy = "normal" | "local_only";
 export type ScriptType =
   | "legacy"
   | "nested_segwit"
@@ -54,8 +61,10 @@ export interface ImportRequest {
   gap_limit?: number;
   backend?: BackendKind;
   bitcoin_core_rpc?: BitcoinCoreRpcConfig;
+  electrum?: ElectrumBackendConfig;
   esplora?: EsploraBackendConfig;
   public_api_acknowledged: boolean;
+  network_policy?: NetworkPolicy;
 }
 
 export interface BitcoinCoreRpcConfig {
@@ -63,6 +72,12 @@ export interface BitcoinCoreRpcConfig {
   username?: string | null;
   password?: string | null;
   wallet?: string | null;
+}
+
+export interface ElectrumBackendConfig {
+  server_url: string;
+  display_name?: string | null;
+  public_server_acknowledged: boolean;
 }
 
 export interface EsploraBackendConfig {

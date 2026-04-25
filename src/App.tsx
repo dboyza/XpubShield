@@ -21,6 +21,7 @@ import {
   type TutorialPageId
 } from "./components/SovereignOpsTutorial";
 import { Cockpit } from "./pages/Cockpit";
+import { readNetworkPolicy, writeNetworkPolicy } from "./lib/networkPolicy";
 import { Documentation } from "./pages/Documentation";
 import { GraphView } from "./pages/GraphView";
 import { OnboardingImport } from "./pages/OnboardingImport";
@@ -158,6 +159,7 @@ export default function App() {
   const [tutorialState, setTutorialState] = useState<TutorialState>(() => readTutorialState());
   const [tutorialPromptOpen, setTutorialPromptOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [networkPolicy, setNetworkPolicy] = useState(() => readNetworkPolicy());
   const [activeTutorialStep, setActiveTutorialStep] = useState(() =>
     findTutorialStepIndex(readTutorialState().lastStepId)
   );
@@ -307,6 +309,10 @@ export default function App() {
     setTutorialPromptOpen(true);
   }
 
+  function changeNetworkPolicy(nextPolicy: typeof networkPolicy) {
+    setNetworkPolicy(writeNetworkPolicy(nextPolicy));
+  }
+
   function changeTutorialStep(index: number) {
     setActiveTutorialStep(index);
     saveTutorialState({ lastStepId: TUTORIAL_STEPS[index]?.id });
@@ -392,7 +398,7 @@ export default function App() {
           />
         ) : null}
         {page === "import" ? (
-          <OnboardingImport onImported={(next) => {
+          <OnboardingImport networkPolicy={networkPolicy} onNetworkPolicyChange={changeNetworkPolicy} onImported={(next) => {
             const nextWorkspace = writeWorkspaceSnapshot(next.wallet.id, { lastPage: "cockpit" });
             setReport(next);
             setWorkspace(nextWorkspace);
@@ -433,7 +439,7 @@ export default function App() {
             onWorkspaceChange={(documentation) => report ? saveWorkspacePatch({ documentation: { ...workspace?.documentation, ...documentation } }) : undefined}
           />
         ) : null}
-        {page === "settings" && report ? <Settings report={report} onTutorialReset={resetTutorial} onCacheCleared={() => {
+        {page === "settings" && report ? <Settings report={report} networkPolicy={networkPolicy} onNetworkPolicyChange={changeNetworkPolicy} onTutorialReset={resetTutorial} onCacheCleared={() => {
           clearWorkspaceSnapshot(report.wallet.id);
           clearMissionQueueState(report.wallet.id);
           setWorkspace(null);

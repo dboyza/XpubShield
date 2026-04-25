@@ -13,6 +13,8 @@ Current strengths:
 - Local desktop app built with Tauri, React, TypeScript, Rust, and SQLite.
 - Watch-only descriptor/xpub import with private-material rejection.
 - Demo wallet for safe evaluation without real wallet metadata.
+- Electrum light-client scanning with local script-hash derivation and no broadcast path.
+- Network Lock for opt-in local-only import safety rails.
 - Local provenance, risk scoring, action ranking, labels, coin sets, recovery checks, PSBT analysis, and packaging builds.
 
 Not stable-release ready yet:
@@ -20,6 +22,7 @@ Not stable-release ready yet:
 - SQLite metadata is not encrypted.
 - Live backend monitoring is not a full background indexer.
 - Bitcoin Core and Esplora support are address-scan oriented and should be tested carefully with real infrastructure.
+- Electrum support is one-shot and TCP-only in this pass; TLS, Tor, and proxy routing are deferred.
 - A fresh watch-only security review should happen before a public beta or stable release.
 
 ## Safety Boundary
@@ -138,8 +141,11 @@ The import flow accepts descriptor or xpub watch-only data.
 - Gap limit control
 - Mock backend for demo workflows
 - Local Bitcoin Core RPC backend
+- Private Electrum light-client backend
+- Public Electrum mode with explicit script-hash privacy acknowledgement
 - Self-hosted Esplora-compatible backend
 - Public Esplora mode with explicit privacy acknowledgement
+- Network Lock that restricts future imports to mock/offline mode or localhost Bitcoin Core RPC
 - Browser demo fallback when Tauri IPC is unavailable
 
 ### Documentation and Tutorial
@@ -274,7 +280,7 @@ Use a public descriptor when possible. Bare xpub import is supported, but descri
 2. Choose **Descriptor** or **Xpub**.
 3. Select the network and backend.
 4. Set the gap limit.
-5. Acknowledge public backend privacy warnings if using public Esplora.
+5. Acknowledge public backend privacy warnings if using public Esplora or public Electrum.
 6. Import and scan.
 
 ### 3. Triage in Cockpit
@@ -319,11 +325,12 @@ Use Recovery and PSBT Preflight as final checks.
 | --- | --- | --- |
 | Mock | Demo and UI testing | Local fixture data |
 | Bitcoin Core RPC | Local node scans | Best when RPC is local |
+| Private Electrum | One-shot script-hash UTXO scans | Good when you control the server |
+| Public Electrum | No-node light-client scans | Weak privacy; script-hash queries can reveal wallet activity |
 | Self-hosted Esplora | Address UTXO scans | Good when you control the server |
 | Public Esplora | Emergency/demo lookup | Weak privacy; requires acknowledgement |
-| Electrum | Planned/placeholder behavior | Not fully implemented as a live scanner |
 
-Raw xpubs and descriptors should never be sent to third-party APIs. Live backends should query derived addresses only.
+Raw xpubs and descriptors should never be sent to third-party APIs. Live backends should query derived addresses or locally derived Electrum script hashes only.
 
 ## Architecture
 
@@ -349,13 +356,14 @@ Key areas:
 - Tauri commands
 - SQLite via `rusqlite`
 - Descriptor parsing and derivation via `miniscript`
-- Local mock, Bitcoin Core, and Esplora-style backend modules
+- Local mock, Bitcoin Core, Electrum, and Esplora-style backend modules
 
 Key areas:
 
 - `src-tauri/src/tauri_commands.rs`: commands exposed to the frontend
 - `src-tauri/src/database.rs`: SQLite migrations and persistence
 - `src-tauri/src/wallet_import.rs`: descriptor/xpub import validation
+- `src-tauri/src/electrum_backend.rs`: Electrum script-hash scanning
 - `src-tauri/src/provenance_engine.rs`: local provenance assessment
 - `src-tauri/src/action_engine.rs`: Cockpit action ranking
 - `src-tauri/src/psbt_linter.rs`: local PSBT analysis
@@ -398,9 +406,9 @@ Recommended smoke test:
 
 - XpubShield is not a wallet and cannot spend Bitcoin.
 - SQLite metadata is not encrypted yet.
-- Public backend use can leak address-query metadata.
+- Public backend use can leak address or script-hash query metadata.
 - Live backend coverage is not a complete wallet monitor.
-- Electrum scanning is not complete.
+- Electrum scanning is one-shot and TCP-only; TLS, Tor, proxy routing, and background monitoring are not implemented yet.
 - Very large wallet graphs are bounded in-app and may need a dedicated graph engine later.
 - Provenance assessment is heuristic and local; it is not definitive counterparty attribution.
 
@@ -410,6 +418,7 @@ Near-term priorities:
 
 - Fresh watch-only security review
 - Better live backend transaction history
+- Electrum TLS/Tor/proxy support
 - Background scan scheduling
 - Encrypted local database option
 - More robust large-wallet graph handling

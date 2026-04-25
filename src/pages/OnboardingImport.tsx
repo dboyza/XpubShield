@@ -1,14 +1,34 @@
-import { AlertTriangle, Database, FileKey2, Upload, WalletCards } from "lucide-react";
+import { AlertTriangle, Database, FileKey2, Lock, Upload, WalletCards } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { importWallet, isTauriRuntime, loadDemoWallet, looksLikePrivateMaterial } from "../api/tauri";
 import { PrivacyWarning } from "../components/PrivacyWarning";
-import type { BackendKind, ImportRequest, Network, ScriptType, WalletReport } from "../types/domain";
+import type { BackendKind, ImportRequest, Network, NetworkPolicy, ScriptType, WalletReport } from "../types/domain";
 
 interface OnboardingImportProps {
+  networkPolicy: NetworkPolicy;
+  onNetworkPolicyChange: (policy: NetworkPolicy) => void;
   onImported: (report: WalletReport) => void;
 }
 
-export function OnboardingImport({ onImported }: OnboardingImportProps) {
+const ELECTRUM_PRESETS = [
+  {
+    id: "blockstream",
+    label: "Blockstream public",
+    url: "tcp://electrum.blockstream.info:50001"
+  },
+  {
+    id: "local",
+    label: "Local Electrum",
+    url: "tcp://127.0.0.1:50001"
+  },
+  {
+    id: "manual",
+    label: "Manual server",
+    url: ""
+  }
+];
+
+export function OnboardingImport({ networkPolicy, onNetworkPolicyChange, onImported }: OnboardingImportProps) {
   const [importKind, setImportKind] = useState<"descriptor" | "xpub">("descriptor");
   const [walletName, setWalletName] = useState("Cold storage watch-only");
   const [descriptor, setDescriptor] = useState("");
@@ -22,6 +42,9 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
   const [bitcoinCoreUsername, setBitcoinCoreUsername] = useState("");
   const [bitcoinCorePassword, setBitcoinCorePassword] = useState("");
   const [bitcoinCoreWallet, setBitcoinCoreWallet] = useState("");
+  const [electrumPreset, setElectrumPreset] = useState("local");
+  const [electrumServerUrl, setElectrumServerUrl] = useState("tcp://127.0.0.1:50001");
+  const [electrumDisplayName, setElectrumDisplayName] = useState("Local Electrum");
   const [esploraBaseUrl, setEsploraBaseUrl] = useState("http://127.0.0.1:3000");
   const [esploraUseTor, setEsploraUseTor] = useState(false);
   const [acknowledgedPublicApi, setAcknowledgedPublicApi] = useState(false);
@@ -29,17 +52,34 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
   const [loading, setLoading] = useState(false);
 
   const publicApiMode = backend === "public_esplora";
+  const publicElectrumMode = backend === "public_electrum";
+  const publicBackendMode = publicApiMode || publicElectrumMode;
+  const networkLocked = networkPolicy === "local_only";
   const desktopPersistenceAvailable = isTauriRuntime();
 
   useEffect(() => {
+    if (networkLocked && backend !== "mock" && backend !== "bitcoin_core_rpc") {
+      setBackend("mock");
+      return;
+    }
     if (backend === "public_esplora") {
       setEsploraBaseUrl("https://mempool.space/api");
       setEsploraUseTor(false);
+    } else if (backend === "public_electrum") {
+      const preset = ELECTRUM_PRESETS[0];
+      setElectrumPreset(preset.id);
+      setElectrumServerUrl(preset.url);
+      setElectrumDisplayName(preset.label);
     } else if (backend === "esplora") {
       setEsploraBaseUrl("http://127.0.0.1:3000");
       setEsploraUseTor(false);
+    } else if (backend === "electrum") {
+      const preset = ELECTRUM_PRESETS[1];
+      setElectrumPreset(preset.id);
+      setElectrumServerUrl(preset.url);
+      setElectrumDisplayName(preset.label);
     }
-  }, [backend]);
+  }, [backend, networkLocked]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -73,12 +113,24 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
       setError("Gap limit must be a number between 5 and 1000.");
       return;
     }
-    if (publicApiMode && !acknowledgedPublicApi) {
-      setError("Public API mode requires acknowledging the privacy warning.");
+    if (networkLocked && backend !== "mock" && backend !== "bitcoin_core_rpc") {
+      setError("Network Lock is enabled. Choose Mock backend or local Bitcoin Core RPC before importing.");
+      return;
+    }
+    if (networkLocked && backend === "bitcoin_core_rpc" && !isLocalEndpoint(bitcoinCoreUrl)) {
+      setError("Network Lock requires Bitcoin Core RPC to use localhost, 127.0.0.1, or [::1].");
+      return;
+    }
+    if (publicBackendMode && !acknowledgedPublicApi) {
+      setError(publicElectrumMode ? "Public Electrum requires acknowledging the script-hash privacy warning." : "Public API mode requires acknowledging the privacy warning.");
       return;
     }
     if (backend === "bitcoin_core_rpc" && !bitcoinCoreUrl.trim()) {
       setError("Bitcoin Core RPC mode needs a local RPC URL.");
+      return;
+    }
+    if ((backend === "electrum" || backend === "public_electrum") && !electrumServerUrl.trim()) {
+      setError("Electrum mode needs a server URL such as tcp://127.0.0.1:50001.");
       return;
     }
     if ((backend === "esplora" || backend === "public_esplora") && !esploraBaseUrl.trim()) {
@@ -105,6 +157,14 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
               wallet: bitcoinCoreWallet || undefined
             }
           : undefined,
+      electrum:
+        backend === "electrum" || backend === "public_electrum"
+          ? {
+              server_url: electrumServerUrl.trim(),
+              display_name: electrumDisplayName.trim() || undefined,
+              public_server_acknowledged: acknowledgedPublicApi
+            }
+          : undefined,
       esplora:
         backend === "esplora" || backend === "public_esplora"
           ? {
@@ -113,7 +173,8 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
               public_api_acknowledged: acknowledgedPublicApi
             }
           : undefined,
-      public_api_acknowledged: acknowledgedPublicApi
+      public_api_acknowledged: acknowledgedPublicApi,
+      network_policy: networkPolicy
     };
 
     setLoading(true);
@@ -151,7 +212,7 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
           </div>
         </div>
 
-        <PrivacyWarning publicApiMode={publicApiMode} />
+        <PrivacyWarning publicApiMode={publicBackendMode} publicBackendKind={backend} />
 
         {!desktopPersistenceAvailable ? (
           <div className="runtime-notice" role="status">
@@ -223,12 +284,25 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
               <select value={backend} onChange={(event) => setBackend(event.target.value as BackendKind)}>
                 <option value="mock">Mock backend</option>
                 <option value="bitcoin_core_rpc">Bitcoin Core RPC</option>
-                <option value="electrum">Personal Electrum</option>
-                <option value="esplora">Self-hosted Esplora</option>
-                <option value="public_esplora">Public Esplora</option>
+                <option value="electrum" disabled={networkLocked}>Private Electrum</option>
+                <option value="public_electrum" disabled={networkLocked}>Public Electrum</option>
+                <option value="esplora" disabled={networkLocked}>Self-hosted Esplora</option>
+                <option value="public_esplora" disabled={networkLocked}>Public Esplora</option>
               </select>
             </label>
           </div>
+
+          <label className="checkbox-row network-lock-row">
+            <input
+              type="checkbox"
+              checked={networkLocked}
+              onChange={(event) => onNetworkPolicyChange(event.target.checked ? "local_only" : "normal")}
+            />
+            <span>
+              <strong>Network Lock</strong>
+              Restrict imports to mock/offline mode or localhost Bitcoin Core RPC.
+            </span>
+          </label>
 
           <details className="advanced-section" open={importKind === "xpub"}>
             <summary>
@@ -269,14 +343,18 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
             </div>
           </details>
 
-          {publicApiMode ? (
+          {publicBackendMode ? (
             <label className="checkbox-row">
               <input
                 type="checkbox"
                 checked={acknowledgedPublicApi}
                 onChange={(event) => setAcknowledgedPublicApi(event.target.checked)}
               />
-              <span>I understand public API mode is weak privacy and must not receive raw xpubs or descriptors.</span>
+              <span>
+                {publicElectrumMode
+                  ? "I understand public Electrum sees script-hash queries and can infer wallet activity. XpubShield does not route Tor yet."
+                  : "I understand public API mode is weak privacy and must not receive raw xpubs or descriptors."}
+              </span>
             </label>
           ) : null}
 
@@ -315,6 +393,53 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
                   />
                 </label>
               </div>
+            </details>
+          ) : null}
+
+          {backend === "electrum" || backend === "public_electrum" ? (
+            <details className="advanced-section backend-config" open>
+              <summary>
+                <span>{backend === "public_electrum" ? "Public Electrum server" : "Private Electrum server"}</span>
+                <small>Local script-hash derivation, no broadcast</small>
+              </summary>
+              <div className="section-heading compact-heading">
+                <Lock size={18} aria-hidden="true" />
+                <div>
+                  <p>{backend === "public_electrum" ? "Weak privacy" : "Private server"}</p>
+                  <h2>Electrum light client</h2>
+                </div>
+              </div>
+              <div className="form-grid">
+                <label>
+                  Server preset
+                  <select value={electrumPreset} onChange={(event) => {
+                    const preset = ELECTRUM_PRESETS.find((item) => item.id === event.target.value) ?? ELECTRUM_PRESETS[2];
+                    setElectrumPreset(preset.id);
+                    if (preset.url) setElectrumServerUrl(preset.url);
+                    setElectrumDisplayName(preset.label);
+                  }}>
+                    {ELECTRUM_PRESETS.map((preset) => (
+                      <option key={preset.id} value={preset.id}>{preset.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Server URL
+                  <input value={electrumServerUrl} onChange={(event) => {
+                    setElectrumPreset("manual");
+                    setElectrumServerUrl(event.target.value);
+                  }} placeholder="tcp://127.0.0.1:50001" />
+                </label>
+                <label>
+                  Display name
+                  <input value={electrumDisplayName} onChange={(event) => setElectrumDisplayName(event.target.value)} />
+                </label>
+              </div>
+              <p className="plain-text">
+                XpubShield derives script hashes locally and queries `blockchain.scripthash.listunspent`.
+                It never uploads raw xpubs or descriptors and does not broadcast transactions. TLS, Tor,
+                and proxy routing are deferred to a later networking pass.
+              </p>
             </details>
           ) : null}
 
@@ -378,8 +503,17 @@ function looksLikeDescriptor(input: string): boolean {
 
 function loadingLabel(backend: BackendKind): string {
   if (backend === "bitcoin_core_rpc") return "Scanning local node";
+  if (backend === "electrum") return "Scanning Electrum";
+  if (backend === "public_electrum") return "Scanning public Electrum";
   if (backend === "esplora") return "Scanning Esplora";
   if (backend === "public_esplora") return "Scanning public API";
-  if (backend === "electrum") return "Scanning Electrum";
   return "Loading demo scan";
+}
+
+function isLocalEndpoint(value: string): boolean {
+  return (
+    value.startsWith("http://127.0.0.1") ||
+    value.startsWith("http://localhost") ||
+    value.startsWith("http://[::1]")
+  );
 }

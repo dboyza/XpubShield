@@ -6,15 +6,17 @@ import { clearLocalCache, getLocalDataPath, listLabels, upsertLabel } from "../a
 import { backendLabel, humanize } from "../lib/format";
 import { SOURCE_CATEGORIES } from "../lib/phase2";
 import { buildRecoveryHealth } from "../lib/phase3";
-import type { Label, SourceCategory, WalletReport } from "../types/domain";
+import type { Label, NetworkPolicy, SourceCategory, WalletReport } from "../types/domain";
 
 interface SettingsProps {
   report: WalletReport;
+  networkPolicy: NetworkPolicy;
+  onNetworkPolicyChange: (policy: NetworkPolicy) => void;
   onTutorialReset: () => void;
   onCacheCleared: () => void;
 }
 
-export function Settings({ report, onTutorialReset, onCacheCleared }: SettingsProps) {
+export function Settings({ report, networkPolicy, onNetworkPolicyChange, onTutorialReset, onCacheCleared }: SettingsProps) {
   const [dataPath, setDataPath] = useState<string | null>(null);
   const [labels, setLabels] = useState<Label[]>([]);
   const [labelTargetType, setLabelTargetType] = useState("utxo");
@@ -23,7 +25,8 @@ export function Settings({ report, onTutorialReset, onCacheCleared }: SettingsPr
   const [labelCategory, setLabelCategory] = useState<SourceCategory>("unknown");
   const [clearing, setClearing] = useState(false);
   const recovery = useMemo(() => buildRecoveryHealth(report), [report]);
-  const publicMode = report.wallet.backend === "public_esplora";
+  const publicMode = report.wallet.backend === "public_esplora" || report.wallet.backend === "public_electrum";
+  const networkLocked = networkPolicy === "local_only";
 
   useEffect(() => {
     getLocalDataPath().then(setDataPath);
@@ -66,9 +69,9 @@ export function Settings({ report, onTutorialReset, onCacheCleared }: SettingsPr
       <section className={publicMode ? "privacy-warning privacy-warning-public" : "privacy-warning"}>
         <ShieldAlert size={20} />
         <div>
-          <strong>{publicMode ? "Public API mode is weak privacy" : "Watch-only local data"}</strong>
+          <strong>{publicMode ? "Public backend mode is weak privacy" : "Watch-only local data"}</strong>
           <p>XpubShield stores wallet metadata locally. It must not receive seed phrases, private keys, xprv values, WIF keys, signing material, or raw private data for cloud sync.</p>
-          <p>Raw xpubs and descriptors are never uploaded by backend scans; live backends query derived addresses only.</p>
+          <p>Raw xpubs and descriptors are never uploaded by backend scans; live backends query derived addresses or Electrum script hashes only.</p>
         </div>
       </section>
 
@@ -88,10 +91,22 @@ export function Settings({ report, onTutorialReset, onCacheCleared }: SettingsPr
           <div className="shape-list">
             <SettingRow label="Backend mode" value={backendLabel(report.wallet.backend)} />
             <SettingRow label="Network" value={humanize(report.wallet.network)} />
-            <SettingRow label="Public API warnings" value={publicMode ? "Enabled and unavoidable" : "Not active"} />
+            <SettingRow label="Public backend warnings" value={publicMode ? "Enabled and unavoidable" : "Not active"} />
+            <SettingRow label="Network Lock" value={networkLocked ? "Local-only imports" : "Normal backend selection"} />
             <SettingRow label="Descriptor identity" value={report.wallet.descriptor_based ? "Descriptor based" : "Bare xpub import"} />
             <SettingRow label="Data directory" value={dataPath ?? "Browser demo or unavailable"} />
           </div>
+          <label className="checkbox-row network-lock-row">
+            <input
+              type="checkbox"
+              checked={networkLocked}
+              onChange={(event) => onNetworkPolicyChange(event.target.checked ? "local_only" : "normal")}
+            />
+            <span>
+              <strong>Network Lock</strong>
+              Restrict future imports to mock/offline mode or localhost Bitcoin Core RPC.
+            </span>
+          </label>
         </div>
 
         <div className="panel">

@@ -18,12 +18,20 @@ pub fn generate_wallet_alerts(report: &WalletReport) -> Vec<Alert> {
         ));
     }
 
-    if report.wallet.backend == BackendKind::PublicEsplora {
+    if matches!(
+        report.wallet.backend,
+        BackendKind::PublicEsplora | BackendKind::PublicElectrum
+    ) {
+        let message = if report.wallet.backend == BackendKind::PublicElectrum {
+            "Public Electrum mode is weak privacy. XpubShield sends script hashes instead of raw xpubs, but the server can infer wallet activity from queries."
+        } else {
+            "Public API mode is weak privacy. XpubShield must still query derived addresses only and never upload raw xpubs or descriptors."
+        };
         alerts.push(alert(
             format!("public_api:{}", report.wallet.id),
             Severity::High,
-            "Public API mode enabled",
-            "Public API mode is weak privacy. XpubShield must still query derived addresses only and never upload raw xpubs or descriptors.",
+            "Public backend mode enabled",
+            message,
             &now,
         ));
     }
@@ -99,7 +107,7 @@ mod tests {
     #[test]
     fn generates_public_api_alert() {
         let mut import = build_demo_import();
-        import.backend = BackendKind::PublicEsplora;
+        import.backend = BackendKind::PublicElectrum;
         let report = MockBackend.scan_wallet(&import);
         let alerts = generate_wallet_alerts(&report);
 

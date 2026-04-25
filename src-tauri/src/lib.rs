@@ -8,6 +8,7 @@ pub mod consolidation_planner;
 pub mod database;
 pub mod descriptor_diff;
 pub mod descriptor_parser;
+pub mod electrum_backend;
 pub mod esplora_backend;
 pub mod fee_estimator;
 pub mod graph_builder;

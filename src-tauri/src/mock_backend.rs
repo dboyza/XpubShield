@@ -129,6 +129,15 @@ pub fn privacy_score_for_backend(kind: BackendKind) -> BackendPrivacyScore {
             summary: "Personal Electrum mode can preserve strong privacy when it points at your own server.".to_string(),
             warnings: vec!["Do not connect this mode to an untrusted public Electrum server.".to_string()],
         },
+        BackendKind::PublicElectrum => BackendPrivacyScore {
+            score: 35,
+            mode: BackendKind::PublicElectrum,
+            summary: "Public Electrum mode is weak privacy because script-hash queries and timing metadata can reveal wallet history.".to_string(),
+            warnings: vec![
+                "XpubShield sends script hashes, not raw xpubs or descriptors, but the server can still infer queried wallet activity.".to_string(),
+                "Tor is recommended for public servers, but Tor/proxy routing is not implemented in this pass.".to_string(),
+            ],
+        },
         BackendKind::Esplora => BackendPrivacyScore {
             score: 82,
             mode: BackendKind::Esplora,

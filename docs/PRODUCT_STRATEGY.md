@@ -28,6 +28,7 @@ It must not:
 It may:
 
 - Analyze descriptors, xpubs, addresses, UTXOs, transactions, PSBT text, and local operator labels.
+- Query live backends with locally derived addresses or Electrum script hashes when the operator explicitly chooses that backend.
 - Store local metadata such as labels, coin sets, quarantine state, provenance assessments, dismissed actions, and workspace state.
 - Explain risk with evidence, confidence, and recommended next steps.
 
@@ -86,7 +87,7 @@ Warnings should answer:
 
 ### Stay Local First
 
-Sensitive wallet metadata should remain local unless the operator explicitly chooses a backend that requires address queries. Browser demo behavior must remain visibly different from packaged desktop persistence.
+Sensitive wallet metadata should remain local unless the operator explicitly chooses a backend that requires address or script-hash queries. Browser demo behavior must remain visibly different from packaged desktop persistence.
 
 ### Keep the Safety Boundary Sharp
 
@@ -103,7 +104,8 @@ Closed beta should focus on trust and clarity:
 - Complete a fresh watch-only security review.
 - Improve import failure messages and backend-specific loading states.
 - Exercise restart/resume state across packaged desktop sessions.
-- Validate Bitcoin Core and Esplora behavior against real operator infrastructure.
+- Validate Bitcoin Core, Electrum, and Esplora behavior against real operator infrastructure.
+- Add Electrum TLS/Tor/proxy support after the TCP-only light-client pass.
 - Decide whether SQLite metadata encryption is required before public beta.
 - Expand live transaction history without adding signing or broadcasting.
 - Keep Documentation aligned with the in-app workflow.

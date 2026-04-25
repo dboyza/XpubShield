@@ -135,7 +135,7 @@ pub fn build_action_center(
             title: "Move away from public backend mode".to_string(),
             summary: report.backend_privacy.summary.clone(),
             why_it_matters:
-                "Public address queries can leak wallet timing and address clusters to third parties."
+                "Public address or script-hash queries can leak wallet timing and clusters to third parties."
                     .to_string(),
             recommended_action:
                 "Prefer Bitcoin Core RPC, personal Electrum, or self-hosted Esplora before operational review."

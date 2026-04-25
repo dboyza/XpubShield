@@ -295,24 +295,38 @@ fn label_hygiene_findings(utxos: &mut [Utxo]) -> Vec<AuditFinding> {
 }
 
 fn public_backend_findings(wallet: &Wallet) -> Vec<AuditFinding> {
-    if !matches!(wallet.backend, BackendKind::PublicEsplora) {
+    if !matches!(
+        wallet.backend,
+        BackendKind::PublicEsplora | BackendKind::PublicElectrum
+    ) {
         return Vec::new();
     }
+
+    let (title, explanation, recommended_action, heuristic_notes) = match wallet.backend {
+        BackendKind::PublicElectrum => (
+            "Public Electrum mode is enabled",
+            "Public Electrum mode can reveal wallet script-hash queries and timing metadata to a third party. XpubShield never uploads raw xpubs or descriptors.",
+            "Use Bitcoin Core RPC, a personal Electrum server, or self-hosted Esplora for better privacy.",
+            "This finding reflects backend choice. Script hashes are derived locally but still reveal wallet activity to the selected server.",
+        ),
+        _ => (
+            "Public API mode is enabled",
+            "Public API mode could reveal wallet addresses and timing metadata to a third party. XpubShield never uploads raw xpubs or descriptors.",
+            "Use Bitcoin Core RPC, a personal Electrum server, or self-hosted Esplora for better privacy.",
+            "This finding reflects backend choice, not coin ownership attribution.",
+        ),
+    };
 
     vec![AuditFinding {
         id: "public_api_privacy_leak".to_string(),
         severity: Severity::High,
-        title: "Public API mode is enabled".to_string(),
-        explanation:
-            "Public API mode could reveal wallet addresses and timing metadata to a third party. XpubShield never uploads raw xpubs or descriptors."
-                .to_string(),
-        recommended_action:
-            "Use Bitcoin Core RPC, a personal Electrum server, or self-hosted Esplora for better privacy."
-                .to_string(),
+        title: title.to_string(),
+        explanation: explanation.to_string(),
+        recommended_action: recommended_action.to_string(),
         affected_utxos: Vec::new(),
         affected_transactions: Vec::new(),
         confidence_level: ConfidenceLevel::High,
-        heuristic_notes: "This finding reflects backend choice, not coin ownership attribution.".to_string(),
+        heuristic_notes: heuristic_notes.to_string(),
     }]
 }
 
@@ -405,7 +419,7 @@ fn score_wallet(findings: &[AuditFinding], wallet: &Wallet) -> RiskScores {
         BackendKind::Mock => 100,
         BackendKind::BitcoinCoreRpc => 98,
         BackendKind::Electrum | BackendKind::Esplora => 82,
-        BackendKind::PublicEsplora => 35,
+        BackendKind::PublicElectrum | BackendKind::PublicEsplora => 35,
     };
 
     RiskScores {

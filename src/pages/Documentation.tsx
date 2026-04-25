@@ -92,7 +92,29 @@ const DOC_SECTIONS: DocumentationSection[] = [
       },
       {
         title: "Public backend caution",
-        body: "A public explorer backend can learn the addresses you ask about. Prefer self-hosted infrastructure when operating with real wallet metadata."
+        body: "A public backend can learn the addresses or Electrum script hashes you ask about, plus timing metadata around those queries. Prefer self-hosted infrastructure when operating with real wallet metadata."
+      }
+    ]
+  },
+  {
+    id: "electrum-light-client",
+    group: "Start Here",
+    title: "Electrum light-client mode",
+    summary: "Fetch watch-only UTXO data without running a node, with explicit privacy tradeoffs.",
+    tags: ["electrum", "light client", "public backend", "network lock", "script hash"],
+    bullets: [
+      "XpubShield derives addresses and Electrum script hashes locally; raw xpubs and descriptors are not uploaded.",
+      "Private Electrum is intended for a server you control. Public Electrum is convenient but weak privacy because the server can infer wallet activity from script-hash queries.",
+      "Network Lock restricts future imports to mock/offline mode or localhost Bitcoin Core RPC."
+    ],
+    deepDive: [
+      {
+        title: "No broadcast path",
+        body: "Electrum mode queries blockchain.scripthash.listunspent for watch-only data. XpubShield does not call transaction broadcast methods, and Spend Preflight remains analysis-only."
+      },
+      {
+        title: "Tor and TLS status",
+        body: "Tor is recommended when using public Electrum, but XpubShield does not route proxy traffic yet. This pass supports tcp:// Electrum endpoints; TLS and proxy routing are deferred."
       }
     ]
   },
@@ -240,7 +262,7 @@ const DOC_SECTIONS: DocumentationSection[] = [
     tags: ["privacy", "metadata", "public backend", "dust", "exchange"],
     bullets: [
       "Wallet metadata can reveal balances, address clusters, labels, source context, and future receives.",
-      "Public backends can observe queried addresses. Self-hosted Bitcoin Core, Electrum, or Esplora is stronger for real operations.",
+      "Public backends can observe queried addresses or script hashes. Self-hosted Bitcoin Core, Electrum, or Esplora is stronger for real operations.",
       "Dust and unsolicited deposits can be used to bait merges or mark wallet clusters."
     ],
     deepDive: [
@@ -263,7 +285,8 @@ const DOC_SECTIONS: DocumentationSection[] = [
     bullets: [
       "Wallet reports, labels, coin sets, recovery exports, and tutorial state are local app data.",
       "Browser demo mode keeps optimistic local UI state when Tauri IPC is unavailable.",
-      "There is no analytics, telemetry, remote attribution lookup, signing, or broadcasting in this docs plan."
+      "Network Lock is local UI state that blocks future public or remote imports inside the app.",
+      "There is no analytics, telemetry, remote attribution lookup, signing, or broadcasting."
     ],
     deepDive: [
       {
@@ -284,6 +307,8 @@ const DOC_SECTIONS: DocumentationSection[] = [
     tags: ["closed beta", "testing", "release", "operator script", "smoke test"],
     bullets: [
       "Start fresh, load the demo wallet, and confirm Cockpit Risk Posture is the first obvious read.",
+      "Try Private Electrum and Public Electrum import paths with test metadata; confirm Public Electrum requires the privacy acknowledgement.",
+      "Enable Network Lock and confirm public or remote backends are blocked before import.",
       "Move through Workbench, Spend Preflight, Lineage, Recovery, PSBT Preflight, Documentation, and Settings without console errors.",
       "Restart or reload and confirm the last page, selected coins, filters, scenario inputs, graph viewport, and documentation search restore for the same wallet.",
       "Clear local cache and confirm wallet/workspace state resets while Tutorial can still be restarted separately."
@@ -308,6 +333,7 @@ const DOC_SECTIONS: DocumentationSection[] = [
     bullets: [
       "If import fails, confirm you pasted a descriptor or xpub, not private material.",
       "If an xpub import looks incomplete, the account path, script type, network, or gap limit may be wrong.",
+      "If Electrum import fails, use a tcp://host:port endpoint. TLS, SSL, Tor, and proxy routing are not implemented in this pass.",
       "If data is missing in browser demo mode, load the demo wallet and remember that persistent desktop storage may not be available."
     ],
     deepDive: [
