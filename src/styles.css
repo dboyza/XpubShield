@@ -795,7 +795,6 @@ label {
 
 .page-header,
 .section-heading,
-.privacy-warning,
 .error-message,
 .panel,
 .table-panel,
@@ -820,7 +819,6 @@ label {
 .panel::before,
 .toolbar::before,
 .table-panel::before,
-.privacy-warning::before,
 .advanced-section::before {
   content: "";
   position: absolute;
@@ -836,7 +834,6 @@ label {
 }
 
 .toolbar::before,
-.privacy-warning::before,
 .advanced-section::before {
   display: none;
 }
@@ -1053,6 +1050,10 @@ td input[type="checkbox"],
   width: 16px;
   min-height: 16px;
   margin-top: 2px;
+}
+
+.checkbox-row strong {
+  margin-right: 6px;
 }
 
 .segmented-control {
@@ -1276,6 +1277,16 @@ td input[type="checkbox"],
   padding: 14px;
 }
 
+.privacy-warning {
+  border: 0;
+  border-left: 2px solid rgba(247, 147, 26, 0.54);
+  border-radius: 0;
+  padding: 2px 0 2px 13px;
+  color: var(--text-soft);
+  background: transparent;
+  box-shadow: none;
+}
+
 .privacy-warning svg {
   flex: 0 0 auto;
   color: var(--accent);
@@ -1294,13 +1305,12 @@ td input[type="checkbox"],
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  border: 1px solid rgba(255, 248, 232, 0.18);
-  border-radius: var(--radius);
-  padding: 14px;
+  border: 0;
+  border-left: 2px solid rgba(255, 196, 90, 0.48);
+  border-radius: 0;
+  padding: 2px 0 2px 13px;
   color: var(--text-soft);
-  background:
-    linear-gradient(90deg, rgba(255, 248, 232, 0.05), transparent 72%),
-    rgba(255, 248, 232, 0.018);
+  background: transparent;
 }
 
 .runtime-notice svg {
@@ -1319,6 +1329,14 @@ td input[type="checkbox"],
   border-color: rgba(224, 93, 79, 0.5);
   color: #ffd8d2;
   background: var(--bad-bg);
+}
+
+.privacy-warning-public {
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 2px solid rgba(224, 93, 79, 0.72);
+  background: transparent;
 }
 
 .inline-warning {
@@ -1369,10 +1387,11 @@ td input[type="checkbox"],
 .risk-card,
 .stress-item,
 .utxo-pick-row {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  padding: 12px;
-  background: rgba(9, 9, 8, 0.72);
+  border: 0;
+  border-left: 2px solid rgba(255, 248, 232, 0.12);
+  border-radius: 0;
+  padding: 10px 0 10px 12px;
+  background: transparent;
 }
 
 .finding-row,
@@ -1441,12 +1460,10 @@ td input[type="checkbox"],
 .server-choice-note,
 .server-summary,
 .settings-subsection {
-  border: 1px solid rgba(255, 248, 232, 0.12);
-  border-radius: var(--radius);
-  padding: 14px;
-  background:
-    linear-gradient(180deg, rgba(255, 248, 232, 0.026), transparent 70%),
-    rgba(9, 9, 8, 0.62);
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
 }
 
 .setup-intro,
@@ -1474,6 +1491,19 @@ td input[type="checkbox"],
   align-items: center;
   justify-content: space-between;
   gap: 14px;
+  border-top: 1px solid rgba(255, 248, 232, 0.1);
+  border-bottom: 1px solid rgba(255, 248, 232, 0.1);
+  padding: 12px 0;
+}
+
+.setup-intro {
+  border-bottom: 1px solid rgba(255, 248, 232, 0.1);
+  padding-bottom: 12px;
+}
+
+.server-choice-note {
+  border-left: 2px solid rgba(247, 147, 26, 0.46);
+  padding-left: 13px;
 }
 
 .server-summary span {
@@ -1493,11 +1523,7 @@ td input[type="checkbox"],
 .settings-subsection {
   margin-top: 16px;
   padding: 14px 0 0;
-  border-right: 0;
-  border-bottom: 0;
-  border-left: 0;
-  border-radius: 0;
-  background: transparent;
+  border-top: 1px solid rgba(255, 248, 232, 0.1);
 }
 
 .settings-subsection .action-grid,
@@ -2827,16 +2853,17 @@ td span {
 .docs-index-list button {
   display: grid;
   gap: 4px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  padding: 10px;
-  background: rgba(255, 248, 232, 0.024);
+  border: 0;
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  padding: 8px 0 8px 10px;
+  background: transparent;
   text-align: left;
 }
 
 .docs-index-list button:hover {
-  border-color: rgba(247, 147, 26, 0.32);
-  background: rgba(247, 147, 26, 0.055);
+  border-left-color: rgba(247, 147, 26, 0.58);
+  background: linear-gradient(90deg, rgba(247, 147, 26, 0.06), transparent 80%);
 }
 
 .docs-tags button:hover {
@@ -2913,13 +2940,14 @@ td span {
 }
 
 .docs-deep-dive details {
-  border: 1px solid rgba(255, 248, 232, 0.1);
-  border-radius: var(--radius-sm);
-  background: rgba(255, 248, 232, 0.024);
+  border: 0;
+  border-top: 1px solid rgba(255, 248, 232, 0.1);
+  border-radius: 0;
+  background: transparent;
 }
 
 .docs-deep-dive summary {
-  padding: 11px 12px;
+  padding: 11px 0;
   color: var(--text);
   font-family: var(--font-mono);
   font-weight: 800;
@@ -2927,8 +2955,8 @@ td span {
 }
 
 .docs-deep-dive p {
-  border-top: 1px solid rgba(255, 248, 232, 0.09);
-  padding: 0 12px 12px;
+  border-top: 0;
+  padding: 0 0 12px;
 }
 
 .docs-empty {
@@ -3063,10 +3091,11 @@ td span {
 .tutorial-cue {
   display: grid;
   gap: 6px;
-  border: 1px solid rgba(255, 248, 232, 0.13);
-  border-radius: var(--radius-sm);
-  padding: 12px;
-  background: rgba(255, 248, 232, 0.04);
+  border: 0;
+  border-left: 2px solid rgba(247, 147, 26, 0.46);
+  border-radius: 0;
+  padding: 2px 0 2px 12px;
+  background: transparent;
 }
 
 .tutorial-cue span {
