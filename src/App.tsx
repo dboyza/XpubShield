@@ -14,41 +14,32 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { dismissAction, getCurrentWallet, updateUtxos as persistUtxos } from "./api/tauri";
-import { MissionQueue } from "./components/MissionQueue";
+import { clearMissionQueueState, MissionQueue } from "./components/MissionQueue";
 import {
   SovereignOpsTutorial,
   TUTORIAL_STEPS,
   type TutorialPageId
 } from "./components/SovereignOpsTutorial";
-import { ConsolidationPlanner } from "./pages/ConsolidationPlanner";
 import { Cockpit } from "./pages/Cockpit";
-import { DescriptorDiff } from "./pages/DescriptorDiff";
 import { Documentation } from "./pages/Documentation";
-import { FeeStressTest } from "./pages/FeeStressTest";
 import { GraphView } from "./pages/GraphView";
 import { OnboardingImport } from "./pages/OnboardingImport";
-import { PrivacySimulator } from "./pages/PrivacySimulator";
 import { PsbtLinter } from "./pages/PsbtLinter";
 import { RecoveryHealth } from "./pages/RecoveryHealth";
 import { Settings } from "./pages/Settings";
 import { SpendPreview } from "./pages/SpendPreview";
 import { UtxoTable } from "./pages/UtxoTable";
 import type { UtxoUpdate, WalletReport } from "./types/domain";
+import {
+  clearWorkspaceSnapshot,
+  isWorkspacePage,
+  readWorkspaceSnapshot,
+  writeWorkspaceSnapshot,
+  type WorkspacePage,
+  type WorkspaceSnapshot
+} from "./lib/workspace";
 
-type Page =
-  | "import"
-  | "cockpit"
-  | "utxos"
-  | "fees"
-  | "spend_preflight"
-  | "privacy"
-  | "consolidation"
-  | "psbt"
-  | "recovery"
-  | "descriptor_diff"
-  | "graph"
-  | "docs"
-  | "settings";
+type Page = WorkspacePage;
 
 type NavItemId = Page | "tutorial";
 
@@ -75,13 +66,9 @@ const PAGE_META: Record<Page, { code: string; label: string }> = {
   cockpit: { code: "CMD-00", label: "Action command" },
   graph: { code: "CMD-01", label: "Lineage map" },
   utxos: { code: "COIN-10", label: "Coin workbench" },
-  fees: { code: "COIN-11", label: "Workbench fee lens" },
   spend_preflight: { code: "SIM-20", label: "Spend preflight" },
-  privacy: { code: "SIM-21", label: "Observer model" },
-  consolidation: { code: "SIM-22", label: "Consolidation lens" },
   psbt: { code: "VRF-30", label: "PSBT preflight" },
   recovery: { code: "VRF-31", label: "Recovery drill" },
-  descriptor_diff: { code: "VRF-32", label: "Recovery diagnostic" },
   docs: { code: "SYS-02", label: "Operator handbook" },
   settings: { code: "SYS-03", label: "Local config" }
 };
@@ -154,9 +141,19 @@ function findTutorialStepIndex(stepId?: string) {
   return index >= 0 ? index : 0;
 }
 
+function resolveInitialPage(page: WorkspaceSnapshot["lastPage"], hasWallet: boolean): Page {
+  if (!hasWallet) return page === "docs" ? "docs" : "import";
+  if (!page || page === "import") return "cockpit";
+  if (page === "settings" || page === "cockpit" || page === "utxos" || page === "spend_preflight" || page === "psbt" || page === "recovery" || page === "graph" || page === "docs") {
+    return page;
+  }
+  return "cockpit";
+}
+
 export default function App() {
   const [report, setReport] = useState<WalletReport | null>(null);
   const [page, setPage] = useState<Page>("import");
+  const [workspace, setWorkspace] = useState<WorkspaceSnapshot | null>(null);
   const [booting, setBooting] = useState(true);
   const [tutorialState, setTutorialState] = useState<TutorialState>(() => readTutorialState());
   const [tutorialPromptOpen, setTutorialPromptOpen] = useState(false);
@@ -168,8 +165,10 @@ export default function App() {
   useEffect(() => {
     getCurrentWallet().then((current) => {
       if (current) {
+        const savedWorkspace = readWorkspaceSnapshot(current.wallet.id);
         setReport(current);
-        setPage("cockpit");
+        setWorkspace(savedWorkspace);
+        setPage(resolveInitialPage(savedWorkspace.lastPage, true));
       }
     });
   }, []);
@@ -229,30 +228,31 @@ export default function App() {
     }
   }
 
+  function saveWorkspacePatch(patch: Partial<WorkspaceSnapshot>) {
+    if (!report) return;
+    setWorkspace(writeWorkspaceSnapshot(report.wallet.id, patch));
+  }
+
+  function selectPage(nextPage: Page) {
+    setPage(nextPage);
+    if (report) {
+      setWorkspace(writeWorkspaceSnapshot(report.wallet.id, { lastPage: nextPage }));
+    }
+  }
+
   function navigateToAction(pageId: string) {
     const pageAliases: Record<string, Page> = {
       dashboard: "cockpit",
       alerts: "cockpit",
-      explanations: "docs"
+      explanations: "docs",
+      fees: "utxos",
+      privacy: "spend_preflight",
+      consolidation: "spend_preflight",
+      descriptor_diff: "recovery"
     };
-    const validPages: Page[] = [
-      "import",
-      "cockpit",
-      "utxos",
-      "fees",
-      "spend_preflight",
-      "privacy",
-      "consolidation",
-      "psbt",
-      "recovery",
-      "descriptor_diff",
-      "graph",
-      "docs",
-      "settings"
-    ];
     const targetPage = pageAliases[pageId] ?? pageId;
-    if (validPages.includes(targetPage as Page)) {
-      setPage(targetPage as Page);
+    if (isWorkspacePage(targetPage)) {
+      selectPage(targetPage);
     }
   }
 
@@ -317,14 +317,7 @@ export default function App() {
   }
 
   const pageMeta = PAGE_META[page];
-  const activeNavItem: NavItemId =
-    page === "fees"
-      ? "utxos"
-      : page === "privacy" || page === "consolidation"
-        ? "spend_preflight"
-        : page === "descriptor_diff"
-          ? "recovery"
-          : page;
+  const activeNavItem: NavItemId = page;
 
   return (
     <div className="app-frame">
@@ -361,7 +354,7 @@ export default function App() {
                     <button
                       key={item.id}
                       className={isTutorialItem ? tutorialOpen || tutorialPromptOpen ? "active" : "" : activeNavItem === item.id ? "active" : ""}
-                      onClick={() => (isTutorialItem ? openTutorial(0) : setPage(item.id as Page))}
+                      onClick={() => (isTutorialItem ? openTutorial(0) : selectPage(item.id as Page))}
                       disabled={!isTutorialItem && item.requiresWallet && !report}
                       data-tutorial-target={`nav-${item.id}`}
                     >
@@ -390,27 +383,60 @@ export default function App() {
             <strong>{report ? report.wallet.network : "not loaded"}</strong>
           </div>
         </div>
-        {report && page !== "import" ? <MissionQueue report={report} onNavigate={navigateToAction} /> : null}
+        {report && page !== "import" ? (
+          <MissionQueue
+            report={report}
+            onNavigate={navigateToAction}
+            workspaceCollapsed={workspace?.missionQueueCollapsed}
+            onWorkspaceCollapsedChange={(missionQueueCollapsed) => saveWorkspacePatch({ missionQueueCollapsed })}
+          />
+        ) : null}
         {page === "import" ? (
           <OnboardingImport onImported={(next) => {
+            const nextWorkspace = writeWorkspaceSnapshot(next.wallet.id, { lastPage: "cockpit" });
             setReport(next);
+            setWorkspace(nextWorkspace);
             setPage("cockpit");
           }} />
         ) : null}
         {page === "cockpit" && report ? (
           <Cockpit report={report} onNavigate={navigateToAction} onDismissAction={dismissCockpitAction} />
         ) : null}
-        {page === "utxos" && report ? <UtxoTable report={report} onUpdateUtxos={updateUtxos} onNavigate={navigateToAction} /> : null}
-        {page === "fees" && report ? <FeeStressTest report={report} /> : null}
-        {page === "spend_preflight" && report ? <SpendPreview report={report} onNavigate={navigateToAction} /> : null}
-        {page === "privacy" && report ? <PrivacySimulator report={report} /> : null}
-        {page === "consolidation" && report ? <ConsolidationPlanner report={report} /> : null}
+        {page === "utxos" && report ? (
+          <UtxoTable
+            report={report}
+            onUpdateUtxos={updateUtxos}
+            workspaceState={workspace?.workbench}
+            onWorkspaceChange={(workbench) => saveWorkspacePatch({ workbench: { ...workspace?.workbench, ...workbench } })}
+          />
+        ) : null}
+        {page === "spend_preflight" && report ? (
+          <SpendPreview
+            report={report}
+            workspaceState={workspace?.spendPreflight}
+            onWorkspaceChange={(spendPreflight) => saveWorkspacePatch({ spendPreflight: { ...workspace?.spendPreflight, ...spendPreflight } })}
+          />
+        ) : null}
         {page === "psbt" && report ? <PsbtLinter report={report} /> : null}
         {page === "recovery" && report ? <RecoveryHealth report={report} onNavigate={navigateToAction} /> : null}
-        {page === "descriptor_diff" && report ? <DescriptorDiff report={report} /> : null}
-        {page === "graph" && report ? <GraphView report={report} /> : null}
-        {page === "docs" ? <Documentation reportLoaded={Boolean(report)} /> : null}
+        {page === "graph" && report ? (
+          <GraphView
+            report={report}
+            workspaceState={workspace?.graph}
+            onWorkspaceChange={(graph) => saveWorkspacePatch({ graph: { ...workspace?.graph, ...graph } })}
+          />
+        ) : null}
+        {page === "docs" ? (
+          <Documentation
+            reportLoaded={Boolean(report)}
+            workspaceState={workspace?.documentation}
+            onWorkspaceChange={(documentation) => report ? saveWorkspacePatch({ documentation: { ...workspace?.documentation, ...documentation } }) : undefined}
+          />
+        ) : null}
         {page === "settings" && report ? <Settings report={report} onTutorialReset={resetTutorial} onCacheCleared={() => {
+          clearWorkspaceSnapshot(report.wallet.id);
+          clearMissionQueueState(report.wallet.id);
+          setWorkspace(null);
           setReport(null);
           setPage("import");
         }} /> : null}

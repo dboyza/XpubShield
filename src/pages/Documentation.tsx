@@ -1,9 +1,12 @@
 import { BookOpenText, Compass, FileSearch, Search, ShieldCheck } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { StatusPill } from "../components/StatusPill";
+import type { DocumentationWorkspaceState } from "../lib/workspace";
 
 interface DocumentationProps {
   reportLoaded: boolean;
+  workspaceState?: DocumentationWorkspaceState;
+  onWorkspaceChange?: (patch: Partial<DocumentationWorkspaceState>) => void;
 }
 
 interface QuickStartCard {
@@ -33,8 +36,8 @@ const QUICK_START: QuickStartCard[] = [
   },
   {
     title: "2. Read the Cockpit",
-    body: "Start from the action queue. It ranks operational risks so you know whether to label coins, quarantine dust, preflight spends, or improve recovery posture.",
-    signal: "Triage"
+    body: "Start from Risk Posture. It tells you what is most concerning, why it matters, and where to go next before you read the full action queue.",
+    signal: "Posture"
   },
   {
     title: "3. Review coins before spending",
@@ -274,6 +277,29 @@ const DOC_SECTIONS: DocumentationSection[] = [
     ]
   },
   {
+    id: "closed-beta-script",
+    group: "Closed Beta",
+    title: "Operator test script",
+    summary: "A local checklist for validating that XpubShield is ready for a real tester session.",
+    tags: ["closed beta", "testing", "release", "operator script", "smoke test"],
+    bullets: [
+      "Start fresh, load the demo wallet, and confirm Cockpit Risk Posture is the first obvious read.",
+      "Move through Workbench, Spend Preflight, Lineage, Recovery, PSBT Preflight, Documentation, and Settings without console errors.",
+      "Restart or reload and confirm the last page, selected coins, filters, scenario inputs, graph viewport, and documentation search restore for the same wallet.",
+      "Clear local cache and confirm wallet/workspace state resets while Tutorial can still be restarted separately."
+    ],
+    deepDive: [
+      {
+        title: "Desktop persistence checks",
+        body: "In the Tauri desktop app, import or demo wallet state should reload from the local SQLite database. Browser demo mode may not have the same persistence guarantees when Tauri IPC is unavailable."
+      },
+      {
+        title: "Release confidence",
+        body: "Before sharing a closed beta build, run npm run build, cargo test, and cargo tauri build, then smoke test the first-run flow, cache clear, and reduced-motion behavior."
+      }
+    ]
+  },
+  {
     id: "troubleshooting",
     group: "Troubleshooting",
     title: "Common issues",
@@ -297,10 +323,18 @@ const DOC_SECTIONS: DocumentationSection[] = [
   }
 ];
 
-export function Documentation({ reportLoaded }: DocumentationProps) {
-  const [query, setQuery] = useState("");
+export function Documentation({ reportLoaded, workspaceState, onWorkspaceChange }: DocumentationProps) {
+  const [query, setQuery] = useState(workspaceState?.query ?? "");
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const normalizedQuery = query.trim().toLowerCase();
+
+  useEffect(() => {
+    setQuery(workspaceState?.query ?? "");
+  }, [workspaceState?.query]);
+
+  useEffect(() => {
+    onWorkspaceChange?.({ query });
+  }, [query]);
 
   const filteredSections = useMemo(
     () =>

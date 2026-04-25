@@ -1166,6 +1166,30 @@ td input[type="checkbox"],
   margin-top: 8px;
 }
 
+.runtime-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid rgba(255, 248, 232, 0.18);
+  border-radius: var(--radius);
+  padding: 14px;
+  color: var(--text-soft);
+  background:
+    linear-gradient(90deg, rgba(255, 248, 232, 0.05), transparent 72%),
+    rgba(255, 248, 232, 0.018);
+}
+
+.runtime-notice svg {
+  flex: 0 0 auto;
+  color: var(--accent-2);
+}
+
+.runtime-notice strong {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--text);
+}
+
 .privacy-warning-public,
 .error-message {
   border-color: rgba(224, 93, 79, 0.5);
@@ -1746,6 +1770,172 @@ td span {
   gap: 8px;
 }
 
+.risk-posture-panel {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.18fr) minmax(280px, 0.48fr);
+  gap: 20px;
+  align-items: stretch;
+  border: 1px solid rgba(255, 248, 232, 0.24);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  background:
+    linear-gradient(135deg, rgba(255, 248, 232, 0.07), transparent 42%),
+    radial-gradient(circle at 12% 0%, rgba(247, 147, 26, 0.16), transparent 32%),
+    var(--surface-primary);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.risk-posture-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--accent);
+}
+
+.risk-posture-high::before,
+.risk-posture-critical::before {
+  background: var(--bad);
+}
+
+.risk-posture-medium::before {
+  background: var(--warn);
+}
+
+.risk-posture-low::before,
+.risk-posture-info::before {
+  background: var(--good);
+}
+
+.risk-posture-main,
+.risk-next-step {
+  position: relative;
+  display: grid;
+  align-content: center;
+  gap: 10px;
+}
+
+.risk-posture-main h2 {
+  max-width: 720px;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: clamp(32px, 4vw, 58px);
+  line-height: 0.95;
+}
+
+.risk-posture-main p,
+.risk-next-step p {
+  max-width: 760px;
+  color: var(--text-soft);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.risk-driver {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+  border-top: 1px solid rgba(255, 248, 232, 0.12);
+  padding-top: 12px;
+}
+
+.risk-driver span,
+.risk-next-step span,
+.instrument-tile span,
+.instrument-tile small {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.risk-driver strong {
+  color: var(--text);
+  font-size: 17px;
+}
+
+.risk-score-card {
+  position: relative;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  aspect-ratio: 1;
+  border: 1px solid rgba(255, 248, 232, 0.2);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, rgba(247, 147, 26, 0.14), rgba(247, 147, 26, 0.02) 54%, transparent 55%),
+    rgba(0, 0, 0, 0.14);
+  box-shadow: inset 0 0 0 8px rgba(255, 248, 232, 0.025);
+}
+
+.risk-score-card strong {
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 42px;
+  line-height: 1;
+}
+
+.risk-score-card span {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.risk-next-step {
+  border-left: 1px solid rgba(255, 248, 232, 0.12);
+  padding-left: 20px;
+}
+
+.instrument-band {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  border-top: 1px solid rgba(255, 248, 232, 0.1);
+  border-bottom: 1px solid rgba(255, 248, 232, 0.1);
+  background:
+    linear-gradient(90deg, rgba(255, 248, 232, 0.03), transparent 70%),
+    rgba(0, 0, 0, 0.1);
+}
+
+.instrument-tile {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 8px;
+  align-items: center;
+  border-right: 1px solid rgba(255, 248, 232, 0.1);
+  padding: 12px;
+}
+
+.instrument-tile:last-child {
+  border-right: 0;
+}
+
+.instrument-tile svg {
+  color: var(--accent-2);
+}
+
+.instrument-tile strong,
+.instrument-tile small {
+  grid-column: 2;
+}
+
+.instrument-tile strong {
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 16px;
+}
+
+.risk-led-grid {
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.55fr);
+}
+
+.cockpit-support-stack {
+  display: grid;
+  gap: 14px;
+}
+
 .cockpit-status-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2033,8 +2223,9 @@ td span {
   line-height: 1.45;
 }
 
-.workflow-lens-card .secondary-button {
-  justify-self: start;
+.workflow-lens-card p {
+  color: var(--text-muted);
+  line-height: 1.45;
 }
 
 .selected-tray-header {
@@ -2812,7 +3003,10 @@ td span {
   .metric-grid,
   .cockpit-metrics,
   .cockpit-status-strip,
+  .risk-posture-panel,
+  .instrument-band,
   .cockpit-grid,
+  .risk-led-grid,
   .dashboard-grid,
   .simulator-grid,
   .preflight-grid,
@@ -2849,6 +3043,22 @@ td span {
   }
 
   .signal-tile:last-child {
+    border-bottom: 0;
+  }
+
+  .risk-next-step {
+    border-left: 0;
+    border-top: 1px solid rgba(255, 248, 232, 0.12);
+    padding-top: 16px;
+    padding-left: 0;
+  }
+
+  .instrument-tile {
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 248, 232, 0.1);
+  }
+
+  .instrument-tile:last-child {
     border-bottom: 0;
   }
 
@@ -2918,6 +3128,14 @@ td span {
   .button-row,
   .cockpit-command {
     width: 100%;
+  }
+
+  .risk-posture-panel {
+    padding: 18px;
+  }
+
+  .risk-posture-main h2 {
+    font-size: 30px;
   }
 
   .primary-button,
