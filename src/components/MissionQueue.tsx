@@ -8,6 +8,8 @@ import { StatusPill } from "./StatusPill";
 interface MissionQueueProps {
   report: WalletReport;
   onNavigate: (page: string) => void;
+  workspaceCollapsed?: boolean;
+  onWorkspaceCollapsedChange?: (collapsed: boolean) => void;
 }
 
 interface MissionQueueState {
@@ -22,20 +24,28 @@ const EMPTY_QUEUE_STATE: MissionQueueState = {
   collapsed: false
 };
 
-export function MissionQueue({ report, onNavigate }: MissionQueueProps) {
+export function MissionQueue({ report, onNavigate, workspaceCollapsed, onWorkspaceCollapsedChange }: MissionQueueProps) {
   const missions = useMemo(() => buildMissionQueue(report), [report]);
-  const [queueState, setQueueState] = useState<MissionQueueState>(() => readQueueState(report.wallet.id));
+  const [queueState, setQueueState] = useState<MissionQueueState>(() => ({
+    ...readQueueState(report.wallet.id),
+    collapsed: workspaceCollapsed ?? readQueueState(report.wallet.id).collapsed
+  }));
   const visibleMissions = missions.filter(
     (mission) => !queueState.hiddenIds.includes(mission.id) && !queueState.completedIds.includes(mission.id)
   );
   const hiddenCount = missions.length - visibleMissions.length;
 
   useEffect(() => {
-    setQueueState(readQueueState(report.wallet.id));
-  }, [report.wallet.id]);
+    const saved = readQueueState(report.wallet.id);
+    setQueueState({
+      ...saved,
+      collapsed: workspaceCollapsed ?? saved.collapsed
+    });
+  }, [report.wallet.id, workspaceCollapsed]);
 
   function saveQueueState(next: MissionQueueState) {
     setQueueState(writeQueueState(report.wallet.id, next));
+    onWorkspaceCollapsedChange?.(next.collapsed);
   }
 
   function hideMission(id: string) {
@@ -180,4 +190,12 @@ function writeQueueState(walletId: string, next: MissionQueueState): MissionQueu
 
 function storageKey(walletId: string): string {
   return `xpubshield.mission_queue.v1:${walletId}`;
+}
+
+export function clearMissionQueueState(walletId: string) {
+  try {
+    window.localStorage.removeItem(storageKey(walletId));
+  } catch {
+    // Ignore restricted storage environments.
+  }
 }

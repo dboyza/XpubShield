@@ -1,7 +1,8 @@
 import { Filter, GitBranch, Info } from "lucide-react";
-import { type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent, useMemo, useRef, useState } from "react";
+import { type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent, useEffect, useMemo, useRef, useState } from "react";
 import { StatusPill } from "../components/StatusPill";
 import { compactSats, humanize, txidPrefix } from "../lib/format";
+import type { GraphWorkspaceState } from "../lib/workspace";
 import type { ScriptType, SourceCategory, Utxo, WalletReport } from "../types/domain";
 
 type GraphMode = "lineage" | "wallet" | "lifecycle" | "labels" | "privacy" | "fees";
@@ -36,6 +37,8 @@ interface GraphFilters {
 
 interface GraphViewProps {
   report: WalletReport;
+  workspaceState?: GraphWorkspaceState;
+  onWorkspaceChange?: (patch: Partial<GraphWorkspaceState>) => void;
 }
 
 const NODE_LIMIT = 90;
@@ -57,14 +60,14 @@ interface GraphDrag {
   originY: number;
 }
 
-export function GraphView({ report }: GraphViewProps) {
-  const [mode, setMode] = useState<GraphMode>("lineage");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [viewport, setViewport] = useState<GraphViewport>({ x: 0, y: 0, zoom: 1 });
+export function GraphView({ report, workspaceState, onWorkspaceChange }: GraphViewProps) {
+  const [mode, setMode] = useState<GraphMode>((workspaceState?.mode as GraphMode | undefined) ?? "lineage");
+  const [selectedId, setSelectedId] = useState<string | null>(workspaceState?.selectedId ?? null);
+  const [viewport, setViewport] = useState<GraphViewport>(normalizeViewport(workspaceState?.viewport));
   const [isPanning, setIsPanning] = useState(false);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<GraphDrag | null>(null);
-  const [filters, setFilters] = useState<GraphFilters>({
+  const [filters, setFilters] = useState<GraphFilters>(workspaceState?.filters ?? {
     label: "all",
     category: "all",
     scriptType: "all",
@@ -76,6 +79,29 @@ export function GraphView({ report }: GraphViewProps) {
   const graph = useMemo(() => buildGraph(mode, filteredUtxos, report), [mode, filteredUtxos, report]);
   const visibleGraph = useMemo(() => limitGraph(graph, NODE_LIMIT), [graph]);
   const selected = visibleGraph.nodes.find((node) => node.id === selectedId) ?? visibleGraph.nodes[0] ?? null;
+
+  useEffect(() => {
+    setMode((workspaceState?.mode as GraphMode | undefined) ?? "lineage");
+    setSelectedId(workspaceState?.selectedId ?? null);
+    setViewport(normalizeViewport(workspaceState?.viewport));
+    setFilters(workspaceState?.filters ?? {
+      label: "all",
+      category: "all",
+      scriptType: "all",
+      riskFlag: "all",
+      minAmount: 0,
+      confirmations: "all"
+    });
+  }, [report.wallet.id]);
+
+  useEffect(() => {
+    onWorkspaceChange?.({
+      mode,
+      selectedId,
+      viewport,
+      filters
+    });
+  }, [filters, mode, selectedId, viewport]);
 
   const handleCanvasPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || (event.target as HTMLElement).closest(".graph-node")) return;
@@ -270,6 +296,15 @@ export function GraphView({ report }: GraphViewProps) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function normalizeViewport(viewport?: GraphViewport): GraphViewport {
+  if (!viewport) return { x: 0, y: 0, zoom: 1 };
+  return {
+    x: Number.isFinite(viewport.x) ? viewport.x : 0,
+    y: Number.isFinite(viewport.y) ? viewport.y : 0,
+    zoom: clamp(Number.isFinite(viewport.zoom) ? viewport.zoom : 1, MIN_GRAPH_ZOOM, MAX_GRAPH_ZOOM)
+  };
 }
 
 function DetailPanel({ node }: { node: ViewNode | null }) {

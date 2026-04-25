@@ -1,5 +1,5 @@
 import { Calculator, CircleDollarSign, ShieldAlert } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { EvidenceDrawer } from "../components/EvidenceDrawer";
 import { MetricCard } from "../components/MetricCard";
 import { StatusPill } from "../components/StatusPill";
@@ -13,19 +13,21 @@ import {
   type SpendScenario
 } from "../lib/ops";
 import { buildSpendPreview, STRESS_FEE_RATES } from "../lib/phase2";
+import type { SpendPreflightWorkspaceState } from "../lib/workspace";
 import type { SpendSimulation, Utxo, WalletReport } from "../types/domain";
 
 interface SpendPreviewProps {
   report: WalletReport;
-  onNavigate?: (page: string) => void;
+  workspaceState?: SpendPreflightWorkspaceState;
+  onWorkspaceChange?: (patch: Partial<SpendPreflightWorkspaceState>) => void;
 }
 
-export function SpendPreview({ report, onNavigate }: SpendPreviewProps) {
-  const [selected, setSelected] = useState<string[]>([]);
-  const [destinationAmount, setDestinationAmount] = useState("100000");
-  const [feeRate, setFeeRate] = useState(25);
-  const [changePolicy, setChangePolicy] = useState<"auto" | "avoid_change">("auto");
-  const [singleContextOnly, setSingleContextOnly] = useState(false);
+export function SpendPreview({ report, workspaceState, onWorkspaceChange }: SpendPreviewProps) {
+  const [selected, setSelected] = useState<string[]>(() => validOutpoints(workspaceState?.selected ?? [], report));
+  const [destinationAmount, setDestinationAmount] = useState(workspaceState?.destinationAmount ?? "100000");
+  const [feeRate, setFeeRate] = useState(workspaceState?.feeRate ?? 25);
+  const [changePolicy, setChangePolicy] = useState<"auto" | "avoid_change">(workspaceState?.changePolicy ?? "auto");
+  const [singleContextOnly, setSingleContextOnly] = useState(workspaceState?.singleContextOnly ?? false);
   const [savedSimulation, setSavedSimulation] = useState<SpendSimulation | null>(null);
   const [activeEvidence, setActiveEvidence] = useState<EvidenceItem | null>(null);
 
@@ -55,6 +57,24 @@ export function SpendPreview({ report, onNavigate }: SpendPreviewProps) {
     [changePolicy, destinationAmount, feeRate, report.utxos, selectedUtxos]
   );
   const scenarios = useMemo(() => buildSpendScenarios(selectedUtxos, preview), [preview, selectedUtxos]);
+
+  useEffect(() => {
+    setSelected(validOutpoints(workspaceState?.selected ?? [], report));
+    setDestinationAmount(workspaceState?.destinationAmount ?? "100000");
+    setFeeRate(workspaceState?.feeRate ?? 25);
+    setChangePolicy(workspaceState?.changePolicy ?? "auto");
+    setSingleContextOnly(workspaceState?.singleContextOnly ?? false);
+  }, [report.wallet.id]);
+
+  useEffect(() => {
+    onWorkspaceChange?.({
+      selected,
+      destinationAmount,
+      feeRate,
+      changePolicy,
+      singleContextOnly
+    });
+  }, [changePolicy, destinationAmount, feeRate, selected, singleContextOnly]);
 
   function toggle(outpoint: string) {
     setSelected((current) =>
@@ -93,16 +113,12 @@ export function SpendPreview({ report, onNavigate }: SpendPreviewProps) {
         <article className="workflow-lens-card">
           <span>Observer inference</span>
           <strong>Run the privacy model when the question is what selected coins reveal together.</strong>
-          <button type="button" className="secondary-button" onClick={() => onNavigate?.("privacy")}>
-            Open observer lens
-          </button>
+          <p>The observer narrative and evidence buttons below replace the old separate privacy page.</p>
         </article>
         <article className="workflow-lens-card">
           <span>Consolidation</span>
           <strong>Check fee savings against merge damage before batching coins.</strong>
-          <button type="button" className="secondary-button" onClick={() => onNavigate?.("consolidation")}>
-            Open consolidation lens
-          </button>
+          <p>Use selected inputs, fee outcome, change policy, and safer alternatives as one guided workflow.</p>
         </article>
       </section>
 
@@ -398,4 +414,9 @@ function riskToSeverity(risk: "low" | "medium" | "high") {
   if (risk === "high") return "high";
   if (risk === "medium") return "medium";
   return "low";
+}
+
+function validOutpoints(outpoints: string[], report: WalletReport) {
+  const known = new Set(report.utxos.map((utxo) => utxo.outpoint));
+  return outpoints.filter((outpoint) => known.has(outpoint));
 }

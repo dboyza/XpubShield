@@ -7,12 +7,14 @@ import { deleteCoinSet, listCoinSets, saveCoinSet } from "../api/tauri";
 import { categoryLabel, compactSats, humanize, satsToBtc, scriptTypeLabel, txidPrefix } from "../lib/format";
 import { coinDecisionEvidence, getCoinDecision, type EvidenceItem } from "../lib/ops";
 import { SOURCE_CATEGORIES } from "../lib/phase2";
+import type { WorkbenchWorkspaceState } from "../lib/workspace";
 import type { CoinSet, ProvenanceSourceKind, QuarantineStatus, SourceCategory, Utxo, UtxoStatus, UtxoUpdate, WalletReport } from "../types/domain";
 
 interface UtxoTableProps {
   report: WalletReport;
   onUpdateUtxos: (outpoints: string[], patch: UtxoUpdate) => void;
-  onNavigate?: (page: string) => void;
+  workspaceState?: WorkbenchWorkspaceState;
+  onWorkspaceChange?: (patch: Partial<WorkbenchWorkspaceState>) => void;
 }
 
 type SortKey = "amount_sats" | "confirmations" | "script_type" | "source_category";
@@ -41,13 +43,13 @@ const QUARANTINE_STATUSES: QuarantineStatus[] = [
   "manual"
 ];
 
-export function UtxoTable({ report, onUpdateUtxos, onNavigate }: UtxoTableProps) {
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<SourceCategory | "all">("all");
-  const [riskFlag, setRiskFlag] = useState("all");
-  const [provenanceFilter, setProvenanceFilter] = useState<ProvenanceFilter>("all");
-  const [sortKey, setSortKey] = useState<SortKey>("amount_sats");
-  const [selected, setSelected] = useState<string[]>([]);
+export function UtxoTable({ report, onUpdateUtxos, workspaceState, onWorkspaceChange }: UtxoTableProps) {
+  const [query, setQuery] = useState(workspaceState?.query ?? "");
+  const [category, setCategory] = useState<SourceCategory | "all">((workspaceState?.category as SourceCategory | "all" | undefined) ?? "all");
+  const [riskFlag, setRiskFlag] = useState(workspaceState?.riskFlag ?? "all");
+  const [provenanceFilter, setProvenanceFilter] = useState<ProvenanceFilter>((workspaceState?.provenanceFilter as ProvenanceFilter | undefined) ?? "all");
+  const [sortKey, setSortKey] = useState<SortKey>((workspaceState?.sortKey as SortKey | undefined) ?? "amount_sats");
+  const [selected, setSelected] = useState<string[]>(() => validOutpoints(workspaceState?.selected ?? [], report));
   const [coinSets, setCoinSets] = useState<CoinSet[]>([]);
   const [coinSetName, setCoinSetName] = useState("");
   const [coinSetIntent, setCoinSetIntent] = useState("spend preflight");
@@ -57,7 +59,9 @@ export function UtxoTable({ report, onUpdateUtxos, onNavigate }: UtxoTableProps)
   const [batchCategory, setBatchCategory] = useState<SourceCategory>("unknown");
   const [batchStatus, setBatchStatus] = useState<UtxoStatus>("spendable");
   const [batchQuarantine, setBatchQuarantine] = useState<QuarantineStatus>("none");
-  const [detailOutpoint, setDetailOutpoint] = useState<string | null>(null);
+  const [detailOutpoint, setDetailOutpoint] = useState<string | null>(() =>
+    isKnownOutpoint(workspaceState?.detailOutpoint ?? null, report) ? workspaceState?.detailOutpoint ?? null : null
+  );
   const [activeEvidence, setActiveEvidence] = useState<EvidenceItem | null>(null);
 
   const riskFlags = useMemo(
@@ -75,6 +79,28 @@ export function UtxoTable({ report, onUpdateUtxos, onNavigate }: UtxoTableProps)
       .then(setCoinSets)
       .catch(() => setCoinSets([]));
   }, []);
+
+  useEffect(() => {
+    setQuery(workspaceState?.query ?? "");
+    setCategory((workspaceState?.category as SourceCategory | "all" | undefined) ?? "all");
+    setRiskFlag(workspaceState?.riskFlag ?? "all");
+    setProvenanceFilter((workspaceState?.provenanceFilter as ProvenanceFilter | undefined) ?? "all");
+    setSortKey((workspaceState?.sortKey as SortKey | undefined) ?? "amount_sats");
+    setSelected(validOutpoints(workspaceState?.selected ?? [], report));
+    setDetailOutpoint(isKnownOutpoint(workspaceState?.detailOutpoint ?? null, report) ? workspaceState?.detailOutpoint ?? null : null);
+  }, [report.wallet.id]);
+
+  useEffect(() => {
+    onWorkspaceChange?.({
+      query,
+      category,
+      riskFlag,
+      provenanceFilter,
+      sortKey,
+      selected,
+      detailOutpoint
+    });
+  }, [category, detailOutpoint, provenanceFilter, query, riskFlag, selected, sortKey]);
 
   const filtered = useMemo(() => {
     return report.utxos
@@ -173,16 +199,12 @@ export function UtxoTable({ report, onUpdateUtxos, onNavigate }: UtxoTableProps)
         <article className="workflow-lens-card">
           <span>Fee exposure</span>
           <strong>Stress-test coin economics without leaving the workbench context.</strong>
-          <button type="button" className="secondary-button" onClick={() => onNavigate?.("fees")}>
-            Open fee lens
-          </button>
+          <p>Use the spend-cost column and fee heatmap in Lineage for coin-level fee pressure.</p>
         </article>
         <article className="workflow-lens-card">
           <span>Observer model</span>
           <strong>Inspect label, source, and quarantine linkage before choosing coins.</strong>
-          <button type="button" className="secondary-button" onClick={() => onNavigate?.("privacy")}>
-            Open privacy lens
-          </button>
+          <p>Use provenance, decision state, and saved sets to avoid accidental context merges.</p>
         </article>
       </section>
 
@@ -537,6 +559,15 @@ function matchesProvenanceFilter(utxo: Utxo, filter: ProvenanceFilter) {
     return utxo.provenance.source_kind === "unknown" || utxo.quarantine_status !== "none";
   }
   return utxo.provenance.source_kind === filter;
+}
+
+function validOutpoints(outpoints: string[], report: WalletReport) {
+  const known = new Set(report.utxos.map((utxo) => utxo.outpoint));
+  return outpoints.filter((outpoint) => known.has(outpoint));
+}
+
+function isKnownOutpoint(outpoint: string | null, report: WalletReport) {
+  return Boolean(outpoint && report.utxos.some((utxo) => utxo.outpoint === outpoint));
 }
 
 function FeeStack({ utxo }: { utxo: Utxo }) {

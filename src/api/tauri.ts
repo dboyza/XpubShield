@@ -12,6 +12,8 @@ import type {
   WalletReport
 } from "../types/domain";
 
+const BROWSER_DEMO_REPORT_KEY = "xpubshield.browser_demo_report.v1";
+
 export async function importWallet(request: ImportRequest): Promise<WalletReport> {
   return invoke<WalletReport>("import_wallet", { request });
 }
@@ -20,7 +22,9 @@ export async function loadDemoWallet(): Promise<WalletReport> {
   try {
     return await invoke<WalletReport>("load_demo_wallet");
   } catch {
-    return browserDemoReport();
+    const report = browserDemoReport();
+    writeBrowserDemoReport(report);
+    return report;
   }
 }
 
@@ -28,8 +32,13 @@ export async function getCurrentWallet(): Promise<WalletReport | null> {
   try {
     return await invoke<WalletReport | null>("get_current_wallet");
   } catch {
-    return null;
+    return readBrowserDemoReport();
   }
+}
+
+export function isTauriRuntime(): boolean {
+  if (typeof window === "undefined") return false;
+  return Boolean((window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
 }
 
 export async function updateUtxos(outpoints: string[], patch: UtxoUpdate): Promise<WalletReport> {
@@ -69,7 +78,11 @@ export async function getLocalDataPath(): Promise<string | null> {
 }
 
 export async function clearLocalCache(): Promise<void> {
-  return invoke<void>("clear_local_cache");
+  try {
+    return await invoke<void>("clear_local_cache");
+  } catch {
+    clearBrowserDemoReport();
+  }
 }
 
 export async function listLabels(): Promise<Label[]> {
@@ -345,4 +358,29 @@ function browserDemoReport(): WalletReport {
       }
     ]
   };
+}
+
+function readBrowserDemoReport(): WalletReport | null {
+  try {
+    const raw = window.localStorage.getItem(BROWSER_DEMO_REPORT_KEY);
+    return raw ? JSON.parse(raw) as WalletReport : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeBrowserDemoReport(report: WalletReport) {
+  try {
+    window.localStorage.setItem(BROWSER_DEMO_REPORT_KEY, JSON.stringify(report));
+  } catch {
+    // Browser demo persistence is a convenience only.
+  }
+}
+
+function clearBrowserDemoReport() {
+  try {
+    window.localStorage.removeItem(BROWSER_DEMO_REPORT_KEY);
+  } catch {
+    // Ignore restricted storage environments.
+  }
 }

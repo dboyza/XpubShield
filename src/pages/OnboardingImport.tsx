@@ -1,6 +1,6 @@
 import { AlertTriangle, Database, FileKey2, Upload, WalletCards } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
-import { importWallet, loadDemoWallet, looksLikePrivateMaterial } from "../api/tauri";
+import { importWallet, isTauriRuntime, loadDemoWallet, looksLikePrivateMaterial } from "../api/tauri";
 import { PrivacyWarning } from "../components/PrivacyWarning";
 import type { BackendKind, ImportRequest, Network, ScriptType, WalletReport } from "../types/domain";
 
@@ -29,6 +29,7 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
   const [loading, setLoading] = useState(false);
 
   const publicApiMode = backend === "public_esplora";
+  const desktopPersistenceAvailable = isTauriRuntime();
 
   useEffect(() => {
     if (backend === "public_esplora") {
@@ -43,32 +44,62 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    const pasted = importKind === "descriptor" ? descriptor : xpub;
+    const pasted = (importKind === "descriptor" ? descriptor : xpub).trim();
+    const normalizedGapLimit = Number(gapLimit);
+
+    if (!walletName.trim()) {
+      setError("Name this watch-only wallet before scanning so local metadata has a clear operator context.");
+      return;
+    }
+    if (!pasted) {
+      setError(importKind === "descriptor" ? "Paste a descriptor before importing, or switch to xpub import." : "Paste a public extended key before importing, or switch to descriptor import.");
+      return;
+    }
     if (looksLikePrivateMaterial(pasted)) {
       setError(
         "Private key material was rejected. This app is watch-only and does not process seeds, xprv values, WIF keys, or signing material."
       );
       return;
     }
+    if (importKind === "descriptor" && looksLikeBareXpub(pasted)) {
+      setError("That looks like a bare public extended key. Switch the import type to Xpub or paste a full descriptor such as wpkh(...).");
+      return;
+    }
+    if (importKind === "xpub" && looksLikeDescriptor(pasted)) {
+      setError("That looks like a descriptor. Switch the import type to Descriptor so script policy and key origin metadata are preserved.");
+      return;
+    }
+    if (!Number.isFinite(normalizedGapLimit) || normalizedGapLimit < 5 || normalizedGapLimit > 1000) {
+      setError("Gap limit must be a number between 5 and 1000.");
+      return;
+    }
     if (publicApiMode && !acknowledgedPublicApi) {
       setError("Public API mode requires acknowledging the privacy warning.");
+      return;
+    }
+    if (backend === "bitcoin_core_rpc" && !bitcoinCoreUrl.trim()) {
+      setError("Bitcoin Core RPC mode needs a local RPC URL.");
+      return;
+    }
+    if ((backend === "esplora" || backend === "public_esplora") && !esploraBaseUrl.trim()) {
+      setError("Esplora mode needs a base URL.");
       return;
     }
 
     const request: ImportRequest = {
       import_kind: importKind,
-      wallet_name: walletName,
-      descriptor: importKind === "descriptor" ? descriptor : undefined,
-      xpub: importKind === "xpub" ? xpub : undefined,
+      wallet_name: walletName.trim(),
+      descriptor: importKind === "descriptor" ? pasted : undefined,
+      xpub: importKind === "xpub" ? pasted : undefined,
       network,
       script_type: importKind === "xpub" ? scriptType : undefined,
       account_path_guess: importKind === "xpub" ? accountPath : undefined,
-      gap_limit: gapLimit,
+      gap_limit: normalizedGapLimit,
       backend,
       bitcoin_core_rpc:
         backend === "bitcoin_core_rpc"
           ? {
-              url: bitcoinCoreUrl,
+              url: bitcoinCoreUrl.trim(),
               username: bitcoinCoreUsername || undefined,
               password: bitcoinCorePassword || undefined,
               wallet: bitcoinCoreWallet || undefined
@@ -77,7 +108,7 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
       esplora:
         backend === "esplora" || backend === "public_esplora"
           ? {
-              base_url: esploraBaseUrl,
+              base_url: esploraBaseUrl.trim(),
               use_tor: esploraUseTor,
               public_api_acknowledged: acknowledgedPublicApi
             }
@@ -121,6 +152,16 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
         </div>
 
         <PrivacyWarning publicApiMode={publicApiMode} />
+
+        {!desktopPersistenceAvailable ? (
+          <div className="runtime-notice" role="status">
+            <Database size={18} aria-hidden="true" />
+            <div>
+              <strong>Browser demo mode</strong>
+              <p>This localhost session does not have Tauri IPC, so desktop SQLite persistence and live commands may be unavailable. The packaged app stores wallet metadata locally.</p>
+            </div>
+          </div>
+        ) : null}
 
         <form onSubmit={handleSubmit} className="import-form">
           <div className="segmented-control" role="tablist" aria-label="Import type">
@@ -315,7 +356,7 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
 
           <div className="button-row">
             <button className="primary-button" disabled={loading}>
-              <Upload size={17} /> {loading ? "Scanning mock data" : "Import and scan"}
+              <Upload size={17} /> {loading ? loadingLabel(backend) : "Import and scan"}
             </button>
             <button type="button" className="secondary-button" onClick={handleDemo} disabled={loading}>
               <Database size={17} /> Demo wallet
@@ -325,4 +366,20 @@ export function OnboardingImport({ onImported }: OnboardingImportProps) {
       </section>
     </main>
   );
+}
+
+function looksLikeBareXpub(input: string): boolean {
+  return /^[xtyzuv]pub[a-zA-Z0-9]+$/i.test(input.trim());
+}
+
+function looksLikeDescriptor(input: string): boolean {
+  return /\w+\(.+\)/.test(input.trim()) || input.includes("[") || input.includes("]");
+}
+
+function loadingLabel(backend: BackendKind): string {
+  if (backend === "bitcoin_core_rpc") return "Scanning local node";
+  if (backend === "esplora") return "Scanning Esplora";
+  if (backend === "public_esplora") return "Scanning public API";
+  if (backend === "electrum") return "Scanning Electrum";
+  return "Loading demo scan";
 }
