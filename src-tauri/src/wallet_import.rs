@@ -1,6 +1,8 @@
+use crate::bitcoin_core_backend::is_local_rpc_url;
 use crate::bitcoin_core_backend::BitcoinCoreRpcConfig;
 use crate::descriptor_parser::parse_descriptor_metadata;
 use crate::descriptor_parser::parse_public_descriptor;
+use crate::electrum_backend::ElectrumBackendConfig;
 use crate::esplora_backend::EsploraBackendConfig;
 use crate::models::{BackendKind, Descriptor, Keychain, Network, ScriptType};
 use serde::{Deserialize, Serialize};
@@ -12,6 +14,19 @@ pub enum ImportKind {
     Descriptor,
     Xpub,
     Demo,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum NetworkPolicy {
+    Normal,
+    LocalOnly,
+}
+
+impl Default for NetworkPolicy {
+    fn default() -> Self {
+        Self::Normal
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,8 +41,10 @@ pub struct ImportRequest {
     pub gap_limit: Option<u32>,
     pub backend: Option<BackendKind>,
     pub bitcoin_core_rpc: Option<BitcoinCoreRpcConfig>,
+    pub electrum: Option<ElectrumBackendConfig>,
     pub esplora: Option<EsploraBackendConfig>,
     pub public_api_acknowledged: bool,
+    pub network_policy: Option<NetworkPolicy>,
 }
 
 #[derive(Debug, Clone)]
@@ -54,12 +71,32 @@ pub enum ImportError {
     UnsupportedXpub,
     #[error("Public API mode requires acknowledging the privacy warning.")]
     PublicApiWithoutAcknowledgement,
+    #[error(
+        "Network Lock is enabled. Only mock/demo mode and local Bitcoin Core RPC are allowed."
+    )]
+    NetworkLockViolation,
 }
 
 pub fn validate_import(request: ImportRequest) -> Result<ValidatedImport, ImportError> {
     let backend = request.backend.clone().unwrap_or_default();
-    if matches!(backend, BackendKind::PublicEsplora) && !request.public_api_acknowledged {
-        return Err(ImportError::PublicApiWithoutAcknowledgement);
+    let network_policy = request.network_policy.unwrap_or_default();
+    validate_network_policy(&backend, network_policy, &request)?;
+
+    match backend {
+        BackendKind::PublicEsplora if !request.public_api_acknowledged => {
+            return Err(ImportError::PublicApiWithoutAcknowledgement);
+        }
+        BackendKind::PublicElectrum => {
+            let electrum_acknowledged = request
+                .electrum
+                .as_ref()
+                .map(|config| config.public_server_acknowledged)
+                .unwrap_or(false);
+            if !request.public_api_acknowledged || !electrum_acknowledged {
+                return Err(ImportError::PublicApiWithoutAcknowledgement);
+            }
+        }
+        _ => {}
     }
 
     let wallet_name = request
@@ -136,6 +173,34 @@ pub fn validate_import(request: ImportRequest) -> Result<ValidatedImport, Import
                 descriptor_based: false,
             })
         }
+    }
+}
+
+fn validate_network_policy(
+    backend: &BackendKind,
+    policy: NetworkPolicy,
+    request: &ImportRequest,
+) -> Result<(), ImportError> {
+    if !matches!(policy, NetworkPolicy::LocalOnly) {
+        return Ok(());
+    }
+
+    match backend {
+        BackendKind::Mock => Ok(()),
+        BackendKind::BitcoinCoreRpc => {
+            let Some(config) = &request.bitcoin_core_rpc else {
+                return Err(ImportError::NetworkLockViolation);
+            };
+            if is_local_rpc_url(&config.url) {
+                Ok(())
+            } else {
+                Err(ImportError::NetworkLockViolation)
+            }
+        }
+        BackendKind::Electrum
+        | BackendKind::PublicElectrum
+        | BackendKind::Esplora
+        | BackendKind::PublicEsplora => Err(ImportError::NetworkLockViolation),
     }
 }
 
@@ -269,8 +334,10 @@ mod tests {
             gap_limit: Some(20),
             backend: Some(BackendKind::Mock),
             bitcoin_core_rpc: None,
+            electrum: None,
             esplora: None,
             public_api_acknowledged: false,
+            network_policy: None,
         }
     }
 
@@ -304,5 +371,77 @@ mod tests {
         let validated = validate_import(request).unwrap();
         assert_eq!(validated.descriptors.len(), 1);
         assert!(validated.descriptor_based);
+    }
+
+    #[test]
+    fn public_electrum_requires_acknowledgement() {
+        let mut request = base_request(ImportKind::Xpub);
+        request.backend = Some(BackendKind::PublicElectrum);
+        request.xpub = Some("xpub661MyMwAqRbcF9DemoWatchOnlyPublicExtendedKeyValue".to_string());
+        request.electrum = Some(ElectrumBackendConfig {
+            server_url: "tcp://electrum.example.com:50001".to_string(),
+            display_name: Some("Example public".to_string()),
+            public_server_acknowledged: false,
+        });
+
+        assert_eq!(
+            validate_import(request).unwrap_err(),
+            ImportError::PublicApiWithoutAcknowledgement
+        );
+    }
+
+    #[test]
+    fn public_electrum_requires_config_acknowledgement() {
+        let mut request = base_request(ImportKind::Xpub);
+        request.backend = Some(BackendKind::PublicElectrum);
+        request.public_api_acknowledged = true;
+        request.xpub = Some("xpub661MyMwAqRbcF9DemoWatchOnlyPublicExtendedKeyValue".to_string());
+        request.electrum = Some(ElectrumBackendConfig {
+            server_url: "tcp://electrum.example.com:50001".to_string(),
+            display_name: Some("Example public".to_string()),
+            public_server_acknowledged: false,
+        });
+
+        assert_eq!(
+            validate_import(request).unwrap_err(),
+            ImportError::PublicApiWithoutAcknowledgement
+        );
+    }
+
+    #[test]
+    fn network_lock_rejects_public_electrum() {
+        let mut request = base_request(ImportKind::Xpub);
+        request.backend = Some(BackendKind::PublicElectrum);
+        request.network_policy = Some(NetworkPolicy::LocalOnly);
+        request.public_api_acknowledged = true;
+        request.xpub = Some("xpub661MyMwAqRbcF9DemoWatchOnlyPublicExtendedKeyValue".to_string());
+        request.electrum = Some(ElectrumBackendConfig {
+            server_url: "tcp://electrum.example.com:50001".to_string(),
+            display_name: Some("Example public".to_string()),
+            public_server_acknowledged: true,
+        });
+
+        assert_eq!(
+            validate_import(request).unwrap_err(),
+            ImportError::NetworkLockViolation
+        );
+    }
+
+    #[test]
+    fn network_lock_rejects_private_electrum() {
+        let mut request = base_request(ImportKind::Xpub);
+        request.backend = Some(BackendKind::Electrum);
+        request.network_policy = Some(NetworkPolicy::LocalOnly);
+        request.xpub = Some("xpub661MyMwAqRbcF9DemoWatchOnlyPublicExtendedKeyValue".to_string());
+        request.electrum = Some(ElectrumBackendConfig {
+            server_url: "tcp://127.0.0.1:50001".to_string(),
+            display_name: Some("Local Electrum".to_string()),
+            public_server_acknowledged: false,
+        });
+
+        assert_eq!(
+            validate_import(request).unwrap_err(),
+            ImportError::NetworkLockViolation
+        );
     }
 }

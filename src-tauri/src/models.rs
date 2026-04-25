@@ -22,6 +22,7 @@ pub enum BackendKind {
     Mock,
     BitcoinCoreRpc,
     Electrum,
+    PublicElectrum,
     Esplora,
     PublicEsplora,
 }

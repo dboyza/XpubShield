@@ -44,16 +44,19 @@ Legacy route aliases should continue to redirect instead of breaking existing CT
 - PSBT Preflight parses and warns on pasted PSBT text without signing or broadcasting.
 - Documentation and Tutorial are local-first learning surfaces available before or after import.
 - Workspace resume state is stored locally so key page and workflow context can survive reloads.
+- Electrum light-client scanning derives script hashes locally and does not upload raw xpubs/descriptors.
+- Network Lock can restrict future imports to mock/offline mode or localhost Bitcoin Core RPC.
 - Browser demo mode visibly differs from packaged desktop/Tauri persistence.
 - Windows desktop packaging is configured through Tauri.
 
 ## Security Review Notes
 
 - No seed phrase, mnemonic, private key, xprv, WIF, signing, finalization, extraction, or broadcast command should be added.
-- Descriptors, xpubs, derived addresses, labels, PSBT text, and transaction history are sensitive wallet metadata.
-- Raw xpubs/descriptors are stored locally and should not be sent to public APIs.
+- Descriptors, xpubs, derived addresses, Electrum script hashes, labels, PSBT text, and transaction history are sensitive wallet metadata.
+- Raw xpubs/descriptors are stored locally and should not be sent to public APIs or Electrum servers.
 - Bitcoin Core RPC mode should stay local-only.
-- Public Esplora mode is weak privacy and must require explicit acknowledgement.
+- Public Esplora and Public Electrum modes are weak privacy and must require explicit acknowledgement.
+- Electrum is TCP-only in this pass; TLS, Tor, and proxy routing require a separate networking review.
 - SQLite metadata remains unencrypted; closed beta users must protect the local app data directory.
 - Provenance is heuristic and local, not definitive chain-surveillance attribution.
 
@@ -94,6 +97,9 @@ Expected package artifacts on Windows:
 
 - Fresh launch with no saved wallet opens Import.
 - Demo wallet import opens Cockpit.
+- Private Electrum accepts a configured tcp:// server without asking for public-server acknowledgement.
+- Public Electrum requires acknowledgement that script-hash queries can reveal wallet activity.
+- Network Lock blocks Public Electrum, Public Esplora, remote Esplora, and remote Electrum before import.
 - Cockpit Risk Posture is the obvious first read.
 - Mission Queue can collapse and stays secondary to Risk Posture.
 - Action CTAs navigate to the correct parent modules.
@@ -112,8 +118,9 @@ Expected package artifacts on Windows:
 ## Remaining Public Beta Blockers
 
 - Perform a fresh watch-only security review.
-- Validate Bitcoin Core and Esplora behavior against real operator infrastructure.
-- Add richer live transaction history for Bitcoin Core/Esplora backends.
+- Validate Bitcoin Core, Electrum, and Esplora behavior against real operator infrastructure.
+- Add richer live transaction history for Bitcoin Core/Electrum/Esplora backends.
+- Add Electrum TLS/Tor/proxy support before recommending public Electrum for sensitive operations.
 - Decide whether SQLite metadata encryption is required before public beta.
 - Decide whether background scan scheduling is required before claiming monitoring completeness.
 - Re-run dependency audit and packaging checks immediately before release tagging.
