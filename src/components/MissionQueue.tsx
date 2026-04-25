@@ -135,10 +135,24 @@ function MissionCard({
           <button type="button" className="secondary-button" onClick={() => onNavigate(mission.page)}>
             {mission.ctaLabel} <ArrowRight size={14} />
           </button>
-          <button type="button" className="icon-button" onClick={() => onComplete(mission.id)} aria-label={`Complete ${mission.title}`}>
+          <button
+            type="button"
+            className="icon-button tooltip-button"
+            onClick={() => onComplete(mission.id)}
+            aria-label={`Complete ${mission.title}`}
+            data-tooltip="Mark mission complete"
+            title="Mark mission complete"
+          >
             <Check size={14} />
           </button>
-          <button type="button" className="icon-button" onClick={() => onHide(mission.id)} aria-label={`Snooze ${mission.title}`}>
+          <button
+            type="button"
+            className="icon-button tooltip-button"
+            onClick={() => onHide(mission.id)}
+            aria-label={`Snooze ${mission.title}`}
+            data-tooltip="Snooze mission for later"
+            title="Snooze mission for later"
+          >
             <TimerReset size={14} />
           </button>
         </div>

@@ -486,7 +486,7 @@ label {
   border-radius: var(--radius-sm);
   padding: 12px 12px 10px 15px;
   background: rgba(255, 248, 232, 0.028);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .mission-card::before {
@@ -555,6 +555,59 @@ label {
 .mission-toggle {
   min-height: 28px;
   padding: 0 9px;
+}
+
+.tooltip-button {
+  position: relative;
+}
+
+.tooltip-button::before,
+.tooltip-button::after {
+  position: absolute;
+  right: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+  transition-delay: 0ms;
+}
+
+.tooltip-button::before {
+  content: "";
+  bottom: calc(100% + 3px);
+  border: 5px solid transparent;
+  border-top-color: rgba(245, 239, 228, 0.96);
+}
+
+.tooltip-button::after {
+  content: attr(data-tooltip);
+  bottom: calc(100% + 12px);
+  z-index: 30;
+  width: max-content;
+  max-width: 220px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  color: #130d04;
+  background: rgba(245, 239, 228, 0.96);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.34);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: left;
+  white-space: normal;
+}
+
+.tooltip-button:hover::before,
+.tooltip-button:hover::after,
+.tooltip-button:focus-visible::before,
+.tooltip-button:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 700ms;
 }
 
 .boot-sweep {
