@@ -23,6 +23,7 @@ import {
 import { Cockpit } from "./pages/Cockpit";
 import { readNetworkPolicy, writeNetworkPolicy } from "./lib/networkPolicy";
 import {
+  clearOnboardingComplete,
   readBackendPreferences,
   readOnboardingComplete,
   writeBackendPreferences,
@@ -174,7 +175,16 @@ export default function App() {
   );
 
   useEffect(() => {
+    let cancelled = false;
+
     getCurrentWallet().then((current) => {
+      if (cancelled) return;
+      if (!onboardingComplete) {
+        setReport(null);
+        setWorkspace(null);
+        setPage("import");
+        return;
+      }
       if (current) {
         const savedWorkspace = readWorkspaceSnapshot(current.wallet.id);
         setReport(current);
@@ -182,7 +192,10 @@ export default function App() {
         setPage(resolveInitialPage(savedWorkspace.lastPage, true));
       }
     });
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [onboardingComplete]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setBooting(false), 840);
@@ -476,6 +489,7 @@ export default function App() {
             onCacheCleared={() => {
               clearWorkspaceSnapshot(report.wallet.id);
               clearMissionQueueState(report.wallet.id);
+              setOnboardingComplete(clearOnboardingComplete());
               setWorkspace(null);
               setReport(null);
               setPage("import");
