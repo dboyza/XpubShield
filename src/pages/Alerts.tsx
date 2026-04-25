@@ -1,4 +1,4 @@
-import { Bell, Check } from "lucide-react";
+import { Check } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { acknowledgeAlert, getAlerts } from "../api/tauri";
 import { RiskBadge } from "../components/RiskBadge";
@@ -9,7 +9,7 @@ interface AlertsProps {
   report: WalletReport;
 }
 
-export function Alerts({ report }: AlertsProps) {
+function useAlertSignals(report: WalletReport) {
   const fallbackAlerts = useMemo(() => buildFallbackAlerts(report), [report]);
   const [alerts, setAlerts] = useState<Alert[]>(fallbackAlerts);
 
@@ -39,30 +39,20 @@ export function Alerts({ report }: AlertsProps) {
   }
 
   const openCount = alerts.filter((alert) => !alert.acknowledged).length;
+  return { alerts, openCount, acknowledge };
+}
+
+export function AlertSignalPanel({ report }: AlertsProps) {
+  const { alerts, openCount, acknowledge } = useAlertSignals(report);
 
   return (
-    <main className="page-shell">
-      <section className="page-header">
-        <div>
-          <p>{report.wallet.name}</p>
-          <h1>Alerts</h1>
-        </div>
+    <section className="cockpit-alert-log">
+      <div className="panel-heading">
+        <h2>Signal Log</h2>
         <StatusPill label={`${openCount} open`} tone={openCount ? "warn" : "good"} />
-      </section>
-
-      <section className="privacy-warning">
-        <Bell size={20} aria-hidden="true" />
-        <div>
-          <strong>Local-only monitoring</strong>
-          <p>
-            Alerts are generated from local wallet state, local simulations, and local PSBT analysis.
-            They are stored in SQLite and are not sent anywhere.
-          </p>
-        </div>
-      </section>
-
-      <section className="risk-list">
-        {alerts.length ? alerts.map((alert) => (
+      </div>
+      <div className="risk-list compact-risk-list">
+        {alerts.length ? alerts.slice(0, 3).map((alert) => (
           <article className={`risk-card alert-card ${alert.acknowledged ? "acknowledged" : ""}`} key={alert.id}>
             <div className="finding-title">
               <RiskBadge severity={alert.severity} />
@@ -80,10 +70,10 @@ export function Alerts({ report }: AlertsProps) {
             </div>
           </article>
         )) : (
-          <p className="empty-state">No local alerts for the current wallet.</p>
+          <p className="empty-state">No local signals are waiting outside the action queue.</p>
         )}
-      </section>
-    </main>
+      </div>
+    </section>
   );
 }
 

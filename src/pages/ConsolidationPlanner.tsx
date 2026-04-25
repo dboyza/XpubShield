@@ -40,8 +40,8 @@ export function ConsolidationPlanner({ report }: ConsolidationPlannerProps) {
     <main className="page-shell">
       <section className="page-header">
         <div>
-          <p>{report.wallet.name}</p>
-          <h1>Consolidation planner</h1>
+          <p>{report.wallet.name} · Spend Preflight lens</p>
+          <h1>Consolidation lens</h1>
         </div>
         <StatusPill label="Simulation only" tone="good" />
       </section>

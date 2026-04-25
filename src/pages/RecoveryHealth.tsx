@@ -8,9 +8,10 @@ import type { WalletReport } from "../types/domain";
 
 interface RecoveryHealthProps {
   report: WalletReport;
+  onNavigate?: (page: string) => void;
 }
 
-export function RecoveryHealth({ report }: RecoveryHealthProps) {
+export function RecoveryHealth({ report, onNavigate }: RecoveryHealthProps) {
   const health = useMemo(() => buildRecoveryHealth(report), [report]);
   const checklist = useMemo(() => buildRecoveryChecklist(report), [report]);
 
@@ -36,6 +37,16 @@ export function RecoveryHealth({ report }: RecoveryHealthProps) {
         <button type="button" className="secondary-button" onClick={() => downloadText("xpubshield-recovery-report.json", health.json)}>
           <Download size={17} /> JSON
         </button>
+      </section>
+
+      <section className="workflow-dock" aria-label="Recovery diagnostics">
+        <article className="workflow-lens-card">
+          <span>Descriptor diagnostic</span>
+          <strong>Compare descriptor or xpub previews when recovery identity feels ambiguous.</strong>
+          <button type="button" className="secondary-button" onClick={() => onNavigate?.("descriptor_diff")}>
+            Open descriptor diff
+          </button>
+        </article>
       </section>
 
       <section className="dashboard-grid">

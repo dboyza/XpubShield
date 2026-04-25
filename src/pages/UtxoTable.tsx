@@ -10,6 +10,7 @@ import type { CoinSet, ProvenanceSourceKind, QuarantineStatus, SourceCategory, U
 interface UtxoTableProps {
   report: WalletReport;
   onUpdateUtxos: (outpoints: string[], patch: UtxoUpdate) => void;
+  onNavigate?: (page: string) => void;
 }
 
 type SortKey = "amount_sats" | "confirmations" | "script_type" | "source_category";
@@ -38,7 +39,7 @@ const QUARANTINE_STATUSES: QuarantineStatus[] = [
   "manual"
 ];
 
-export function UtxoTable({ report, onUpdateUtxos }: UtxoTableProps) {
+export function UtxoTable({ report, onUpdateUtxos, onNavigate }: UtxoTableProps) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<SourceCategory | "all">("all");
   const [riskFlag, setRiskFlag] = useState("all");
@@ -163,6 +164,23 @@ export function UtxoTable({ report, onUpdateUtxos }: UtxoTableProps) {
           <h1>Coin workbench</h1>
         </div>
         <StatusPill label={`${selected.length} selected`} tone={selected.length ? "warn" : "neutral"} />
+      </section>
+
+      <section className="workflow-dock" aria-label="Coin workbench subviews">
+        <article className="workflow-lens-card">
+          <span>Fee exposure</span>
+          <strong>Stress-test coin economics without leaving the workbench context.</strong>
+          <button type="button" className="secondary-button" onClick={() => onNavigate?.("fees")}>
+            Open fee lens
+          </button>
+        </article>
+        <article className="workflow-lens-card">
+          <span>Observer model</span>
+          <strong>Inspect label, source, and quarantine linkage before choosing coins.</strong>
+          <button type="button" className="secondary-button" onClick={() => onNavigate?.("privacy")}>
+            Open privacy lens
+          </button>
+        </article>
       </section>
 
       {selected.length > 0 ? (

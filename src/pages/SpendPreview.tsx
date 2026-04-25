@@ -9,9 +9,10 @@ import type { SpendSimulation, Utxo, WalletReport } from "../types/domain";
 
 interface SpendPreviewProps {
   report: WalletReport;
+  onNavigate?: (page: string) => void;
 }
 
-export function SpendPreview({ report }: SpendPreviewProps) {
+export function SpendPreview({ report, onNavigate }: SpendPreviewProps) {
   const [selected, setSelected] = useState<string[]>([]);
   const [destinationAmount, setDestinationAmount] = useState("100000");
   const [feeRate, setFeeRate] = useState(25);
@@ -76,6 +77,23 @@ export function SpendPreview({ report }: SpendPreviewProps) {
           <strong>No transaction is created</strong>
           <p>This preflight models what an observer could learn from selected coins. It does not sign, finalize, extract, construct, or broadcast a transaction.</p>
         </div>
+      </section>
+
+      <section className="workflow-dock" aria-label="Spend preflight subviews">
+        <article className="workflow-lens-card">
+          <span>Observer inference</span>
+          <strong>Run the privacy model when the question is what selected coins reveal together.</strong>
+          <button type="button" className="secondary-button" onClick={() => onNavigate?.("privacy")}>
+            Open observer lens
+          </button>
+        </article>
+        <article className="workflow-lens-card">
+          <span>Consolidation</span>
+          <strong>Check fee savings against merge damage before batching coins.</strong>
+          <button type="button" className="secondary-button" onClick={() => onNavigate?.("consolidation")}>
+            Open consolidation lens
+          </button>
+        </article>
       </section>
 
       <section className="simulator-grid preflight-grid">

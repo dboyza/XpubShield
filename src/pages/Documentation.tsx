@@ -112,6 +112,10 @@ const DOC_SECTIONS: DocumentationSection[] = [
       {
         title: "Module rhythm",
         body: "Use Workbench for coin metadata, Spend Preflight for observer inference, Recovery for emergency-readiness checks, and PSBT Preflight before signer review."
+      },
+      {
+        title: "Contextual explanations",
+        body: "Plain-English explanations belong next to the evidence they describe: Cockpit actions, UTXO details, Lineage context, Recovery checks, and PSBT warnings. The handbook is the reference layer when you need the deeper concept."
       }
     ]
   },

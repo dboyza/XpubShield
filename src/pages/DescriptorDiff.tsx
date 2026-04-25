@@ -35,7 +35,7 @@ export function DescriptorDiff({ report }: DescriptorDiffProps) {
     <main className="page-shell">
       <section className="page-header">
         <div>
-          <p>{report.wallet.name}</p>
+          <p>{report.wallet.name} · Recovery diagnostic</p>
           <h1>Descriptor diff</h1>
         </div>
         <StatusPill label={diff.sameFirst20 ? "Preview match" : "Preview differs"} tone={diff.sameFirst20 ? "good" : "warn"} />
