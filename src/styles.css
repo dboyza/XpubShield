@@ -131,6 +131,40 @@ h3 {
     var(--bg);
 }
 
+.app-frame.setup-frame {
+  position: relative;
+  isolation: isolate;
+  grid-template-columns: minmax(0, 1fr);
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(247, 147, 26, 0.12), transparent 30rem),
+    radial-gradient(circle at 84% 20%, rgba(255, 196, 90, 0.055), transparent 24rem),
+    linear-gradient(135deg, rgba(255, 248, 232, 0.028), transparent 34%),
+    var(--bg);
+}
+
+.setup-frame::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(255, 248, 232, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 248, 232, 0.024) 1px, transparent 1px),
+    linear-gradient(135deg, transparent 0 48%, rgba(255, 248, 232, 0.026) 49%, transparent 50% 100%);
+  background-size: 42px 42px, 42px 42px, 168px 168px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0.42));
+  animation: gridDrift 38s linear infinite;
+}
+
+.onboarding-shell {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  min-height: 100vh;
+}
+
 .sidebar {
   position: sticky;
   top: 0;
@@ -688,11 +722,75 @@ label {
 }
 
 .import-panel {
+  display: grid;
+  gap: 14px;
   width: min(900px, 100%);
 }
 
 .first-run-layout .import-panel {
   width: min(820px, 100%);
+}
+
+.setup-frame .import-layout {
+  place-items: center;
+  padding: clamp(22px, 5vw, 58px) 24px;
+}
+
+.setup-frame .import-panel {
+  width: min(780px, calc(100vw - 48px));
+}
+
+.setup-frame .section-heading {
+  margin-bottom: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.setup-frame .section-heading svg {
+  color: var(--accent);
+}
+
+.setup-frame .import-form {
+  border: 1px solid rgba(255, 248, 232, 0.18);
+  border-radius: var(--radius);
+  padding: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 248, 232, 0.035), transparent 68%),
+    rgba(13, 12, 10, 0.88);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(14px);
+}
+
+.onboarding-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  width: max-content;
+  color: var(--text);
+}
+
+.onboarding-brand svg {
+  color: var(--accent);
+  filter: drop-shadow(0 0 14px rgba(247, 147, 26, 0.18));
+}
+
+.onboarding-brand strong {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  line-height: 1.1;
+}
+
+.onboarding-brand span {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .page-header,
