@@ -427,6 +427,12 @@ label {
   backdrop-filter: blur(14px);
 }
 
+.mission-queue-collapsed {
+  gap: 0;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
 .mission-queue-header,
 .mission-queue-actions,
 .mission-card,
@@ -544,6 +550,11 @@ label {
 .mission-buttons .icon-button {
   width: 32px;
   height: 32px;
+}
+
+.mission-toggle {
+  min-height: 28px;
+  padding: 0 9px;
 }
 
 .boot-sweep {
