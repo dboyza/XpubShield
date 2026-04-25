@@ -1,4 +1,4 @@
-import { ArrowRight, Check, RotateCcw, TimerReset } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, ChevronUp, RotateCcw, TimerReset } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { humanize } from "../lib/format";
 import { buildMissionQueue, severityToTone, type MissionQueueItem } from "../lib/ops";
@@ -13,11 +13,13 @@ interface MissionQueueProps {
 interface MissionQueueState {
   hiddenIds: string[];
   completedIds: string[];
+  collapsed: boolean;
 }
 
 const EMPTY_QUEUE_STATE: MissionQueueState = {
   hiddenIds: [],
-  completedIds: []
+  completedIds: [],
+  collapsed: false
 };
 
 export function MissionQueue({ report, onNavigate }: MissionQueueProps) {
@@ -46,7 +48,8 @@ export function MissionQueue({ report, onNavigate }: MissionQueueProps) {
   function completeMission(id: string) {
     saveQueueState({
       hiddenIds: queueState.hiddenIds.filter((item) => item !== id),
-      completedIds: Array.from(new Set([...queueState.completedIds, id]))
+      completedIds: Array.from(new Set([...queueState.completedIds, id])),
+      collapsed: queueState.collapsed
     });
   }
 
@@ -54,15 +57,29 @@ export function MissionQueue({ report, onNavigate }: MissionQueueProps) {
     saveQueueState(EMPTY_QUEUE_STATE);
   }
 
+  function toggleCollapsed() {
+    saveQueueState({ ...queueState, collapsed: !queueState.collapsed });
+  }
+
   return (
-    <section className="mission-queue" aria-label="Mission queue">
+    <section className={`mission-queue ${queueState.collapsed ? "mission-queue-collapsed" : ""}`} aria-label="Mission queue">
       <div className="mission-queue-header">
         <div>
           <span>Mission Queue</span>
-          <strong>{visibleMissions.length ? "Do this next" : "Queue clear"}</strong>
+          <strong>{visibleMissions.length ? queueState.collapsed ? "Queue hidden" : "Do this next" : "Queue clear"}</strong>
         </div>
         <div className="mission-queue-actions">
           <StatusPill label={`${visibleMissions.length} active`} tone={visibleMissions.length ? "warn" : "good"} />
+          <button
+            type="button"
+            className="ghost-button mission-toggle"
+            onClick={toggleCollapsed}
+            aria-expanded={!queueState.collapsed}
+            aria-controls="mission-queue-list"
+          >
+            {queueState.collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+            {queueState.collapsed ? "Show" : "Hide"}
+          </button>
           {hiddenCount > 0 ? (
             <button type="button" className="ghost-button" onClick={resetQueue}>
               <RotateCcw size={14} /> Reset
@@ -71,8 +88,8 @@ export function MissionQueue({ report, onNavigate }: MissionQueueProps) {
         </div>
       </div>
 
-      {visibleMissions.length ? (
-        <div className="mission-queue-list">
+      {!queueState.collapsed && visibleMissions.length ? (
+        <div className="mission-queue-list" id="mission-queue-list">
           {visibleMissions.slice(0, 4).map((mission) => (
             <MissionCard
               key={mission.id}
@@ -83,9 +100,10 @@ export function MissionQueue({ report, onNavigate }: MissionQueueProps) {
             />
           ))}
         </div>
-      ) : (
+      ) : null}
+      {!queueState.collapsed && !visibleMissions.length ? (
         <p className="empty-state">No active guided ops. Reset the queue to replay completed or snoozed missions.</p>
-      )}
+      ) : null}
     </section>
   );
 }
