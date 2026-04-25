@@ -22,6 +22,13 @@ import {
 } from "./components/SovereignOpsTutorial";
 import { Cockpit } from "./pages/Cockpit";
 import { readNetworkPolicy, writeNetworkPolicy } from "./lib/networkPolicy";
+import {
+  readBackendPreferences,
+  readOnboardingComplete,
+  writeBackendPreferences,
+  writeOnboardingComplete,
+  type BackendPreferences
+} from "./lib/setupPreferences";
 import { Documentation } from "./pages/Documentation";
 import { GraphView } from "./pages/GraphView";
 import { OnboardingImport } from "./pages/OnboardingImport";
@@ -160,6 +167,8 @@ export default function App() {
   const [tutorialPromptOpen, setTutorialPromptOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [networkPolicy, setNetworkPolicy] = useState(() => readNetworkPolicy());
+  const [backendPreferences, setBackendPreferences] = useState(() => readBackendPreferences());
+  const [onboardingComplete, setOnboardingComplete] = useState(() => readOnboardingComplete());
   const [activeTutorialStep, setActiveTutorialStep] = useState(() =>
     findTutorialStepIndex(readTutorialState().lastStepId)
   );
@@ -183,6 +192,7 @@ export default function App() {
   useEffect(() => {
     if (
       booting ||
+      (!onboardingComplete && !report) ||
       tutorialOpen ||
       tutorialPromptOpen ||
       tutorialState.dismissed ||
@@ -193,7 +203,7 @@ export default function App() {
     }
 
     setTutorialPromptOpen(true);
-  }, [booting, tutorialOpen, tutorialPromptOpen, tutorialState]);
+  }, [booting, onboardingComplete, report, tutorialOpen, tutorialPromptOpen, tutorialState]);
 
   function applyUtxoPatch(current: WalletReport | null, outpoints: string[], patch: UtxoUpdate) {
     if (!current) return current;
@@ -313,6 +323,14 @@ export default function App() {
     setNetworkPolicy(writeNetworkPolicy(nextPolicy));
   }
 
+  function changeBackendPreferences(patch: Partial<BackendPreferences>) {
+    setBackendPreferences((current) => writeBackendPreferences({ ...current, ...patch }));
+  }
+
+  function completeFirstRunSetup() {
+    setOnboardingComplete(writeOnboardingComplete());
+  }
+
   function changeTutorialStep(index: number) {
     setActiveTutorialStep(index);
     saveTutorialState({ lastStepId: TUTORIAL_STEPS[index]?.id });
@@ -398,12 +416,20 @@ export default function App() {
           />
         ) : null}
         {page === "import" ? (
-          <OnboardingImport networkPolicy={networkPolicy} onNetworkPolicyChange={changeNetworkPolicy} onImported={(next) => {
-            const nextWorkspace = writeWorkspaceSnapshot(next.wallet.id, { lastPage: "cockpit" });
-            setReport(next);
-            setWorkspace(nextWorkspace);
-            setPage("cockpit");
-          }} />
+          <OnboardingImport
+            firstRun={!booting && !onboardingComplete && !report}
+            backendPreferences={backendPreferences}
+            networkPolicy={networkPolicy}
+            onBackendPreferencesChange={changeBackendPreferences}
+            onNetworkPolicyChange={changeNetworkPolicy}
+            onImported={(next) => {
+              completeFirstRunSetup();
+              const nextWorkspace = writeWorkspaceSnapshot(next.wallet.id, { lastPage: "cockpit" });
+              setReport(next);
+              setWorkspace(nextWorkspace);
+              setPage("cockpit");
+            }}
+          />
         ) : null}
         {page === "cockpit" && report ? (
           <Cockpit report={report} onNavigate={navigateToAction} onDismissAction={dismissCockpitAction} />
@@ -439,13 +465,23 @@ export default function App() {
             onWorkspaceChange={(documentation) => report ? saveWorkspacePatch({ documentation: { ...workspace?.documentation, ...documentation } }) : undefined}
           />
         ) : null}
-        {page === "settings" && report ? <Settings report={report} networkPolicy={networkPolicy} onNetworkPolicyChange={changeNetworkPolicy} onTutorialReset={resetTutorial} onCacheCleared={() => {
-          clearWorkspaceSnapshot(report.wallet.id);
-          clearMissionQueueState(report.wallet.id);
-          setWorkspace(null);
-          setReport(null);
-          setPage("import");
-        }} /> : null}
+        {page === "settings" && report ? (
+          <Settings
+            report={report}
+            backendPreferences={backendPreferences}
+            networkPolicy={networkPolicy}
+            onBackendPreferencesChange={changeBackendPreferences}
+            onNetworkPolicyChange={changeNetworkPolicy}
+            onTutorialReset={resetTutorial}
+            onCacheCleared={() => {
+              clearWorkspaceSnapshot(report.wallet.id);
+              clearMissionQueueState(report.wallet.id);
+              setWorkspace(null);
+              setReport(null);
+              setPage("import");
+            }}
+          />
+        ) : null}
       </div>
       {tutorialPromptOpen || tutorialOpen ? (
         <SovereignOpsTutorial
