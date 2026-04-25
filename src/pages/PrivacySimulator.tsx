@@ -1,8 +1,10 @@
 import { Eye, ShieldAlert } from "lucide-react";
 import { useMemo, useState } from "react";
+import { EvidenceDrawer } from "../components/EvidenceDrawer";
 import { RiskBadge } from "../components/RiskBadge";
 import { StatusPill } from "../components/StatusPill";
 import { categoryLabel, compactSats, humanize, satsToBtc, txidPrefix } from "../lib/format";
+import { privacyRiskEvidence, type EvidenceItem } from "../lib/ops";
 import { analyzePrivacySelection } from "../lib/phase2";
 import type { WalletReport } from "../types/domain";
 
@@ -12,6 +14,7 @@ interface PrivacySimulatorProps {
 
 export function PrivacySimulator({ report }: PrivacySimulatorProps) {
   const [selected, setSelected] = useState<string[]>([]);
+  const [activeEvidence, setActiveEvidence] = useState<EvidenceItem | null>(null);
   const selectedUtxos = useMemo(
     () => report.utxos.filter((utxo) => selected.includes(utxo.outpoint)),
     [report.utxos, selected]
@@ -76,7 +79,16 @@ export function PrivacySimulator({ report }: PrivacySimulatorProps) {
                     <span>Confidence: {humanize(risk.confidence)}</span>
                     <span>Affected: {risk.affectedOutpoints.length}</span>
                   </div>
-                  <span>{risk.suggestedAlternative}</span>
+                  <div className="risk-meta">
+                    <span>{risk.suggestedAlternative}</span>
+                    <button
+                      type="button"
+                      className="ghost-button evidence-link"
+                      onClick={() => setActiveEvidence(privacyRiskEvidence(risk))}
+                    >
+                      Evidence
+                    </button>
+                  </div>
                 </article>
               ))}
             </div>
@@ -99,6 +111,7 @@ export function PrivacySimulator({ report }: PrivacySimulatorProps) {
           wallet metadata and deterministic heuristics.
         </p>
       </section>
+      <EvidenceDrawer item={activeEvidence} onClose={() => setActiveEvidence(null)} />
     </main>
   );
 }

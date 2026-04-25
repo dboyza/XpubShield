@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { dismissAction, getCurrentWallet, updateUtxos as persistUtxos } from "./api/tauri";
+import { MissionQueue } from "./components/MissionQueue";
 import {
   SovereignOpsTutorial,
   TUTORIAL_STEPS,
@@ -389,6 +390,7 @@ export default function App() {
             <strong>{report ? report.wallet.network : "not loaded"}</strong>
           </div>
         </div>
+        {report && page !== "import" ? <MissionQueue report={report} onNavigate={navigateToAction} /> : null}
         {page === "import" ? (
           <OnboardingImport onImported={(next) => {
             setReport(next);

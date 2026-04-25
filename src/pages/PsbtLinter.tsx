@@ -1,9 +1,11 @@
 import { FileSearch, ShieldAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { analyzePsbt } from "../api/tauri";
+import { EvidenceDrawer } from "../components/EvidenceDrawer";
 import { RiskBadge } from "../components/RiskBadge";
 import { StatusPill } from "../components/StatusPill";
 import { compactSats, humanize, txidPrefix } from "../lib/format";
+import type { EvidenceItem } from "../lib/ops";
 import { analyzePsbtText, examplePsbtFixture, type PsbtAnalysisResult } from "../lib/phase3";
 import type { WalletReport } from "../types/domain";
 
@@ -15,6 +17,7 @@ export function PsbtLinter({ report }: PsbtLinterProps) {
   const [input, setInput] = useState("");
   const fallbackAnalysis = useMemo(() => analyzePsbtText(input, report), [input, report]);
   const [backendAnalysis, setBackendAnalysis] = useState<PsbtAnalysisResult | null>(null);
+  const [activeEvidence, setActiveEvidence] = useState<EvidenceItem | null>(null);
   const analysis = backendAnalysis ?? fallbackAnalysis;
 
   useEffect(() => {
@@ -145,7 +148,33 @@ export function PsbtLinter({ report }: PsbtLinterProps) {
                   <strong>{warning.title}</strong>
                 </div>
                 <p>{warning.explanation}</p>
-                <span>{warning.recommendedAction}</span>
+                <div className="risk-meta">
+                  <span>{warning.recommendedAction}</span>
+                  <button
+                    type="button"
+                    className="ghost-button evidence-link"
+                    onClick={() =>
+                      setActiveEvidence({
+                        id: `psbt:${warning.id}`,
+                        title: warning.title,
+                        severity: warning.severity,
+                        confidence: warning.confidence,
+                        why: warning.explanation,
+                        action: warning.recommendedAction,
+                        evidence: [
+                          `Format: ${humanize(analysis.format)}`,
+                          `Inputs: ${analysis.inputs.length}`,
+                          `Outputs: ${analysis.outputs.length}`,
+                          `Change detected: ${analysis.changeDetected ? "yes" : "no"}`,
+                          `Fee rate: ${analysis.feeRate === undefined ? "unknown" : `${analysis.feeRate.toFixed(1)} sats/vB`}`
+                        ],
+                        affectedCount: analysis.inputs.length + analysis.outputs.length
+                      })
+                    }
+                  >
+                    Evidence
+                  </button>
+                </div>
               </article>
             ))}
           </div>
@@ -153,6 +182,7 @@ export function PsbtLinter({ report }: PsbtLinterProps) {
           <p className="empty-state">No lint warnings for the current input. This does not prove the PSBT is safe.</p>
         )}
       </section>
+      <EvidenceDrawer item={activeEvidence} onClose={() => setActiveEvidence(null)} />
     </main>
   );
 }

@@ -1,8 +1,10 @@
 import { Download, FileJson, HeartPulse } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { EvidenceDrawer } from "../components/EvidenceDrawer";
 import { MetricCard } from "../components/MetricCard";
 import { StatusPill } from "../components/StatusPill";
 import { humanize } from "../lib/format";
+import { statusToSeverity, type EvidenceItem } from "../lib/ops";
 import { buildRecoveryHealth } from "../lib/phase3";
 import type { WalletReport } from "../types/domain";
 
@@ -14,6 +16,7 @@ interface RecoveryHealthProps {
 export function RecoveryHealth({ report, onNavigate }: RecoveryHealthProps) {
   const health = useMemo(() => buildRecoveryHealth(report), [report]);
   const checklist = useMemo(() => buildRecoveryChecklist(report), [report]);
+  const [activeEvidence, setActiveEvidence] = useState<EvidenceItem | null>(null);
 
   return (
     <main className="page-shell">
@@ -62,7 +65,16 @@ export function RecoveryHealth({ report, onNavigate }: RecoveryHealthProps) {
                   <strong>{item.label}</strong>
                   <p>{item.detail}</p>
                 </div>
-                <StatusPill label={humanize(item.status)} tone={item.status === "good" ? "good" : item.status === "warn" ? "warn" : "bad"} />
+                <div className="evidence-actions">
+                  <StatusPill label={humanize(item.status)} tone={item.status === "good" ? "good" : item.status === "warn" ? "warn" : "bad"} />
+                  <button
+                    type="button"
+                    className="ghost-button evidence-link"
+                    onClick={() => setActiveEvidence(recoveryChecklistEvidence(item, report))}
+                  >
+                    Evidence
+                  </button>
+                </div>
               </article>
             ))}
           </div>
@@ -93,7 +105,16 @@ export function RecoveryHealth({ report, onNavigate }: RecoveryHealthProps) {
             <div className="finding-list">
               {health.warnings.map((warning) => (
                 <article className="finding-row" key={warning}>
-                  <strong>{warning}</strong>
+                  <div className="finding-title">
+                    <strong>{warning}</strong>
+                    <button
+                      type="button"
+                      className="ghost-button evidence-link"
+                      onClick={() => setActiveEvidence(recoveryWarningEvidence(warning, report))}
+                    >
+                      Evidence
+                    </button>
+                  </div>
                 </article>
               ))}
             </div>
@@ -102,6 +123,7 @@ export function RecoveryHealth({ report, onNavigate }: RecoveryHealthProps) {
           )}
         </div>
       </section>
+      <EvidenceDrawer item={activeEvidence} onClose={() => setActiveEvidence(null)} />
     </main>
   );
 }
@@ -150,4 +172,61 @@ function downloadText(filename: string, text: string) {
   anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+type RecoveryChecklistItem = ReturnType<typeof buildRecoveryChecklist>[number];
+
+function recoveryChecklistEvidence(item: RecoveryChecklistItem, report: WalletReport): EvidenceItem {
+  return {
+    id: `recovery-check:${item.label}`,
+    title: item.label,
+    severity: statusToSeverity(item.status),
+    confidence: "high",
+    why: item.detail,
+    action: recoveryAction(item),
+    evidence: [
+      `Status: ${humanize(item.status)}`,
+      `Descriptors tracked: ${report.descriptors.length}`,
+      `Derived addresses scanned: ${report.derived_addresses.length}`,
+      `Gap limit: ${report.wallet.gap_limit}`
+    ],
+    affectedCount: report.descriptors.length
+  };
+}
+
+function recoveryWarningEvidence(warning: string, report: WalletReport): EvidenceItem {
+  return {
+    id: `recovery-warning:${warning}`,
+    title: "Recovery warning",
+    severity: "medium",
+    confidence: "high",
+    why: warning,
+    action: "Verify descriptor, fingerprint, path, change, and gap metadata against your recovery source before relying on this wallet view.",
+    evidence: [
+      `Wallet import type: ${report.wallet.descriptor_based ? "descriptor" : "xpub"}`,
+      `Descriptor count: ${report.descriptors.length}`,
+      `Gap limit: ${report.wallet.gap_limit}`,
+      ...report.descriptors.slice(0, 3).map((descriptor) => `${descriptor.keychain}: ${descriptor.master_fingerprint ?? "missing fingerprint"} / ${descriptor.account_path ?? "missing path"}`)
+    ],
+    affectedCount: report.descriptors.length
+  };
+}
+
+function recoveryAction(item: RecoveryChecklistItem): string {
+  if (item.status === "good") {
+    return "Keep this metadata exported with your watch-only recovery records.";
+  }
+  if (item.label === "Descriptor completeness") {
+    return "Import or export both external and change descriptors with checksums.";
+  }
+  if (item.label === "Fingerprint and path coverage") {
+    return "Confirm master fingerprint and account path metadata from the signing device.";
+  }
+  if (item.label === "Gap risk") {
+    return "Use a gap limit of at least 20 when scanning or restoring elsewhere.";
+  }
+  if (item.label === "Multisig metadata") {
+    return "Verify cosigner fingerprints, derivation paths, and quorum policy outside this app.";
+  }
+  return "Export the recovery report and resolve missing metadata before relying on this wallet operationally.";
 }
