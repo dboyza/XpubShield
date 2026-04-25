@@ -1,5 +1,5 @@
 import { Filter, GitBranch, Info } from "lucide-react";
-import { useMemo, useState } from "react";
+import { type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent, useMemo, useRef, useState } from "react";
 import { StatusPill } from "../components/StatusPill";
 import { compactSats, humanize, txidPrefix } from "../lib/format";
 import type { ScriptType, SourceCategory, Utxo, WalletReport } from "../types/domain";
@@ -40,10 +40,30 @@ interface GraphViewProps {
 
 const NODE_LIMIT = 90;
 const FEE_RATES = [5, 10, 25, 50, 100, 200, 300];
+const MIN_GRAPH_ZOOM = 0.55;
+const MAX_GRAPH_ZOOM = 2.6;
+
+interface GraphViewport {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
+interface GraphDrag {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  originX: number;
+  originY: number;
+}
 
 export function GraphView({ report }: GraphViewProps) {
   const [mode, setMode] = useState<GraphMode>("lineage");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [viewport, setViewport] = useState<GraphViewport>({ x: 0, y: 0, zoom: 1 });
+  const [isPanning, setIsPanning] = useState(false);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<GraphDrag | null>(null);
   const [filters, setFilters] = useState<GraphFilters>({
     label: "all",
     category: "all",
@@ -56,6 +76,59 @@ export function GraphView({ report }: GraphViewProps) {
   const graph = useMemo(() => buildGraph(mode, filteredUtxos, report), [mode, filteredUtxos, report]);
   const visibleGraph = useMemo(() => limitGraph(graph, NODE_LIMIT), [graph]);
   const selected = visibleGraph.nodes.find((node) => node.id === selectedId) ?? visibleGraph.nodes[0] ?? null;
+
+  const handleCanvasPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || (event.target as HTMLElement).closest(".graph-node")) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: viewport.x,
+      originY: viewport.y
+    };
+    setIsPanning(true);
+  };
+
+  const handleCanvasPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    setViewport((current) => ({
+      ...current,
+      x: drag.originX + event.clientX - drag.startX,
+      y: drag.originY + event.clientY - drag.startY
+    }));
+  };
+
+  const handleCanvasPointerEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    dragRef.current = null;
+    setIsPanning(false);
+  };
+
+  const handleCanvasWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const bounds = canvas.getBoundingClientRect();
+    const pointerX = event.clientX - bounds.left;
+    const pointerY = event.clientY - bounds.top;
+
+    setViewport((current) => {
+      const nextZoom = clamp(current.zoom * (event.deltaY < 0 ? 1.12 : 0.88), MIN_GRAPH_ZOOM, MAX_GRAPH_ZOOM);
+      const zoomRatio = nextZoom / current.zoom;
+      return {
+        zoom: nextZoom,
+        x: pointerX - (pointerX - current.x) * zoomRatio,
+        y: pointerY - (pointerY - current.y) * zoomRatio
+      };
+    });
+  };
 
   return (
     <main className="page-shell">
@@ -142,42 +215,61 @@ export function GraphView({ report }: GraphViewProps) {
         <FeeHeatmap utxos={filteredUtxos} />
       ) : (
         <section className="graph-layout">
-          <div className="graph-canvas" role="img" aria-label={`${humanize(mode)} graph`}>
-            <svg className="graph-edges" aria-hidden="true">
-              {visibleGraph.edges.map((edge) => {
-                const source = visibleGraph.nodes.find((node) => node.id === edge.source);
-                const target = visibleGraph.nodes.find((node) => node.id === edge.target);
-                if (!source || !target) return null;
-                return (
-                  <line
-                    key={edge.id}
-                    x1={`${source.x}%`}
-                    y1={`${source.y}%`}
-                    x2={`${target.x}%`}
-                    y2={`${target.y}%`}
-                  />
-                );
-              })}
-            </svg>
-            {visibleGraph.nodes.map((node) => (
-              <button
-                key={node.id}
-                type="button"
-                className={`graph-node graph-node-${node.type} ${selected?.id === node.id ? "selected" : ""}`}
-                style={{ left: `${node.x}%`, top: `${node.y}%` }}
-                onClick={() => setSelectedId(node.id)}
-              >
-                <GitBranch size={15} aria-hidden="true" />
-                <strong>{node.label}</strong>
-                <span>{node.meta}</span>
-              </button>
-            ))}
+          <div
+            ref={canvasRef}
+            className={`graph-canvas ${isPanning ? "is-panning" : ""}`}
+            role="img"
+            aria-label={`${humanize(mode)} graph. Drag empty space to pan, use the wheel to zoom.`}
+            onPointerDown={handleCanvasPointerDown}
+            onPointerMove={handleCanvasPointerMove}
+            onPointerUp={handleCanvasPointerEnd}
+            onPointerCancel={handleCanvasPointerEnd}
+            onWheel={handleCanvasWheel}
+          >
+            <div
+              className="graph-pan-layer"
+              style={{ transform: `translate3d(${viewport.x}px, ${viewport.y}px, 0) scale(${viewport.zoom})` }}
+            >
+              <svg className="graph-edges" aria-hidden="true">
+                {visibleGraph.edges.map((edge) => {
+                  const source = visibleGraph.nodes.find((node) => node.id === edge.source);
+                  const target = visibleGraph.nodes.find((node) => node.id === edge.target);
+                  if (!source || !target) return null;
+                  return (
+                    <line
+                      key={edge.id}
+                      x1={`${source.x}%`}
+                      y1={`${source.y}%`}
+                      x2={`${target.x}%`}
+                      y2={`${target.y}%`}
+                    />
+                  );
+                })}
+              </svg>
+              {visibleGraph.nodes.map((node) => (
+                <button
+                  key={node.id}
+                  type="button"
+                  className={`graph-node graph-node-${node.type} ${selected?.id === node.id ? "selected" : ""}`}
+                  style={{ left: `${node.x}%`, top: `${node.y}%` }}
+                  onClick={() => setSelectedId(node.id)}
+                >
+                  <GitBranch size={15} aria-hidden="true" />
+                  <strong>{node.label}</strong>
+                  <span>{node.meta}</span>
+                </button>
+              ))}
+            </div>
           </div>
           <DetailPanel node={selected} />
         </section>
       )}
     </main>
   );
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function DetailPanel({ node }: { node: ViewNode | null }) {

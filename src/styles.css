@@ -1481,11 +1481,25 @@ td span {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   overflow: hidden;
+  cursor: grab;
   background:
     linear-gradient(rgba(255, 248, 232, 0.035) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 248, 232, 0.023) 1px, transparent 1px),
     rgba(9, 9, 8, 0.82);
   background-size: 34px 34px;
+  touch-action: none;
+  user-select: none;
+}
+
+.graph-canvas.is-panning {
+  cursor: grabbing;
+}
+
+.graph-pan-layer {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+  will-change: transform;
 }
 
 .graph-edges {
