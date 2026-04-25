@@ -11,13 +11,12 @@ import {
   ShieldCheck,
   X
 } from "lucide-react";
-import { useState } from "react";
+import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { EvidenceDrawer } from "../components/EvidenceDrawer";
 import { StatusPill } from "../components/StatusPill";
 import { backendLabel, humanize, satsToBtc, severityRank } from "../lib/format";
-import type { EvidenceItem } from "../lib/ops";
-import { AlertSignalPanel } from "./Alerts";
-import type { ActionItem, Severity, WalletReport } from "../types/domain";
+import { buildGuidedActions, type EvidenceItem, type GuidedActionItem } from "../lib/ops";
+import type { ActionItem, ConfidenceLevel, Severity, WalletReport } from "../types/domain";
 
 interface CockpitProps {
   report: WalletReport;
@@ -37,16 +36,52 @@ interface RiskPosture {
   ctaPage: string;
 }
 
+interface CockpitActionItem {
+  id: string;
+  source: "risk" | "guided";
+  severity: Severity;
+  confidence: ConfidenceLevel;
+  title: string;
+  summary: string;
+  recommendedAction: string;
+  affectedCount: number;
+  ctaPage: string;
+  ctaLabel: string;
+  dismissActionId?: string;
+}
+
 export function Cockpit({ report, onNavigate, onDismissAction }: CockpitProps) {
   const [actionCenterOpen, setActionCenterOpen] = useState(true);
   const [readinessOpen, setReadinessOpen] = useState(true);
   const [activeEvidence, setActiveEvidence] = useState<EvidenceItem | null>(null);
-  const topActions = [...report.actions].sort((a, b) => severityRank(b.severity) - severityRank(a.severity));
+  const [highlightedActionId, setHighlightedActionId] = useState<string | null>(null);
+  const topActions = [
+    ...report.actions.map(mapReportAction),
+    ...buildGuidedActions(report).map(mapGuidedAction)
+  ].sort((a, b) => severityRank(b.severity) - severityRank(a.severity));
   const topAction = topActions[0] ?? null;
   const urgentCount = topActions.filter((action) => ["high", "critical"].includes(action.severity)).length;
   const unknownCount = report.provenance_summary.unknown_count;
   const exchangeCount = report.provenance_summary.exchange_like_count;
   const posture = buildRiskPosture(report, topAction, urgentCount);
+
+  function revealSafestNextStep() {
+    if (!topAction) {
+      onNavigate(posture.ctaPage);
+      return;
+    }
+
+    setActionCenterOpen(true);
+    setHighlightedActionId(topAction.id);
+    window.setTimeout(() => {
+      const target = document.getElementById(actionDomId(topAction.id));
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      target?.scrollIntoView({ block: "center", behavior: prefersReducedMotion ? "auto" : "smooth" });
+    }, 40);
+    window.setTimeout(() => {
+      setHighlightedActionId((current) => current === topAction.id ? null : current);
+    }, 3200);
+  }
 
   return (
     <main className="page-shell cockpit-shell">
@@ -60,9 +95,9 @@ export function Cockpit({ report, onNavigate, onDismissAction }: CockpitProps) {
             <span>Urgent reviews</span>
             <strong>{urgentCount}</strong>
           </div>
-          <div className={`cockpit-command-signal ${report.actions.length ? "cockpit-command-warn" : "cockpit-command-clear"}`}>
+          <div className={`cockpit-command-signal ${topActions.length ? "cockpit-command-warn" : "cockpit-command-clear"}`}>
             <span>Active actions</span>
-            <strong>{report.actions.length}</strong>
+            <strong>{topActions.length}</strong>
           </div>
         </div>
       </section>
@@ -84,8 +119,18 @@ export function Cockpit({ report, onNavigate, onDismissAction }: CockpitProps) {
         <div className="risk-next-step">
           <span>{humanize(posture.confidence)} confidence · {affectedCoinText(posture.affectedCount)}</span>
           <p>{posture.nextAction}</p>
-          <button type="button" className="primary-button" onClick={() => onNavigate(posture.ctaPage)}>
-            Open safest next step <ArrowRight size={16} />
+          <button
+            type="button"
+            className="primary-button"
+            onClick={revealSafestNextStep}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                revealSafestNextStep();
+              }
+            }}
+          >
+            Show highlighted action <ArrowRight size={16} />
           </button>
         </div>
       </section>
@@ -101,27 +146,23 @@ export function Cockpit({ report, onNavigate, onDismissAction }: CockpitProps) {
 
       <section className="cockpit-grid risk-led-grid">
         <div className="panel action-center-panel">
-          <div className="panel-heading">
-            <h2>Action Center</h2>
-            <div className="panel-heading-actions">
-              <StatusPill label="ranked by risk" tone={topActions.length ? "warn" : "good"} />
-              <button
-                type="button"
-                className="ghost-button collapse-button"
-                onClick={() => setActionCenterOpen((current) => !current)}
-                aria-expanded={actionCenterOpen}
-              >
-                {actionCenterOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                {actionCenterOpen ? "Collapse" : "Show"}
-              </button>
-            </div>
-          </div>
+          <CollapsiblePanelHeading
+            title="Action Center"
+            open={actionCenterOpen}
+            onToggle={() => setActionCenterOpen((current) => !current)}
+          >
+            <span className={`action-count-signal ${topActions.length ? "" : "action-count-clear"}`}>
+              {topActions.length ? `${topActions.length} actions waiting` : "No active actions"}
+            </span>
+            <StatusPill label="ranked by risk" tone={topActions.length ? "warn" : "good"} />
+          </CollapsiblePanelHeading>
           {actionCenterOpen && topActions.length ? (
             <div className="action-center-list">
               {topActions.map((action) => (
                 <ActionCard
                   key={action.id}
                   action={action}
+                  highlighted={highlightedActionId === action.id}
                   onNavigate={onNavigate}
                   onDismissAction={onDismissAction}
                 />
@@ -135,21 +176,13 @@ export function Cockpit({ report, onNavigate, onDismissAction }: CockpitProps) {
 
         <div className="cockpit-support-stack">
           <section className="panel cockpit-briefing">
-            <div className="panel-heading">
-              <h2>Readiness Summary</h2>
-              <div className="panel-heading-actions">
-                <StatusPill label="closed beta" tone="warn" />
-                <button
-                  type="button"
-                  className="ghost-button collapse-button"
-                  onClick={() => setReadinessOpen((current) => !current)}
-                  aria-expanded={readinessOpen}
-                >
-                  {readinessOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                  {readinessOpen ? "Collapse" : "Show"}
-                </button>
-              </div>
-            </div>
+            <CollapsiblePanelHeading
+              title="Readiness Summary"
+              open={readinessOpen}
+              onToggle={() => setReadinessOpen((current) => !current)}
+            >
+              <StatusPill label="closed beta" tone="warn" />
+            </CollapsiblePanelHeading>
             {readinessOpen ? (
               <>
                 <div className="briefing-grid">
@@ -171,8 +204,6 @@ export function Cockpit({ report, onNavigate, onDismissAction }: CockpitProps) {
               </>
             ) : null}
           </section>
-
-          <AlertSignalPanel report={report} />
         </div>
       </section>
       <EvidenceDrawer item={activeEvidence} onClose={() => setActiveEvidence(null)} />
@@ -180,7 +211,7 @@ export function Cockpit({ report, onNavigate, onDismissAction }: CockpitProps) {
   );
 }
 
-function buildRiskPosture(report: WalletReport, topAction: ActionItem | null, urgentCount: number): RiskPosture {
+function buildRiskPosture(report: WalletReport, topAction: CockpitActionItem | null, urgentCount: number): RiskPosture {
   const score = Math.min(
     report.scores.privacy,
     report.scores.spend_readiness,
@@ -198,10 +229,10 @@ function buildRiskPosture(report: WalletReport, topAction: ActionItem | null, ur
       score,
       severity: topAction.severity,
       driver: topAction.title,
-      nextAction: topAction.recommended_action,
-      confidence: topAction.confidence_level,
-      affectedCount: topAction.affected_utxos.length,
-      ctaPage: topAction.cta_page
+      nextAction: topAction.recommendedAction,
+      confidence: topAction.confidence,
+      affectedCount: topAction.affectedCount,
+      ctaPage: topAction.ctaPage
     };
   }
 
@@ -218,25 +249,63 @@ function buildRiskPosture(report: WalletReport, topAction: ActionItem | null, ur
   };
 }
 
+function mapReportAction(action: ActionItem): CockpitActionItem {
+  return {
+    id: `risk:${action.id}`,
+    source: "risk",
+    severity: action.severity,
+    confidence: action.confidence_level,
+    title: action.title,
+    summary: action.summary,
+    recommendedAction: action.recommended_action,
+    affectedCount: action.affected_utxos.length,
+    ctaPage: action.cta_page,
+    ctaLabel: "Open module",
+    dismissActionId: action.id
+  };
+}
+
+function mapGuidedAction(mission: GuidedActionItem): CockpitActionItem {
+  return {
+    id: `guided:${mission.id}`,
+    source: "guided",
+    severity: mission.severity,
+    confidence: mission.confidence,
+    title: mission.title,
+    summary: mission.why,
+    recommendedAction: mission.action,
+    affectedCount: mission.affectedCount ?? mission.affectedOutpoints.length,
+    ctaPage: mission.page,
+    ctaLabel: mission.ctaLabel
+  };
+}
+
 function ActionCard({
   action,
+  highlighted,
   onNavigate,
   onDismissAction
 }: {
-  action: ActionItem;
+  action: CockpitActionItem;
+  highlighted: boolean;
   onNavigate: (page: string) => void;
   onDismissAction: (actionId: string) => void;
 }) {
+  const dismissActionId = action.dismissActionId;
+
   return (
-    <article className={`action-card action-card-${action.severity}`}>
+    <article id={actionDomId(action.id)} className={`action-card action-card-${action.severity} ${highlighted ? "action-card-highlight" : ""}`}>
       <div className="action-card-topline">
         <div className="finding-title">
           <span className={`action-severity-text action-severity-${action.severity}`}>{humanize(action.severity)}</span>
-          <span>{humanize(action.confidence_level)} confidence</span>
+          <span>{humanize(action.confidence)} confidence</span>
+          {action.source === "guided" ? <span className="action-source-text">Guided op</span> : null}
         </div>
-        <button type="button" className="icon-button action-dismiss" onClick={() => onDismissAction(action.id)} aria-label={`Dismiss ${action.title}`}>
-          <X size={14} />
-        </button>
+        {dismissActionId ? (
+          <button type="button" className="icon-button action-dismiss" onClick={() => onDismissAction(dismissActionId)} aria-label={`Dismiss ${action.title}`}>
+            <X size={14} />
+          </button>
+        ) : null}
       </div>
       <div className="action-card-copy">
         <div>
@@ -245,17 +314,60 @@ function ActionCard({
         </div>
         <div className="action-card-detail">
           <strong>Next</strong>
-          <span>{action.recommended_action}</span>
+          <span>{action.recommendedAction}</span>
         </div>
       </div>
       <div className="action-card-footer">
-        <span>{affectedCoinText(action.affected_utxos.length)}</span>
-        <button type="button" className="secondary-button" onClick={() => onNavigate(action.cta_page)}>
-          Open module <ArrowRight size={15} />
+        <span>{affectedCoinText(action.affectedCount)}</span>
+        <button type="button" className="secondary-button" onClick={() => onNavigate(action.ctaPage)}>
+          {action.ctaLabel} <ArrowRight size={15} />
         </button>
       </div>
     </article>
   );
+}
+
+function CollapsiblePanelHeading({
+  title,
+  open,
+  onToggle,
+  children
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onToggle();
+    }
+  }
+
+  return (
+    <div
+      className="panel-heading collapsible-panel-heading"
+      role="button"
+      tabIndex={0}
+      aria-expanded={open}
+      onClick={onToggle}
+      onKeyDown={handleKeyDown}
+    >
+      <h2>{title}</h2>
+      <div className="panel-heading-actions">
+        {children}
+        <span className="collapse-affordance">
+          {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          {open ? "Collapse" : "Open"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function actionDomId(id: string) {
+  return `action-center-${id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 }
 
 function affectedCoinText(count: number) {

@@ -37,7 +37,7 @@ Legacy route aliases should continue to redirect instead of breaking existing CT
 
 - The app remains pre-sign only: no signing, finalization, extraction, broadcast, custody, or transaction construction.
 - Import rejects obvious private material such as seed phrases, private keys, WIF keys, and xprv-like inputs.
-- Cockpit is the primary command surface with Risk Posture, Action Center, Mission Queue, and concise wallet posture instruments.
+- Cockpit is the primary command surface with Risk Posture, a consolidated Action Center, and concise wallet posture instruments.
 - Coin Workbench supports UTXO inspection, labels, provenance evidence, quarantine/spend status, coin decision states, and saved coin sets.
 - Spend Preflight explains observer inference for candidate coin groups without constructing transactions.
 - Recovery surfaces descriptor, fingerprint, path, gap-risk, and export-readiness checks.
@@ -101,7 +101,7 @@ Expected package artifacts on Windows:
 - Public Electrum requires acknowledgement that script-hash queries can reveal wallet activity.
 - Network Lock blocks Public Electrum, Public Esplora, remote Esplora, and remote Electrum before import.
 - Cockpit Risk Posture is the obvious first read.
-- Mission Queue can collapse and stays secondary to Risk Posture.
+- Action Center contains both ranked risks and guided operator actions, and its header toggles the section open or closed.
 - Action CTAs navigate to the correct parent modules.
 - Coin Workbench filters, selected coins, drawer state, labels, quarantine, and coin sets work.
 - Spend Preflight selected coins, amount, fee, and change assumptions remain editable.

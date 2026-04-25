@@ -13,7 +13,6 @@ import {
 import { useEffect, useState } from "react";
 import { dismissAction, getCurrentWallet, updateUtxos as persistUtxos } from "./api/tauri";
 import { BrandMark } from "./components/BrandMark";
-import { clearMissionQueueState, MissionQueue } from "./components/MissionQueue";
 import {
   SovereignOpsTutorial,
   TUTORIAL_STEPS,
@@ -443,67 +442,58 @@ export default function App() {
                 <strong>{report ? report.wallet.network : "not loaded"}</strong>
               </div>
             </div>
-            {report ? (
-          <MissionQueue
-            report={report}
-            onNavigate={navigateToAction}
-            workspaceCollapsed={workspace?.missionQueueCollapsed}
-            onWorkspaceCollapsedChange={(missionQueueCollapsed) => saveWorkspacePatch({ missionQueueCollapsed })}
-          />
-        ) : null}
-        {page === "cockpit" && report ? (
-          <Cockpit report={report} onNavigate={navigateToAction} onDismissAction={dismissCockpitAction} />
-        ) : null}
-        {page === "utxos" && report ? (
-          <UtxoTable
-            report={report}
-            onUpdateUtxos={updateUtxos}
-            workspaceState={workspace?.workbench}
-            onWorkspaceChange={(workbench) => saveWorkspacePatch({ workbench: { ...workspace?.workbench, ...workbench } })}
-          />
-        ) : null}
-        {page === "spend_preflight" && report ? (
-          <SpendPreview
-            report={report}
-            workspaceState={workspace?.spendPreflight}
-            onWorkspaceChange={(spendPreflight) => saveWorkspacePatch({ spendPreflight: { ...workspace?.spendPreflight, ...spendPreflight } })}
-          />
-        ) : null}
-        {page === "psbt" && report ? <PsbtLinter report={report} /> : null}
-        {page === "recovery" && report ? <RecoveryHealth report={report} onNavigate={navigateToAction} /> : null}
-        {page === "graph" && report ? (
-          <GraphView
-            report={report}
-            workspaceState={workspace?.graph}
-            onWorkspaceChange={(graph) => saveWorkspacePatch({ graph: { ...workspace?.graph, ...graph } })}
-          />
-        ) : null}
-        {page === "docs" ? (
-          <Documentation
-            reportLoaded={Boolean(report)}
-            workspaceState={workspace?.documentation}
-            onWorkspaceChange={(documentation) => report ? saveWorkspacePatch({ documentation: { ...workspace?.documentation, ...documentation } }) : undefined}
-          />
-        ) : null}
-        {page === "settings" && report ? (
-          <Settings
-            report={report}
-            backendPreferences={backendPreferences}
-            networkPolicy={networkPolicy}
-            onBackendPreferencesChange={changeBackendPreferences}
-            onNetworkPolicyChange={changeNetworkPolicy}
-            onTutorialReset={resetTutorial}
-            onOpenSetup={openSetupOnboarding}
-            onCacheCleared={() => {
-              clearWorkspaceSnapshot(report.wallet.id);
-              clearMissionQueueState(report.wallet.id);
-              setOnboardingComplete(clearOnboardingComplete());
-              setWorkspace(null);
-              setReport(null);
-              setPage("import");
-            }}
-          />
-        ) : null}
+            {page === "cockpit" && report ? (
+              <Cockpit report={report} onNavigate={navigateToAction} onDismissAction={dismissCockpitAction} />
+            ) : null}
+            {page === "utxos" && report ? (
+              <UtxoTable
+                report={report}
+                onUpdateUtxos={updateUtxos}
+                workspaceState={workspace?.workbench}
+                onWorkspaceChange={(workbench) => saveWorkspacePatch({ workbench: { ...workspace?.workbench, ...workbench } })}
+              />
+            ) : null}
+            {page === "spend_preflight" && report ? (
+              <SpendPreview
+                report={report}
+                workspaceState={workspace?.spendPreflight}
+                onWorkspaceChange={(spendPreflight) => saveWorkspacePatch({ spendPreflight: { ...workspace?.spendPreflight, ...spendPreflight } })}
+              />
+            ) : null}
+            {page === "psbt" && report ? <PsbtLinter report={report} /> : null}
+            {page === "recovery" && report ? <RecoveryHealth report={report} onNavigate={navigateToAction} /> : null}
+            {page === "graph" && report ? (
+              <GraphView
+                report={report}
+                workspaceState={workspace?.graph}
+                onWorkspaceChange={(graph) => saveWorkspacePatch({ graph: { ...workspace?.graph, ...graph } })}
+              />
+            ) : null}
+            {page === "docs" ? (
+              <Documentation
+                reportLoaded={Boolean(report)}
+                workspaceState={workspace?.documentation}
+                onWorkspaceChange={(documentation) => report ? saveWorkspacePatch({ documentation: { ...workspace?.documentation, ...documentation } }) : undefined}
+              />
+            ) : null}
+            {page === "settings" && report ? (
+              <Settings
+                report={report}
+                backendPreferences={backendPreferences}
+                networkPolicy={networkPolicy}
+                onBackendPreferencesChange={changeBackendPreferences}
+                onNetworkPolicyChange={changeNetworkPolicy}
+                onTutorialReset={resetTutorial}
+                onOpenSetup={openSetupOnboarding}
+                onCacheCleared={() => {
+                  clearWorkspaceSnapshot(report.wallet.id);
+                  setOnboardingComplete(clearOnboardingComplete());
+                  setWorkspace(null);
+                  setReport(null);
+                  setPage("import");
+                }}
+              />
+            ) : null}
           </div>
         </>
       )}
