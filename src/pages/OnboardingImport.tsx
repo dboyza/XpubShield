@@ -1,8 +1,8 @@
-import { AlertTriangle, ArrowLeft, ArrowRight, Database, FileKey2, Lock, Server, Upload, WalletCards } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, ChevronDown, CircleHelp, Database, FileKey2, Lock, Server, Upload, WalletCards } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { importWallet, isTauriRuntime, loadDemoWallet, looksLikePrivateMaterial } from "../api/tauri";
 import { BrandMark } from "../components/BrandMark";
-import { PrivacyWarning } from "../components/PrivacyWarning";
+import { WarningDialog } from "../components/WarningDialog";
 import { backendLabel } from "../lib/format";
 import { ELECTRUM_PRESETS, type BackendPreferences, type ElectrumPresetId } from "../lib/setupPreferences";
 import type { BackendKind, ImportRequest, Network, NetworkPolicy, ScriptType, WalletReport } from "../types/domain";
@@ -15,6 +15,14 @@ interface OnboardingImportProps {
   onNetworkPolicyChange: (policy: NetworkPolicy) => void;
   onImported: (report: WalletReport) => void;
 }
+
+type WarningDialogKind = "private-material" | "public-backend";
+
+const NETWORK_HELP =
+  "Mainnet uses real BTC. Testnet and Signet use test coins. Regtest is a private local chain.";
+
+const NODE_SERVER_HELP =
+  "Demo uses fixture data. Bitcoin Core RPC is your node. Private Electrum and self-hosted Esplora are operator-run. Public Electrum and Public Esplora are third-party query services.";
 
 export function OnboardingImport({
   firstRun = false,
@@ -44,6 +52,8 @@ export function OnboardingImport({
   const [esploraBaseUrl, setEsploraBaseUrl] = useState(backendPreferences.esploraBaseUrl);
   const [esploraUseTor, setEsploraUseTor] = useState(backendPreferences.esploraUseTor);
   const [acknowledgedPublicApi, setAcknowledgedPublicApi] = useState(false);
+  const [runtimeNoticeOpen, setRuntimeNoticeOpen] = useState(false);
+  const [warningDialog, setWarningDialog] = useState<WarningDialogKind | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -117,12 +127,44 @@ export function OnboardingImport({
 
   function handleServerContinue() {
     setError(null);
-    const backendError = validateBackendConfiguration();
+    const backendError = validateBackendConfiguration({ requirePublicAcknowledgement: false });
     if (backendError) {
       setError(backendError);
       return;
     }
+    if (publicBackendMode && !acknowledgedPublicApi) {
+      setWarningDialog("public-backend");
+      return;
+    }
     setSetupStep("wallet");
+  }
+
+  function confirmPublicBackendWarning() {
+    setAcknowledgedPublicApi(true);
+    setWarningDialog(null);
+    setSetupStep("wallet");
+  }
+
+  function rejectPrivateMaterial(importTarget: "descriptor" | "xpub" = importKind) {
+    if (importTarget === "descriptor") {
+      setDescriptor("");
+    } else {
+      setXpub("");
+    }
+    setError(null);
+    setWarningDialog("private-material");
+  }
+
+  function handleWalletMaterialChange(importTarget: "descriptor" | "xpub", value: string) {
+    if (looksLikePrivateMaterial(value)) {
+      rejectPrivateMaterial(importTarget);
+      return;
+    }
+    if (importTarget === "descriptor") {
+      setDescriptor(value);
+    } else {
+      setXpub(value);
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -140,9 +182,7 @@ export function OnboardingImport({
       return;
     }
     if (looksLikePrivateMaterial(pasted)) {
-      setError(
-        "Private key material was rejected. This app is watch-only and does not process seeds, xprv values, WIF keys, or signing material."
-      );
+      rejectPrivateMaterial();
       return;
     }
     if (importKind === "descriptor" && looksLikeBareXpub(pasted)) {
@@ -226,14 +266,16 @@ export function OnboardingImport({
     }
   }
 
-  function validateBackendConfiguration(): string | null {
+  function validateBackendConfiguration({
+    requirePublicAcknowledgement = true
+  }: { requirePublicAcknowledgement?: boolean } = {}): string | null {
     if (networkLocked && backend !== "mock" && backend !== "bitcoin_core_rpc") {
       return "Network Lock is enabled. Choose Mock backend or local Bitcoin Core RPC before importing.";
     }
     if (networkLocked && backend === "bitcoin_core_rpc" && !isLocalEndpoint(bitcoinCoreUrl)) {
       return "Network Lock requires Bitcoin Core RPC to use localhost, 127.0.0.1, or [::1].";
     }
-    if (publicBackendMode && !acknowledgedPublicApi) {
+    if (requirePublicAcknowledgement && publicBackendMode && !acknowledgedPublicApi) {
       return publicElectrumMode
         ? "Public Electrum requires acknowledging the script-hash privacy warning."
         : "Public API mode requires acknowledging the privacy warning.";
@@ -277,31 +319,36 @@ export function OnboardingImport({
           </div>
         ) : null}
 
-        <PrivacyWarning publicApiMode={publicBackendMode} publicBackendKind={backend} />
-
         {!desktopPersistenceAvailable ? (
-          <div className="runtime-notice" role="status">
-            <Database size={18} aria-hidden="true" />
-            <div>
-              <strong>Browser demo mode</strong>
-              <p>This localhost session does not have Tauri IPC, so desktop SQLite persistence and live commands may be unavailable. The packaged app stores wallet metadata locally.</p>
-            </div>
-          </div>
+          <aside className={`runtime-notice ${runtimeNoticeOpen ? "runtime-notice-open" : ""}`} role="status">
+            <button
+              type="button"
+              className="runtime-notice-toggle"
+              aria-expanded={runtimeNoticeOpen}
+              onClick={() => setRuntimeNoticeOpen((open) => !open)}
+            >
+              <Database size={16} aria-hidden="true" />
+              <span>Browser demo</span>
+              <ChevronDown size={14} aria-hidden="true" />
+            </button>
+            {runtimeNoticeOpen ? (
+              <p>
+                This localhost session does not have Tauri IPC, so desktop SQLite persistence and
+                live commands may be unavailable. The packaged app stores wallet metadata locally.
+              </p>
+            ) : null}
+          </aside>
         ) : null}
 
         {firstRun && setupStep === "server" ? (
           <div className="import-form server-step">
             <div className="setup-intro">
               <strong>Pick the source XpubShield should query for watch-only blockchain data.</strong>
-              <p>
-                Raw xpubs and descriptors stay local. Public servers are convenient, but they can infer
-                wallet activity from address or script-hash queries.
-              </p>
             </div>
 
             <div className="form-grid essential-grid">
               <label>
-                Network
+                <FieldLabel label="Network" tooltip={NETWORK_HELP} />
                 <select value={network} onChange={(event) => setNetwork(event.target.value as Network)}>
                   <option value="mainnet">Mainnet</option>
                   <option value="testnet">Testnet</option>
@@ -310,7 +357,7 @@ export function OnboardingImport({
                 </select>
               </label>
               <label>
-                Node server
+                <FieldLabel label="Node server" tooltip={NODE_SERVER_HELP} />
                 <select value={backend} onChange={(event) => setBackend(event.target.value as BackendKind)}>
                   <option value="mock">Demo / mock backend</option>
                   <option value="bitcoin_core_rpc">Bitcoin Core RPC</option>
@@ -338,21 +385,6 @@ export function OnboardingImport({
                 Restrict imports to mock/offline mode or localhost Bitcoin Core RPC.
               </span>
             </label>
-
-            {publicBackendMode ? (
-              <label className="checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={acknowledgedPublicApi}
-                  onChange={(event) => setAcknowledgedPublicApi(event.target.checked)}
-                />
-                <span>
-                  {publicElectrumMode
-                    ? "I understand public Electrum sees script-hash queries and can infer wallet activity. XpubShield does not route Tor yet."
-                    : "I understand public API mode is weak privacy and must not receive raw xpubs or descriptors."}
-                </span>
-              </label>
-            ) : null}
 
             {backend === "bitcoin_core_rpc" ? (
               <details className="advanced-section backend-config" open>
@@ -497,7 +529,7 @@ export function OnboardingImport({
               Descriptor
               <textarea
                 value={descriptor}
-                onChange={(event) => setDescriptor(event.target.value)}
+                onChange={(event) => handleWalletMaterialChange("descriptor", event.target.value)}
                 placeholder="wpkh([d34db33f/84h/0h/0h]xpub.../0/*)"
                 rows={5}
               />
@@ -507,7 +539,7 @@ export function OnboardingImport({
               Public extended key
               <textarea
                 value={xpub}
-                onChange={(event) => setXpub(event.target.value)}
+                onChange={(event) => handleWalletMaterialChange("xpub", event.target.value)}
                 placeholder="xpub..."
                 rows={4}
               />
@@ -518,7 +550,7 @@ export function OnboardingImport({
             <>
               <div className="form-grid essential-grid">
                 <label>
-                  Network
+                  <FieldLabel label="Network" tooltip={NETWORK_HELP} />
                   <select value={network} onChange={(event) => setNetwork(event.target.value as Network)}>
                     <option value="mainnet">Mainnet</option>
                     <option value="testnet">Testnet</option>
@@ -527,7 +559,7 @@ export function OnboardingImport({
                   </select>
                 </label>
                 <label>
-                  Backend
+                  <FieldLabel label="Backend" tooltip={NODE_SERVER_HELP} />
                   <select value={backend} onChange={(event) => setBackend(event.target.value as BackendKind)}>
                     <option value="mock">Mock backend</option>
                     <option value="bitcoin_core_rpc">Bitcoin Core RPC</option>
@@ -739,7 +771,46 @@ export function OnboardingImport({
         </form>
         )}
       </section>
+      {warningDialog === "private-material" ? (
+        <WarningDialog
+          title="Signing material rejected"
+          icon="alert"
+          confirmLabel="Got it"
+          onClose={() => setWarningDialog(null)}
+        >
+          <p>
+            XpubShield rejects seed phrases, private keys, xprv values, WIF keys, and signing
+            material. The field was cleared so this watch-only session does not retain it.
+          </p>
+        </WarningDialog>
+      ) : null}
+      {warningDialog === "public-backend" ? (
+        <WarningDialog
+          title={publicElectrumMode ? "Public Electrum privacy warning" : "Public backend privacy warning"}
+          confirmLabel="Continue"
+          cancelLabel="Go back"
+          onClose={() => setWarningDialog(null)}
+          onConfirm={confirmPublicBackendWarning}
+        >
+          <p>
+            {publicElectrumMode
+              ? "Public Electrum can reveal script-hash queries and timing metadata. XpubShield derives script hashes locally and never sends a raw xpub or descriptor."
+              : "Public API mode can reveal address queries and timing metadata. XpubShield must never send a raw xpub or descriptor to a third-party API."}
+          </p>
+        </WarningDialog>
+      ) : null}
     </main>
+  );
+}
+
+function FieldLabel({ label, tooltip }: { label: string; tooltip: string }) {
+  return (
+    <span className="field-label-row">
+      <span>{label}</span>
+      <span className="field-help tooltip-button" tabIndex={0} aria-label={tooltip} title={tooltip} data-tooltip={tooltip}>
+        <CircleHelp size={14} aria-hidden="true" />
+      </span>
+    </span>
   );
 }
 
