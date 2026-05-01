@@ -770,9 +770,49 @@ function backendChoiceSummary(backend: BackendKind): string {
 }
 
 function isLocalEndpoint(value: string): boolean {
+  const authority = parseHttpAuthority(value);
+  return authority ? isLoopbackHost(authority.host) : false;
+}
+
+function parseHttpAuthority(value: string): { host: string } | null {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("http://")) return null;
+  const authority = trimmed.slice("http://".length).split("/")[0];
+  if (!authority || authority.includes("@")) return null;
+
+  if (authority.startsWith("[")) {
+    const end = authority.indexOf("]");
+    if (end <= 1) return null;
+    const suffix = authority.slice(end + 1);
+    if (suffix && (!suffix.startsWith(":") || !isValidPort(suffix.slice(1)))) return null;
+    return { host: authority.slice(1, end).toLowerCase() };
+  }
+
+  if (authority.includes("[") || authority.includes("]")) return null;
+  const portSeparator = authority.lastIndexOf(":");
+  const host = portSeparator >= 0 ? authority.slice(0, portSeparator) : authority;
+  const port = portSeparator >= 0 ? authority.slice(portSeparator + 1) : "";
+  if (!host || host.includes(":")) return null;
+  if (portSeparator >= 0 && !isValidPort(port)) return null;
+  return { host: host.toLowerCase() };
+}
+
+function isValidPort(value: string): boolean {
+  if (!/^\d+$/.test(value)) return false;
+  const port = Number(value);
+  return Number.isInteger(port) && port <= 65535;
+}
+
+function isLoopbackHost(host: string): boolean {
+  if (host === "localhost" || host === "::1") return true;
+  const octets = host.split(".");
   return (
-    value.startsWith("http://127.0.0.1") ||
-    value.startsWith("http://localhost") ||
-    value.startsWith("http://[::1]")
+    octets.length === 4 &&
+    octets[0] === "127" &&
+    octets.every((octet) => {
+      if (!/^\d+$/.test(octet)) return false;
+      const value = Number(octet);
+      return Number.isInteger(value) && value >= 0 && value <= 255;
+    })
   );
 }

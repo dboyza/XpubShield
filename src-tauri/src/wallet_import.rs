@@ -444,4 +444,22 @@ mod tests {
             ImportError::NetworkLockViolation
         );
     }
+
+    #[test]
+    fn network_lock_rejects_loopback_prefix_bitcoin_core_url() {
+        let mut request = base_request(ImportKind::Demo);
+        request.backend = Some(BackendKind::BitcoinCoreRpc);
+        request.network_policy = Some(NetworkPolicy::LocalOnly);
+        request.bitcoin_core_rpc = Some(BitcoinCoreRpcConfig {
+            url: "http://localhost.evil.test:8332".to_string(),
+            username: None,
+            password: None,
+            wallet: None,
+        });
+
+        assert_eq!(
+            validate_import(request).unwrap_err(),
+            ImportError::NetworkLockViolation
+        );
+    }
 }

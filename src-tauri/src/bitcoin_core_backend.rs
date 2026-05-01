@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
 use std::io::{Read, Write};
-use std::net::TcpStream;
+use std::net::{IpAddr, TcpStream};
 use std::time::Duration;
 use thiserror::Error;
 
@@ -203,9 +203,7 @@ impl BitcoinCoreBackend {
 }
 
 pub fn is_local_rpc_url(url: &str) -> bool {
-    url.starts_with("http://127.0.0.1")
-        || url.starts_with("http://localhost")
-        || url.starts_with("http://[::1]")
+    parse_rpc_url(url).is_ok()
 }
 
 pub fn scan_objects_for_addresses<'a>(addresses: impl Iterator<Item = &'a str>) -> Vec<String> {
@@ -340,20 +338,7 @@ struct RpcEndpoint {
 
 impl RpcEndpoint {
     fn parse(url: &str, wallet: Option<&str>) -> Result<Self, BitcoinCoreError> {
-        if !url.starts_with("http://") {
-            return Err(BitcoinCoreError::UnsupportedUrl);
-        }
-        if !is_local_rpc_url(url) {
-            return Err(BitcoinCoreError::NonLocalUrl);
-        }
-        let rest = &url["http://".len()..];
-        let (authority, path) = rest.split_once('/').unwrap_or((rest, ""));
-        let (host, port) = parse_authority(authority)?;
-        let mut path = if path.is_empty() {
-            "/".to_string()
-        } else {
-            format!("/{path}")
-        };
+        let (host, port, mut path) = parse_rpc_url(url)?;
         if let Some(wallet) = wallet.filter(|wallet| !wallet.trim().is_empty()) {
             path = format!("{}/wallet/{}", path.trim_end_matches('/'), wallet.trim());
         }
@@ -361,19 +346,79 @@ impl RpcEndpoint {
     }
 }
 
-fn parse_authority(authority: &str) -> Result<(String, u16), BitcoinCoreError> {
-    if authority.starts_with("[::1]") {
-        let port = authority
-            .strip_prefix("[::1]:")
-            .and_then(|value| value.parse::<u16>().ok())
-            .unwrap_or(8332);
-        return Ok(("::1".to_string(), port));
+fn parse_rpc_url(url: &str) -> Result<(String, u16, String), BitcoinCoreError> {
+    let rest = url
+        .strip_prefix("http://")
+        .ok_or(BitcoinCoreError::UnsupportedUrl)?;
+    let (authority, path) = rest.split_once('/').unwrap_or((rest, ""));
+    let (host, port) = parse_authority(authority)?;
+    if !is_loopback_rpc_host(&host) {
+        return Err(BitcoinCoreError::NonLocalUrl);
     }
-    let (host, port) = authority
-        .rsplit_once(':')
-        .map(|(host, port)| (host, port.parse::<u16>().unwrap_or(8332)))
-        .unwrap_or((authority, 8332));
-    Ok((host.to_string(), port))
+    let path = if path.is_empty() {
+        "/".to_string()
+    } else {
+        format!("/{path}")
+    };
+    Ok((host, port, path))
+}
+
+fn parse_authority(authority: &str) -> Result<(String, u16), BitcoinCoreError> {
+    let authority = authority.trim();
+    if authority.is_empty() || authority.contains('@') {
+        return Err(BitcoinCoreError::NonLocalUrl);
+    }
+
+    if let Some(rest) = authority.strip_prefix('[') {
+        let Some((host, suffix)) = rest.split_once(']') else {
+            return Err(BitcoinCoreError::NonLocalUrl);
+        };
+        if host.is_empty() {
+            return Err(BitcoinCoreError::NonLocalUrl);
+        }
+        let port = if suffix.is_empty() {
+            8332
+        } else if let Some(port) = suffix.strip_prefix(':') {
+            parse_port(port)?
+        } else {
+            return Err(BitcoinCoreError::NonLocalUrl);
+        };
+        return Ok((host.to_ascii_lowercase(), port));
+    }
+
+    if authority.contains('[') || authority.contains(']') {
+        return Err(BitcoinCoreError::NonLocalUrl);
+    }
+
+    let (host, port) = if let Some((host, port)) = authority.rsplit_once(':') {
+        if host.is_empty() || host.contains(':') {
+            return Err(BitcoinCoreError::NonLocalUrl);
+        }
+        (host, parse_port(port)?)
+    } else {
+        (authority, 8332)
+    };
+    if host.is_empty() {
+        return Err(BitcoinCoreError::NonLocalUrl);
+    }
+    Ok((host.to_ascii_lowercase(), port))
+}
+
+fn parse_port(port: &str) -> Result<u16, BitcoinCoreError> {
+    if port.is_empty() {
+        return Err(BitcoinCoreError::NonLocalUrl);
+    }
+    port.parse::<u16>()
+        .map_err(|_| BitcoinCoreError::NonLocalUrl)
+}
+
+fn is_loopback_rpc_host(host: &str) -> bool {
+    if host.eq_ignore_ascii_case("localhost") {
+        return true;
+    }
+    host.parse::<IpAddr>()
+        .map(|address| address.is_loopback())
+        .unwrap_or(false)
 }
 
 #[cfg(test)]
@@ -389,6 +434,41 @@ mod tests {
             wallet: None,
         })
         .is_err());
+    }
+
+    #[test]
+    fn accepts_loopback_rpc_urls() {
+        for url in [
+            "http://localhost:8332",
+            "http://127.0.0.1:8332",
+            "http://127.10.20.30:8332",
+            "http://[::1]:8332",
+        ] {
+            assert!(is_local_rpc_url(url), "{url}");
+            assert!(BitcoinCoreBackend::new(BitcoinCoreRpcConfig {
+                url: url.to_string(),
+                username: None,
+                password: None,
+                wallet: None,
+            })
+            .is_ok());
+        }
+    }
+
+    #[test]
+    fn rejects_loopback_prefix_rpc_urls() {
+        for url in [
+            "http://localhost.evil.test:8332",
+            "http://127.0.0.1.evil.test:8332",
+            "http://[::1].evil.test:8332",
+            "http://localhost@evil.test:8332",
+        ] {
+            assert!(!is_local_rpc_url(url), "{url}");
+            assert!(matches!(
+                RpcEndpoint::parse(url, None),
+                Err(BitcoinCoreError::NonLocalUrl)
+            ));
+        }
     }
 
     #[test]
