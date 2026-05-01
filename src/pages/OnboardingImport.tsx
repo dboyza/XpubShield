@@ -17,12 +17,35 @@ interface OnboardingImportProps {
 }
 
 type WarningDialogKind = "private-material" | "public-backend";
+type ServerDropdownKind = "network" | "backend";
+type HelpOption<T extends string> = {
+  value: T;
+  label: string;
+  description: string;
+  disabled?: boolean;
+};
 
 const NETWORK_HELP =
   "Mainnet uses real BTC. Testnet and Signet use test coins. Regtest is a private local chain.";
 
 const NODE_SERVER_HELP =
   "Demo uses fixture data. Bitcoin Core RPC is your node. Private Electrum and self-hosted Esplora are operator-run. Public Electrum and Public Esplora are third-party query services.";
+
+const NETWORK_OPTIONS: HelpOption<Network>[] = [
+  { value: "mainnet", label: "Mainnet", description: "Real Bitcoin network with real funds and real privacy consequences." },
+  { value: "testnet", label: "Testnet", description: "Public Bitcoin test network that uses valueless test coins." },
+  { value: "signet", label: "Signet", description: "Controlled public test network with more predictable block production." },
+  { value: "regtest", label: "Regtest", description: "Private local chain for developer testing on your machine." }
+];
+
+const BACKEND_OPTIONS: HelpOption<BackendKind>[] = [
+  { value: "mock", label: "Demo / mock backend", description: "Uses local fixture data without querying a live node or server." },
+  { value: "bitcoin_core_rpc", label: "Bitcoin Core RPC", description: "Connects to your local Bitcoin Core node for the best privacy posture." },
+  { value: "electrum", label: "Private Electrum", description: "Queries an Electrum server you operate, using locally derived script hashes." },
+  { value: "public_electrum", label: "Public Electrum", description: "Queries a third-party Electrum server that can infer wallet activity from script-hash timing." },
+  { value: "esplora", label: "Self-hosted Esplora", description: "Queries an Esplora-compatible HTTP endpoint you operate." },
+  { value: "public_esplora", label: "Public Esplora", description: "Queries a third-party Esplora API with weaker privacy." }
+];
 
 export function OnboardingImport({
   firstRun = false,
@@ -54,6 +77,7 @@ export function OnboardingImport({
   const [acknowledgedPublicApi, setAcknowledgedPublicApi] = useState(false);
   const [runtimeNoticeOpen, setRuntimeNoticeOpen] = useState(false);
   const [warningDialog, setWarningDialog] = useState<WarningDialogKind | null>(null);
+  const [openServerDropdown, setOpenServerDropdown] = useState<ServerDropdownKind | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -62,6 +86,13 @@ export function OnboardingImport({
   const publicBackendMode = publicApiMode || publicElectrumMode;
   const networkLocked = networkPolicy === "local_only";
   const desktopPersistenceAvailable = isTauriRuntime();
+  const backendOptions = BACKEND_OPTIONS.map((option) => ({
+    ...option,
+    disabled:
+      networkLocked &&
+      option.value !== "mock" &&
+      option.value !== "bitcoin_core_rpc"
+  }));
 
   useEffect(() => {
     setSetupStep(firstRun ? "server" : "wallet");
@@ -346,27 +377,29 @@ export function OnboardingImport({
               <strong>Pick the source XpubShield should query for watch-only blockchain data.</strong>
             </div>
 
-            <div className="form-grid essential-grid">
-              <label>
-                <FieldLabel label="Network" tooltip={NETWORK_HELP} />
-                <select value={network} onChange={(event) => setNetwork(event.target.value as Network)}>
-                  <option value="mainnet">Mainnet</option>
-                  <option value="testnet">Testnet</option>
-                  <option value="signet">Signet</option>
-                  <option value="regtest">Regtest</option>
-                </select>
-              </label>
-              <label>
-                <FieldLabel label="Node server" tooltip={NODE_SERVER_HELP} />
-                <select value={backend} onChange={(event) => setBackend(event.target.value as BackendKind)}>
-                  <option value="mock">Demo / mock backend</option>
-                  <option value="bitcoin_core_rpc">Bitcoin Core RPC</option>
-                  <option value="electrum" disabled={networkLocked}>Private Electrum</option>
-                  <option value="public_electrum" disabled={networkLocked}>Public Electrum</option>
-                  <option value="esplora" disabled={networkLocked}>Self-hosted Esplora</option>
-                  <option value="public_esplora" disabled={networkLocked}>Public Esplora</option>
-                </select>
-              </label>
+            <div className="server-select-grid">
+              <OptionHelpSelect
+                label="Network"
+                value={network}
+                options={NETWORK_OPTIONS}
+                open={openServerDropdown === "network"}
+                onToggle={() => setOpenServerDropdown((open) => open === "network" ? null : "network")}
+                onChange={(nextNetwork) => {
+                  setNetwork(nextNetwork);
+                  setOpenServerDropdown(null);
+                }}
+              />
+              <OptionHelpSelect
+                label="Node server"
+                value={backend}
+                options={backendOptions}
+                open={openServerDropdown === "backend"}
+                onToggle={() => setOpenServerDropdown((open) => open === "backend" ? null : "backend")}
+                onChange={(nextBackend) => {
+                  setBackend(nextBackend);
+                  setOpenServerDropdown(null);
+                }}
+              />
             </div>
 
             <div className="server-choice-note">
@@ -811,6 +844,69 @@ function FieldLabel({ label, tooltip }: { label: string; tooltip: string }) {
         <CircleHelp size={14} aria-hidden="true" />
       </span>
     </span>
+  );
+}
+
+function OptionHelpSelect<T extends string>({
+  label,
+  value,
+  options,
+  open,
+  onToggle,
+  onChange
+}: {
+  label: string;
+  value: T;
+  options: HelpOption<T>[];
+  open: boolean;
+  onToggle: () => void;
+  onChange: (value: T) => void;
+}) {
+  const selectedOption = options.find((option) => option.value === value);
+  const listId = `option-help-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+
+  return (
+    <div className="option-help-select">
+      <span className="option-help-label">{label}</span>
+      <button
+        type="button"
+        className="option-select-trigger"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listId}
+        onClick={onToggle}
+      >
+        <span>{selectedOption?.label ?? value}</span>
+        <ChevronDown size={16} aria-hidden="true" />
+      </button>
+      {open ? (
+        <div className="option-help-list" id={listId} role="listbox" aria-label={label}>
+          {options.map((option) => (
+            <div className={`option-help-row ${option.disabled ? "option-help-row-disabled" : ""}`} key={option.value}>
+              <button
+                type="button"
+                className="option-help-choice"
+                role="option"
+                aria-selected={option.value === value}
+                disabled={option.disabled}
+                onClick={() => onChange(option.value)}
+              >
+                <span>{option.label}</span>
+                {option.value === value ? <span className="option-help-selected">Selected</span> : null}
+              </button>
+              <button
+                type="button"
+                className="option-help-info tooltip-button"
+                aria-label={`${option.label}: ${option.description}`}
+                data-tooltip={option.description}
+              >
+                <CircleHelp size={14} aria-hidden="true" />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
