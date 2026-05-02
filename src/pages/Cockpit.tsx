@@ -88,8 +88,6 @@ export function Cockpit({ report, onNavigate, onDismissAction }: CockpitProps) {
         <div className="cockpit-command" aria-label="Cockpit signal summary">
           <CommandSignal label="Urgent" value={String(urgentCount)} detail="reviews" tone={urgentCount ? "danger" : "clear"} />
           <CommandSignal label="Queue" value={String(topActions.length)} detail="grouped actions" tone={topActions.length ? "warn" : "clear"} />
-          <CommandSignal label="Unknown" value={String(unknownCount)} detail="coins" tone={unknownCount ? "warn" : "clear"} />
-          <CommandSignal label="Exchange" value={String(exchangeCount)} detail="linked coins" tone={exchangeCount ? "warn" : "clear"} />
         </div>
       </section>
 
