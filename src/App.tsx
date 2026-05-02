@@ -287,6 +287,7 @@ export default function App() {
     setActiveTutorialStep(stepIndex);
     setTutorialPromptOpen(false);
     setTutorialOpen(true);
+    navigateToTutorialStep(stepIndex);
   }
 
   function startTutorial() {
@@ -345,10 +346,17 @@ export default function App() {
   function changeTutorialStep(index: number) {
     setActiveTutorialStep(index);
     saveTutorialState({ lastStepId: TUTORIAL_STEPS[index]?.id });
+    navigateToTutorialStep(index);
   }
 
   function navigateFromTutorial(pageId: TutorialPageId) {
     navigateToAction(pageId);
+  }
+
+  function navigateToTutorialStep(index: number) {
+    const step = TUTORIAL_STEPS[index];
+    if (!step || (step.requiresWallet && !report)) return;
+    navigateFromTutorial(step.page);
   }
 
   function openSetupOnboarding() {
