@@ -1615,7 +1615,7 @@ td input[type="checkbox"],
 
 .advanced-section {
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .advanced-section summary {
