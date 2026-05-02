@@ -22,6 +22,7 @@ type HelpOption<T extends string> = {
   value: T;
   label: string;
   description: string;
+  common?: boolean;
   disabled?: boolean;
 };
 
@@ -32,7 +33,7 @@ const NODE_SERVER_HELP =
   "Demo uses fixture data. Bitcoin Core RPC is your node. Private Electrum and self-hosted Esplora are operator-run. Public Electrum and Public Esplora are third-party query services.";
 
 const NETWORK_OPTIONS: HelpOption<Network>[] = [
-  { value: "mainnet", label: "Mainnet", description: "Real Bitcoin network with real funds and real privacy consequences." },
+  { value: "mainnet", label: "Mainnet", description: "Real Bitcoin network with real funds and real privacy consequences.", common: true },
   { value: "testnet", label: "Testnet", description: "Public Bitcoin test network that uses valueless test coins." },
   { value: "signet", label: "Signet", description: "Controlled public test network with more predictable block production." },
   { value: "regtest", label: "Regtest", description: "Private local chain for developer testing on your machine." }
@@ -42,7 +43,7 @@ const BACKEND_OPTIONS: HelpOption<BackendKind>[] = [
   { value: "mock", label: "Demo / mock backend", description: "Uses local fixture data without querying a live node or server." },
   { value: "bitcoin_core_rpc", label: "Bitcoin Core RPC", description: "Connects to your local Bitcoin Core node for the best privacy posture." },
   { value: "electrum", label: "Private Electrum", description: "Queries an Electrum server you operate, using locally derived script hashes." },
-  { value: "public_electrum", label: "Public Electrum", description: "Queries a third-party Electrum server that can infer wallet activity from script-hash timing." },
+  { value: "public_electrum", label: "Public Electrum", description: "Queries a third-party Electrum server that can infer wallet activity from script-hash timing.", common: true },
   { value: "esplora", label: "Self-hosted Esplora", description: "Queries an Esplora-compatible HTTP endpoint you operate." },
   { value: "public_esplora", label: "Public Esplora", description: "Queries a third-party Esplora API with weaker privacy." }
 ];
@@ -863,7 +864,10 @@ function OptionHelpSelect<T extends string>({
         aria-controls={listId}
         onClick={onToggle}
       >
-        <span>{selectedOption?.label ?? value}</span>
+        <span className="option-help-value">
+          <span className="option-help-text">{selectedOption?.label ?? value}</span>
+          {selectedOption?.common ? <span className="option-common-badge">Common</span> : null}
+        </span>
         <ChevronDown size={16} aria-hidden="true" />
       </button>
       {open ? (
@@ -881,7 +885,10 @@ function OptionHelpSelect<T extends string>({
                 disabled={option.disabled}
                 onClick={() => onChange(option.value)}
               >
-                <span>{option.label}</span>
+                <span className="option-help-name">
+                  <span className="option-help-text">{option.label}</span>
+                  {option.common ? <span className="option-common-badge">Common</span> : null}
+                </span>
                 {option.value === value ? <span className="option-help-selected">Selected</span> : null}
               </button>
               {showOptionHelp ? (
