@@ -1,7 +1,5 @@
 import {
   ArrowRight,
-  ChevronDown,
-  ChevronUp,
   CircleGauge,
   Coins,
   Eye,
@@ -11,7 +9,7 @@ import {
   ShieldCheck,
   X
 } from "lucide-react";
-import { useState, type KeyboardEvent, type ReactNode } from "react";
+import { useState } from "react";
 import { EvidenceDrawer } from "../components/EvidenceDrawer";
 import { StatusPill } from "../components/StatusPill";
 import { backendLabel, humanize, satsToBtc, severityRank } from "../lib/format";
@@ -51,14 +49,12 @@ interface CockpitActionItem {
 }
 
 export function Cockpit({ report, onNavigate, onDismissAction }: CockpitProps) {
-  const [actionCenterOpen, setActionCenterOpen] = useState(true);
-  const [readinessOpen, setReadinessOpen] = useState(true);
   const [activeEvidence, setActiveEvidence] = useState<EvidenceItem | null>(null);
   const [highlightedActionId, setHighlightedActionId] = useState<string | null>(null);
-  const topActions = [
+  const topActions = compactCockpitActions([
     ...report.actions.map(mapReportAction),
     ...buildGuidedActions(report).map(mapGuidedAction)
-  ].sort((a, b) => severityRank(b.severity) - severityRank(a.severity));
+  ]);
   const topAction = topActions[0] ?? null;
   const urgentCount = topActions.filter((action) => ["high", "critical"].includes(action.severity)).length;
   const unknownCount = report.provenance_summary.unknown_count;
@@ -71,7 +67,6 @@ export function Cockpit({ report, onNavigate, onDismissAction }: CockpitProps) {
       return;
     }
 
-    setActionCenterOpen(true);
     setHighlightedActionId(topAction.id);
     window.setTimeout(() => {
       const target = document.getElementById(actionDomId(topAction.id));
@@ -90,25 +85,21 @@ export function Cockpit({ report, onNavigate, onDismissAction }: CockpitProps) {
           <p>{backendLabel(report.wallet.backend)} · {humanize(report.wallet.network)} · pre-sign / local</p>
           <h1>Bitcoin security cockpit</h1>
         </div>
-        <div className="cockpit-command">
-          <div className={`cockpit-command-signal ${urgentCount ? "cockpit-command-danger" : "cockpit-command-clear"}`}>
-            <span>Urgent reviews</span>
-            <strong>{urgentCount}</strong>
-          </div>
-          <div className={`cockpit-command-signal ${topActions.length ? "cockpit-command-warn" : "cockpit-command-clear"}`}>
-            <span>Active actions</span>
-            <strong>{topActions.length}</strong>
-          </div>
+        <div className="cockpit-command" aria-label="Cockpit signal summary">
+          <CommandSignal label="Urgent" value={String(urgentCount)} detail="reviews" tone={urgentCount ? "danger" : "clear"} />
+          <CommandSignal label="Queue" value={String(topActions.length)} detail="grouped actions" tone={topActions.length ? "warn" : "clear"} />
+          <CommandSignal label="Unknown" value={String(unknownCount)} detail="coins" tone={unknownCount ? "warn" : "clear"} />
+          <CommandSignal label="Exchange" value={String(exchangeCount)} detail="linked coins" tone={exchangeCount ? "warn" : "clear"} />
         </div>
       </section>
 
       <section className={`risk-posture-panel risk-posture-${posture.severity}`} aria-label="Wallet risk posture">
         <div className="risk-posture-main">
-          <span className="eyebrow">Risk Posture</span>
+          <span className="eyebrow">Wallet posture</span>
           <h2>{posture.label}</h2>
           <p>{posture.summary}</p>
           <div className="risk-driver">
-            <span>Top driver</span>
+            <span>Primary driver</span>
             <strong>{posture.driver}</strong>
           </div>
         </div>
@@ -136,27 +127,65 @@ export function Cockpit({ report, onNavigate, onDismissAction }: CockpitProps) {
       </section>
 
       <section className="instrument-band" aria-label="Wallet posture instruments">
-        <InstrumentTile icon={Coins} label="Balance" value={satsToBtc(report.totals.balance_sats)} detail={`${report.totals.utxo_count} UTXOs`} onOpenEvidence={() => setActiveEvidence(buildInstrumentEvidence(report, "balance"))} />
-        <InstrumentTile icon={ShieldCheck} label="Privacy" value={`${report.scores.privacy}/100`} detail="wallet posture" onOpenEvidence={() => setActiveEvidence(buildInstrumentEvidence(report, "privacy"))} />
-        <InstrumentTile icon={CircleGauge} label="Spend" value={`${report.scores.spend_readiness}/100`} detail="readiness" onOpenEvidence={() => setActiveEvidence(buildInstrumentEvidence(report, "spend"))} />
-        <InstrumentTile icon={HeartPulse} label="Recovery" value={`${report.scores.recovery_readiness}/100`} detail="drill posture" onOpenEvidence={() => setActiveEvidence(buildInstrumentEvidence(report, "recovery"))} />
-        <InstrumentTile icon={Fingerprint} label="Provenance" value={`${report.provenance_summary.assessed_count - unknownCount}/${report.provenance_summary.assessed_count}`} detail={`${exchangeCount} exchange-like`} onOpenEvidence={() => setActiveEvidence(buildInstrumentEvidence(report, "provenance"))} />
-        <InstrumentTile icon={Eye} label="Backend" value={`${report.backend_privacy.score}/100`} detail={backendLabel(report.wallet.backend)} onOpenEvidence={() => setActiveEvidence(buildInstrumentEvidence(report, "backend"))} />
+        <InstrumentTile
+          icon={Coins}
+          label="Balance"
+          value={satsToBtc(report.totals.balance_sats)}
+          detail={`${report.totals.utxo_count} UTXOs`}
+          onOpenEvidence={() => setActiveEvidence(buildInstrumentEvidence(report, "balance"))}
+        />
+        <InstrumentTile
+          icon={ShieldCheck}
+          label="Privacy"
+          value={`${report.scores.privacy}/100`}
+          detail="wallet posture"
+          onOpenEvidence={() => setActiveEvidence(buildInstrumentEvidence(report, "privacy"))}
+        />
+        <InstrumentTile
+          icon={CircleGauge}
+          label="Spend"
+          value={`${report.scores.spend_readiness}/100`}
+          detail="readiness"
+          onOpenEvidence={() => setActiveEvidence(buildInstrumentEvidence(report, "spend"))}
+        />
+        <InstrumentTile
+          icon={HeartPulse}
+          label="Recovery"
+          value={`${report.scores.recovery_readiness}/100`}
+          detail="drill posture"
+          onOpenEvidence={() => setActiveEvidence(buildInstrumentEvidence(report, "recovery"))}
+        />
+        <InstrumentTile
+          icon={Fingerprint}
+          label="Provenance"
+          value={`${report.provenance_summary.assessed_count - unknownCount}/${report.provenance_summary.assessed_count}`}
+          detail={`${exchangeCount} exchange-like`}
+          onOpenEvidence={() => setActiveEvidence(buildInstrumentEvidence(report, "provenance"))}
+        />
+        <InstrumentTile
+          icon={Eye}
+          label="Backend"
+          value={`${report.backend_privacy.score}/100`}
+          detail={backendLabel(report.wallet.backend)}
+          onOpenEvidence={() => setActiveEvidence(buildInstrumentEvidence(report, "backend"))}
+        />
       </section>
 
       <section className="cockpit-grid risk-led-grid">
-        <div className="panel action-center-panel">
-          <CollapsiblePanelHeading
-            title="Action Center"
-            open={actionCenterOpen}
-            onToggle={() => setActionCenterOpen((current) => !current)}
-          >
-            <span className={`action-count-signal ${topActions.length ? "" : "action-count-clear"}`}>
-              {topActions.length ? `${topActions.length} actions waiting` : "No active actions"}
-            </span>
-            <StatusPill label="ranked by risk" tone={topActions.length ? "warn" : "good"} />
-          </CollapsiblePanelHeading>
-          {actionCenterOpen && topActions.length ? (
+        <section className="panel action-center-panel">
+          <div className="panel-heading cockpit-section-heading">
+            <div>
+              <span className="eyebrow">Priority queue</span>
+              <h2>Action center</h2>
+            </div>
+            <div className="panel-heading-actions">
+              <StatusPill label="ranked by risk" tone={topActions.length ? "warn" : "good"} />
+              <span className={`action-count-signal ${topActions.length ? "" : "action-count-clear"}`}>
+                {topActions.length ? `${topActions.length} grouped` : "clear"}
+              </span>
+            </div>
+          </div>
+          {topActions.length ? (
             <div className="action-center-list">
               {topActions.map((action) => (
                 <ActionCard
@@ -168,47 +197,97 @@ export function Cockpit({ report, onNavigate, onDismissAction }: CockpitProps) {
                 />
               ))}
             </div>
-          ) : null}
-          {actionCenterOpen && !topActions.length ? (
+          ) : (
             <p className="empty-state">No active operational actions. Keep labels and recovery metadata current.</p>
-          ) : null}
-        </div>
+          )}
+        </section>
 
-        <div className="cockpit-support-stack">
+        <aside className="cockpit-support-stack">
           <section className="panel cockpit-briefing">
-            <CollapsiblePanelHeading
-              title="Readiness Summary"
-              open={readinessOpen}
-              onToggle={() => setReadinessOpen((current) => !current)}
-            >
+            <div className="panel-heading cockpit-section-heading">
+              <div>
+                <span className="eyebrow">Operating context</span>
+                <h2>Readiness</h2>
+              </div>
               <StatusPill label="closed beta" tone="warn" />
-            </CollapsiblePanelHeading>
-            {readinessOpen ? (
-              <>
-                <div className="briefing-grid">
-                  <BriefingChip label="Wallet mode" value="pre-sign only" />
-                  <BriefingChip label="Storage" value="local metadata" />
-                  <BriefingChip label="Known provenance" value={`${report.provenance_summary.assessed_count - unknownCount} coins`} />
-                  <BriefingChip label="Unknown provenance" value={`${unknownCount} coins`} />
-                  <BriefingChip label="Descriptors" value={`${report.descriptors.length} tracked`} />
-                  <BriefingChip label="Derived addresses" value={`${report.derived_addresses.length} scanned`} />
-                </div>
-                <div className="button-row">
-                  <button type="button" className="secondary-button" onClick={() => onNavigate("utxos")}>
-                    Open Workbench <ArrowRight size={16} />
-                  </button>
-                  <button type="button" className="secondary-button" onClick={() => onNavigate("spend_preflight")}>
-                    Run Preflight <ArrowRight size={16} />
-                  </button>
-                </div>
-              </>
-            ) : null}
+            </div>
+            <div className="briefing-grid">
+              <BriefingChip label="Wallet mode" value="pre-sign only" />
+              <BriefingChip label="Storage" value="local metadata" />
+              <BriefingChip label="Known provenance" value={`${report.provenance_summary.assessed_count - unknownCount} coins`} />
+              <BriefingChip label="Unknown provenance" value={`${unknownCount} coins`} />
+              <BriefingChip label="Descriptors" value={`${report.descriptors.length} tracked`} />
+              <BriefingChip label="Derived addresses" value={`${report.derived_addresses.length} scanned`} />
+            </div>
+            <div className="button-row cockpit-shortcuts">
+              <button type="button" className="secondary-button" onClick={() => onNavigate("utxos")}>
+                Open Workbench <ArrowRight size={16} />
+              </button>
+              <button type="button" className="secondary-button" onClick={() => onNavigate("spend_preflight")}>
+                Run Preflight <ArrowRight size={16} />
+              </button>
+            </div>
           </section>
-        </div>
+        </aside>
       </section>
       <EvidenceDrawer item={activeEvidence} onClose={() => setActiveEvidence(null)} />
     </main>
   );
+}
+
+function CommandSignal({
+  label,
+  value,
+  detail,
+  tone
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  tone: "danger" | "warn" | "clear";
+}) {
+  return (
+    <div className={`cockpit-command-signal cockpit-command-${tone}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{detail}</small>
+    </div>
+  );
+}
+
+function compactCockpitActions(actions: CockpitActionItem[]): CockpitActionItem[] {
+  const grouped = new Map<string, CockpitActionItem>();
+
+  actions
+    .sort(compareCockpitActions)
+    .forEach((action) => {
+      const key = actionGroupKey(action);
+      const current = grouped.get(key);
+      if (!current || compareCockpitActions(action, current) < 0) {
+        grouped.set(key, action);
+      }
+    });
+
+  return Array.from(grouped.values()).sort(compareCockpitActions);
+}
+
+function compareCockpitActions(a: CockpitActionItem, b: CockpitActionItem) {
+  const severityDelta = severityRank(b.severity) - severityRank(a.severity);
+  if (severityDelta !== 0) return severityDelta;
+  const affectedDelta = b.affectedCount - a.affectedCount;
+  if (affectedDelta !== 0) return affectedDelta;
+  if (a.source !== b.source) return a.source === "risk" ? -1 : 1;
+  return a.title.localeCompare(b.title);
+}
+
+function actionGroupKey(action: CockpitActionItem) {
+  const text = `${action.title} ${action.summary} ${action.recommendedAction}`.toLowerCase();
+  if (/quarantine|dust|isolat|do not merge/.test(text)) return "quarantine";
+  if (/exchange|kyc/.test(text)) return "exchange";
+  if (/label|unknown source|provenance/.test(text)) return "provenance";
+  if (/recovery|descriptor|fingerprint|backup/.test(text)) return "recovery";
+  if (/spend|preflight|scenario|sign/.test(text)) return "spend";
+  return action.id;
 }
 
 function buildRiskPosture(report: WalletReport, topAction: CockpitActionItem | null, urgentCount: number): RiskPosture {
@@ -296,7 +375,7 @@ function ActionCard({
   return (
     <article id={actionDomId(action.id)} className={`action-card action-card-${action.severity} ${highlighted ? "action-card-highlight" : ""}`}>
       <div className="action-card-topline">
-        <div className="finding-title">
+        <div className="finding-title action-card-meta">
           <span className={`action-severity-text action-severity-${action.severity}`}>{humanize(action.severity)}</span>
           <span>{humanize(action.confidence)} confidence</span>
           {action.source === "guided" ? <span className="action-source-text">Guided op</span> : null}
@@ -308,11 +387,11 @@ function ActionCard({
         ) : null}
       </div>
       <div className="action-card-copy">
-        <div>
+        <div className="action-card-heading">
           <h3>{action.title}</h3>
           <p>{action.summary}</p>
         </div>
-        <div className="action-card-detail">
+        <div className="action-card-detail action-card-next">
           <strong>Next</strong>
           <span>{action.recommendedAction}</span>
         </div>
@@ -324,45 +403,6 @@ function ActionCard({
         </button>
       </div>
     </article>
-  );
-}
-
-function CollapsiblePanelHeading({
-  title,
-  open,
-  onToggle,
-  children
-}: {
-  title: string;
-  open: boolean;
-  onToggle: () => void;
-  children: ReactNode;
-}) {
-  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      onToggle();
-    }
-  }
-
-  return (
-    <div
-      className="panel-heading collapsible-panel-heading"
-      role="button"
-      tabIndex={0}
-      aria-expanded={open}
-      onClick={onToggle}
-      onKeyDown={handleKeyDown}
-    >
-      <h2>{title}</h2>
-      <div className="panel-heading-actions">
-        {children}
-        <span className="collapse-affordance">
-          {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          {open ? "Collapse" : "Open"}
-        </span>
-      </div>
-    </div>
   );
 }
 
