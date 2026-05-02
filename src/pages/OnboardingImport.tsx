@@ -18,6 +18,7 @@ interface OnboardingImportProps {
 
 type WarningDialogKind = "private-material" | "public-backend";
 type ServerDropdownKind = "network" | "backend";
+type MetadataDropdownKind = "script-type" | "account-path";
 type HelpOption<T extends string> = {
   value: T;
   label: string;
@@ -46,6 +47,13 @@ const BACKEND_OPTIONS: HelpOption<BackendKind>[] = [
   { value: "public_electrum", label: "Public Electrum", description: "Queries a third-party Electrum server that can infer wallet activity from script-hash timing.", common: true },
   { value: "esplora", label: "Self-hosted Esplora", description: "Queries an Esplora-compatible HTTP endpoint you operate." },
   { value: "public_esplora", label: "Public Esplora", description: "Queries a third-party Esplora API with weaker privacy." }
+];
+
+const SCRIPT_TYPE_OPTIONS: HelpOption<ScriptType>[] = [
+  { value: "legacy", label: "Legacy", description: "Older P2PKH wallets, usually paired with a BIP44 account path." },
+  { value: "nested_segwit", label: "Nested SegWit", description: "P2SH-wrapped SegWit for older compatibility, usually BIP49." },
+  { value: "native_segwit", label: "Native SegWit", description: "Modern bech32 single-sig wallets, usually BIP84." },
+  { value: "taproot", label: "Taproot", description: "Newest bech32m single-sig wallets, usually BIP86." }
 ];
 
 export function OnboardingImport({
@@ -79,6 +87,7 @@ export function OnboardingImport({
   const [runtimeNoticeOpen, setRuntimeNoticeOpen] = useState(false);
   const [warningDialog, setWarningDialog] = useState<WarningDialogKind | null>(null);
   const [openServerDropdown, setOpenServerDropdown] = useState<ServerDropdownKind | null>(null);
+  const [openMetadataDropdown, setOpenMetadataDropdown] = useState<MetadataDropdownKind | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -94,6 +103,7 @@ export function OnboardingImport({
       option.value !== "mock" &&
       option.value !== "bitcoin_core_rpc"
   }));
+  const accountPathOptions = buildAccountPathOptions(network);
 
   useEffect(() => {
     setSetupStep(firstRun ? "server" : "wallet");
@@ -156,6 +166,20 @@ export function OnboardingImport({
     esploraBaseUrl,
     esploraUseTor
   ]);
+
+  function handleNetworkChange(nextNetwork: Network) {
+    setNetwork(nextNetwork);
+    if (isStandardAccountPath(accountPath)) {
+      setAccountPath(accountPathForScriptType(scriptType, nextNetwork));
+    }
+  }
+
+  function handleScriptTypeChange(nextScriptType: ScriptType) {
+    setScriptType(nextScriptType);
+    if (isStandardAccountPath(accountPath)) {
+      setAccountPath(accountPathForScriptType(nextScriptType, network));
+    }
+  }
 
   function handleServerContinue() {
     setError(null);
@@ -382,7 +406,7 @@ export function OnboardingImport({
                 open={openServerDropdown === "network"}
                 onToggle={() => setOpenServerDropdown((open) => open === "network" ? null : "network")}
                 onChange={(nextNetwork) => {
-                  setNetwork(nextNetwork);
+                  handleNetworkChange(nextNetwork);
                   setOpenServerDropdown(null);
                 }}
               />
@@ -532,7 +556,12 @@ export function OnboardingImport({
             <button
               type="button"
               className={importKind === "xpub" ? "active" : ""}
-              onClick={() => setImportKind("xpub")}
+              onClick={() => {
+                setImportKind("xpub");
+                if (isStandardAccountPath(accountPath)) {
+                  setAccountPath(accountPathForScriptType(scriptType, network));
+                }
+              }}
             >
               <Upload size={16} /> Xpub
             </button>
@@ -570,7 +599,7 @@ export function OnboardingImport({
               <div className="form-grid essential-grid">
                 <label>
                   <FieldLabel label="Network" tooltip={NETWORK_HELP} />
-                  <select value={network} onChange={(event) => setNetwork(event.target.value as Network)}>
+                  <select value={network} onChange={(event) => handleNetworkChange(event.target.value as Network)}>
                     <option value="mainnet">Mainnet</option>
                     <option value="testnet">Testnet</option>
                     <option value="signet">Signet</option>
@@ -612,26 +641,35 @@ export function OnboardingImport({
             <div className="form-grid">
             {importKind === "xpub" ? (
               <>
-                <label>
-                  Script type
-                  <select
-                    value={scriptType}
-                    onChange={(event) => setScriptType(event.target.value as ScriptType)}
-                  >
-                    <option value="legacy">Legacy</option>
-                    <option value="nested_segwit">Nested SegWit</option>
-                    <option value="native_segwit">Native SegWit</option>
-                    <option value="taproot">Taproot</option>
-                  </select>
-                </label>
-                <label>
-                  Account path
-                  <input value={accountPath} onChange={(event) => setAccountPath(event.target.value)} />
-                </label>
+                <OptionHelpSelect
+                  label="Script type"
+                  value={scriptType}
+                  options={SCRIPT_TYPE_OPTIONS}
+                  open={openMetadataDropdown === "script-type"}
+                  onToggle={() => setOpenMetadataDropdown((open) => open === "script-type" ? null : "script-type")}
+                  onChange={(nextScriptType) => {
+                    handleScriptTypeChange(nextScriptType);
+                    setOpenMetadataDropdown(null);
+                  }}
+                />
+                <OptionHelpSelect
+                  label="Account path"
+                  value={accountPath}
+                  options={accountPathOptions}
+                  open={openMetadataDropdown === "account-path"}
+                  onToggle={() => setOpenMetadataDropdown((open) => open === "account-path" ? null : "account-path")}
+                  onChange={(nextAccountPath) => {
+                    setAccountPath(nextAccountPath);
+                    setOpenMetadataDropdown(null);
+                  }}
+                />
               </>
             ) : null}
             <label>
-              Gap limit
+              <FieldLabel
+                label="Gap limit"
+                tooltip="How many unused receiving addresses XpubShield scans before assuming there is no more activity. 20 is the common default."
+              />
               <input
                 type="number"
                 min={5}
@@ -820,6 +858,52 @@ export function OnboardingImport({
       ) : null}
     </main>
   );
+}
+
+const SCRIPT_TYPE_PURPOSE: Partial<Record<ScriptType, "44" | "49" | "84" | "86">> = {
+  legacy: "44",
+  nested_segwit: "49",
+  native_segwit: "84",
+  taproot: "86"
+};
+
+function buildAccountPathOptions(network: Network): HelpOption<string>[] {
+  const coinType = coinTypeForNetwork(network);
+  return [
+    {
+      value: `44h/${coinType}/0h`,
+      label: `44h/${coinType}/0h`,
+      description: "BIP44 account 0 path for legacy P2PKH wallets."
+    },
+    {
+      value: `49h/${coinType}/0h`,
+      label: `49h/${coinType}/0h`,
+      description: "BIP49 account 0 path for nested SegWit wallets."
+    },
+    {
+      value: `84h/${coinType}/0h`,
+      label: `84h/${coinType}/0h`,
+      description: "BIP84 account 0 path for native SegWit wallets."
+    },
+    {
+      value: `86h/${coinType}/0h`,
+      label: `86h/${coinType}/0h`,
+      description: "BIP86 account 0 path for Taproot single-sig wallets."
+    }
+  ];
+}
+
+function accountPathForScriptType(scriptType: ScriptType, network: Network): string {
+  const purpose = SCRIPT_TYPE_PURPOSE[scriptType] ?? "84";
+  return `${purpose}h/${coinTypeForNetwork(network)}/0h`;
+}
+
+function coinTypeForNetwork(network: Network): "0h" | "1h" {
+  return network === "mainnet" ? "0h" : "1h";
+}
+
+function isStandardAccountPath(value: string): boolean {
+  return /^(44|49|84|86)h\/(0|1)h\/0h$/.test(value.trim());
 }
 
 function FieldLabel({ label, tooltip }: { label: string; tooltip: string }) {
