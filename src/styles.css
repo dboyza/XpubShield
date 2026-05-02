@@ -684,11 +684,10 @@ label {
   top: calc(100% + 6px);
   right: 0;
   left: 0;
-  z-index: 45;
+  z-index: 60;
   display: grid;
-  max-height: min(320px, calc(100vh - 280px));
   gap: 4px;
-  overflow: auto;
+  overflow: visible;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   padding: 6px;
@@ -703,6 +702,10 @@ label {
   grid-template-columns: minmax(0, 1fr) 28px;
   align-items: center;
   gap: 6px;
+}
+
+.option-help-row-no-info {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .option-help-choice {
@@ -1695,7 +1698,6 @@ td input[type="checkbox"],
   margin-bottom: 14px;
 }
 
-.setup-intro,
 .server-choice-note,
 .server-summary,
 .settings-subsection {
@@ -1705,20 +1707,17 @@ td input[type="checkbox"],
   background: transparent;
 }
 
-.setup-intro,
 .server-choice-note,
 .settings-subsection {
   display: grid;
   gap: 8px;
 }
 
-.setup-intro strong,
 .server-choice-note strong,
 .server-summary strong {
   color: var(--text);
 }
 
-.setup-intro p,
 .server-choice-note span,
 .server-summary p {
   color: var(--text-soft);
@@ -1735,39 +1734,24 @@ td input[type="checkbox"],
   padding: 12px 0;
 }
 
-.setup-intro {
-  border-bottom: 1px solid rgba(255, 248, 232, 0.1);
-  padding-bottom: 12px;
-}
-
 .server-choice-note {
   border-left: 2px solid rgba(246, 160, 45, 0.46);
   padding-left: 13px;
 }
 
-.setup-frame .server-step .setup-intro {
-  justify-items: center;
-  text-align: center;
-}
-
-.setup-frame .server-step .setup-intro strong {
-  max-width: 640px;
-}
-
 .setup-frame .server-step .server-choice-note {
   justify-items: center;
+  align-content: center;
+  min-height: 74px;
+  box-sizing: border-box;
   border-left: 0;
   border-top: 2px solid rgba(246, 160, 45, 0.46);
   padding-top: 10px;
   padding-left: 0;
   text-align: center;
-}
-
-.setup-frame .server-step .network-lock-row {
-  justify-self: center;
-  width: max-content;
-  max-width: 100%;
-  text-align: left;
+  transition:
+    border-color var(--motion-fast),
+    background var(--motion-fast);
 }
 
 .setup-frame .server-step .backend-config {

@@ -373,10 +373,6 @@ export function OnboardingImport({
 
         {firstRun && setupStep === "server" ? (
           <div className="import-form server-step">
-            <div className="setup-intro">
-              <strong>Pick the source XpubShield should query for watch-only blockchain data.</strong>
-            </div>
-
             <div className="server-select-grid">
               <OptionHelpSelect
                 label="Network"
@@ -393,6 +389,7 @@ export function OnboardingImport({
                 label="Node server"
                 value={backend}
                 options={backendOptions}
+                showOptionHelp={false}
                 open={openServerDropdown === "backend"}
                 onToggle={() => setOpenServerDropdown((open) => open === "backend" ? null : "backend")}
                 onChange={(nextBackend) => {
@@ -406,18 +403,6 @@ export function OnboardingImport({
               <strong>{backendLabel(backend)}</strong>
               <span>{backendChoiceSummary(backend)}</span>
             </div>
-
-            <label className="checkbox-row network-lock-row">
-              <input
-                type="checkbox"
-                checked={networkLocked}
-                onChange={(event) => onNetworkPolicyChange(event.target.checked ? "local_only" : "normal")}
-              />
-              <span>
-                <strong>Network Lock</strong>
-                Restrict imports to mock/offline mode or localhost Bitcoin Core RPC.
-              </span>
-            </label>
 
             {backend === "bitcoin_core_rpc" ? (
               <details className="advanced-section backend-config" open>
@@ -851,6 +836,7 @@ function OptionHelpSelect<T extends string>({
   label,
   value,
   options,
+  showOptionHelp = true,
   open,
   onToggle,
   onChange
@@ -858,6 +844,7 @@ function OptionHelpSelect<T extends string>({
   label: string;
   value: T;
   options: HelpOption<T>[];
+  showOptionHelp?: boolean;
   open: boolean;
   onToggle: () => void;
   onChange: (value: T) => void;
@@ -882,7 +869,10 @@ function OptionHelpSelect<T extends string>({
       {open ? (
         <div className="option-help-list" id={listId} role="listbox" aria-label={label}>
           {options.map((option) => (
-            <div className={`option-help-row ${option.disabled ? "option-help-row-disabled" : ""}`} key={option.value}>
+            <div
+              className={`option-help-row ${showOptionHelp ? "" : "option-help-row-no-info"} ${option.disabled ? "option-help-row-disabled" : ""}`}
+              key={option.value}
+            >
               <button
                 type="button"
                 className="option-help-choice"
@@ -894,14 +884,16 @@ function OptionHelpSelect<T extends string>({
                 <span>{option.label}</span>
                 {option.value === value ? <span className="option-help-selected">Selected</span> : null}
               </button>
-              <button
-                type="button"
-                className="option-help-info tooltip-button"
-                aria-label={`${option.label}: ${option.description}`}
-                data-tooltip={option.description}
-              >
-                <CircleHelp size={14} aria-hidden="true" />
-              </button>
+              {showOptionHelp ? (
+                <button
+                  type="button"
+                  className="option-help-info tooltip-button"
+                  aria-label={`${option.label}: ${option.description}`}
+                  data-tooltip={option.description}
+                >
+                  <CircleHelp size={14} aria-hidden="true" />
+                </button>
+              ) : null}
             </div>
           ))}
         </div>
