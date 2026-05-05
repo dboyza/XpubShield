@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 64 64" role="img" aria-label="XpubShield logo">
+  <defs>
+    <filter id="logo-shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="7" stdDeviation="4" flood-color="#000000" flood-opacity="0.32"/>
+    </filter>
+    <filter id="x-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="2" stdDeviation="0" flood-color="#4a2705" flood-opacity="0.46"/>
+    </filter>
+  </defs>
+  <g filter="url(#logo-shadow)">
+    <path
+      d="M32 5.8c8.4 5.8 16.4 6.4 21.4 6.8 1.1 17.2-4.7 32.2-21.4 43.4C15.3 44.8 9.5 29.8 10.6 12.6c5-.4 13-1 21.4-6.8Z"
+      fill="#000000"
+      fill-opacity="0.34"
+      transform="translate(2 3)"
+    />
+    <path
+      d="M32 4.5c8.8 6 16.9 6.6 22.2 7 1 17.8-5 33.1-22.2 44.9C14.8 44.6 8.8 29.3 9.8 11.5c5.3-.4 13.4-1 22.2-7Z"
+      fill="#f7931a"
+      stroke="#ffefcb"
+      stroke-opacity="0.96"
+      stroke-width="2.4"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M20.1 17.4c3.7-.7 7.8-2.2 11.9-4.9 4.1 2.7 8.2 4.2 11.9 4.9-.6 10.9-4.4 20.5-11.9 28.5-7.5-8-11.3-17.6-11.9-28.5Z"
+      fill="#ffd26c"
+      fill-opacity="0.42"
+      stroke="#fff8e8"
+      stroke-opacity="0.32"
+      stroke-width="1.3"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M22.8 21.4 41.2 42.6M41.2 21.4 22.8 42.6"
+      fill="none"
+      stroke="#fff6dc"
+      stroke-opacity="0.96"
+      stroke-width="4.4"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      filter="url(#x-shadow)"
+    />
+    <path
+      d="M23 32h18M32 19v26"
+      fill="none"
+      stroke="#ffd06a"
+      stroke-opacity="0.95"
+      stroke-width="2.1"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <g fill="#fff1d6" stroke="#fff6dc" stroke-opacity="0.96" stroke-width="1.5">
+      <circle cx="32" cy="19" r="2.7"/>
+      <circle cx="41" cy="32" r="2.7"/>
+      <circle cx="32" cy="45" r="2.7"/>
+      <circle cx="23" cy="32" r="2.7"/>
+    </g>
+  </g>
+</svg>

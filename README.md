@@ -1,5 +1,11 @@
 # XpubShield
 
+<p align="center">
+  <img src="docs/assets/xpubshield-logo.svg" alt="XpubShield logo" width="140">
+</p>
+
+## Created by Dylan with Codex GPT-5.5!
+
 ![Status: Active development](https://img.shields.io/badge/status-active_development-111827)
 ![Local-first](https://img.shields.io/badge/local--first-yes-0f766e)
 ![Watch-only](https://img.shields.io/badge/watch--only-yes-2563eb)
@@ -12,8 +18,6 @@
 XpubShield is a local-first Bitcoin operational security cockpit for watch-only wallet analysis. It helps sovereign operators understand wallet posture, coin provenance, UTXO risk, fee exposure, backend privacy, recovery readiness, and PSBT safety before signing anywhere else.
 
 It is intentionally **pre-sign only**: no private keys, no transaction construction, no signing, no finalization, no extraction, no broadcast, and no custody.
-
-## Created by Dylan with Codex GPT-5.5!
 
 ## Why It Exists
 
