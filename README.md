@@ -1,6 +1,6 @@
 # XpubShield
 
-![Status: Closed beta](https://img.shields.io/badge/status-closed_beta-111827)
+![Status: Active development](https://img.shields.io/badge/status-active_development-111827)
 ![Local-first](https://img.shields.io/badge/local--first-yes-0f766e)
 ![Watch-only](https://img.shields.io/badge/watch--only-yes-2563eb)
 ![Pre-sign only](https://img.shields.io/badge/pre--sign_only-yes-b45309)
@@ -21,9 +21,9 @@ Bitcoin operations can fail before a signature is ever produced: unlabeled coins
 
 XpubShield gives operators a dedicated command surface for that pre-sign phase. It turns watch-only wallet data into evidence-backed actions, so coin decisions are made from posture, provenance, and privacy context instead of guesswork.
 
-## Closed-Beta Status
+## Current Status
 
-XpubShield is a **closed-beta candidate**. It is suitable for demo workflows and controlled tester feedback, but it should not be treated as public stable software yet.
+XpubShield is under active development. It is suitable for demo workflows and controlled operator evaluation, but it should not be treated as stable production software yet.
 
 Current strengths:
 
@@ -40,7 +40,7 @@ Not stable-release ready yet:
 - Live backend monitoring is not a full background indexer.
 - Bitcoin Core and Esplora support are address-scan oriented and should be tested carefully with real infrastructure.
 - Electrum support is one-shot and TCP-only in this pass; TLS, Tor, and proxy routing are deferred.
-- A fresh watch-only security review should happen before a public beta or stable release.
+- A fresh watch-only security review should happen before a stable release.
 
 ## Safety Boundary
 
@@ -172,7 +172,7 @@ XpubShield keeps operator guidance and wallet context close to the work.
 - Optional Sovereign Ops tutorial
 - In-app Documentation tab
 - Bitcoin primer
-- Closed-beta operator test script
+- Operator test script
 - Local wallet reports, labels, coin sets, alerts, spend simulations, consolidation simulations, and workspace state
 - SQLite storage in the platform app data directory as `xpubshield.sqlite3`
 
@@ -493,7 +493,7 @@ Recommended smoke test:
 - Coin Workbench filters, selected coins, and drawers behave correctly.
 - Spend Preflight selections and scenario inputs persist after reload.
 - Lineage pan/zoom works.
-- Documentation is searchable and includes the closed-beta operator script.
+- Documentation is searchable and includes the operator script.
 - Recovery and PSBT Preflight render without console errors.
 - Clear local cache removes wallet/workspace state.
 
@@ -518,7 +518,7 @@ Near-term priorities:
 - Encrypted local database option
 - More robust large-wallet graph handling
 - Richer import diagnostics for ambiguous xpub paths
-- Expanded closed-beta tester scripts
+- Expanded operator test scripts
 
 ## Contributing
 
