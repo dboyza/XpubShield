@@ -1,12 +1,18 @@
 import {
+  AlertTriangle,
   ArrowRight,
   CircleGauge,
   Coins,
+  Database,
   Eye,
   Fingerprint,
   HeartPulse,
+  LockKeyhole,
+  MapPin,
+  Search,
   ShieldAlert,
   ShieldCheck,
+  WalletCards,
   X
 } from "lucide-react";
 import { useState } from "react";
@@ -60,6 +66,7 @@ export function Cockpit({ report, onNavigate, onDismissAction }: CockpitProps) {
   const unknownCount = report.provenance_summary.unknown_count;
   const exchangeCount = report.provenance_summary.exchange_like_count;
   const posture = buildRiskPosture(report, topAction, urgentCount);
+  const knownProvenanceCount = report.provenance_summary.assessed_count - unknownCount;
 
   function revealSafestNextStep() {
     if (!topAction) {
@@ -80,37 +87,64 @@ export function Cockpit({ report, onNavigate, onDismissAction }: CockpitProps) {
 
   return (
     <main className="page-shell cockpit-shell">
-      <section className="page-header cockpit-hero">
-        <div>
-          <p>{backendLabel(report.wallet.backend)} · {humanize(report.wallet.network)} · pre-sign / local</p>
-          <h1>Bitcoin security cockpit</h1>
-        </div>
-        <div className="cockpit-command" aria-label="Cockpit signal summary">
-          <CommandSignal label="Urgent" value={String(urgentCount)} detail="reviews" tone={urgentCount ? "danger" : "clear"} />
-          <CommandSignal label="Queue" value={String(topActions.length)} detail="grouped actions" tone={topActions.length ? "warn" : "clear"} />
-        </div>
+      <section className="cockpit-title">
+        <h1>Bitcoin security cockpit</h1>
+        <p>Status + Next Step</p>
       </section>
 
-      <section className={`risk-posture-panel risk-posture-${posture.severity}`} aria-label="Wallet risk posture">
-        <div className="risk-posture-main">
-          <span className="eyebrow">Wallet posture</span>
+      <section className="cockpit-overview-grid" aria-label="Cockpit status and next action">
+        <section className="cockpit-panel wallet-status-panel" aria-label="Wallet status">
+          <span className="eyebrow">Wallet status</span>
+          <div className="wallet-status-hero">
+            <ShieldCheck size={76} strokeWidth={1.7} aria-hidden="true" />
+            <div className="wallet-score">
+              <span>Posture</span>
+              <strong>{posture.score}</strong>
+              <small>{posture.score >= 85 ? "Good" : "Review"}</small>
+            </div>
+            <div className="wallet-major-stat">
+              <span>Urgent</span>
+              <strong>{urgentCount}</strong>
+              <small>Items</small>
+            </div>
+            <div className="wallet-major-stat">
+              <span>Queue</span>
+              <strong>{topActions.length}</strong>
+              <small>Actions</small>
+            </div>
+          </div>
+
+          <div className="wallet-mini-grid" aria-label="Posture components">
+            <MiniStatus icon={LockKeyhole} label="Privacy" value={`${report.scores.privacy} / 100`} detail={report.scores.privacy >= 85 ? "Good" : "Review"} />
+            <MiniStatus icon={Fingerprint} label="Readiness" value={`${report.scores.spend_readiness} / 100`} detail={report.scores.spend_readiness >= 90 ? "Ready" : "Review"} />
+            <MiniStatus icon={HeartPulse} label="Recovery" value={`${report.scores.recovery_readiness} / 100`} detail={report.scores.recovery_readiness >= 85 ? "Good" : "Review"} />
+          </div>
+
+          <div className="wallet-context-list" aria-label="Wallet context">
+            <span className="eyebrow">Wallet context</span>
+            <ContextLine icon={WalletCards} label="Wallet mode" value="Pre-sign only" />
+            <ContextLine icon={Database} label="Storage" value="Local metadata" />
+            <ContextLine icon={ShieldCheck} label="Known provenance" value={`${knownProvenanceCount} ${knownProvenanceCount === 1 ? "coin" : "coins"}`} />
+            <ContextLine icon={CircleGauge} label="Unknown provenance" value={`${unknownCount} ${unknownCount === 1 ? "coin" : "coins"}`} />
+            <ContextLine icon={Search} label="Descriptors" value={`${report.descriptors.length} tracked`} />
+            <ContextLine icon={MapPin} label="Derived addresses" value={`${report.derived_addresses.length} scanned`} />
+          </div>
+
+          <p className="wallet-operational-note">All systems operational <span aria-hidden="true" /></p>
+        </section>
+
+        <section className={`cockpit-panel next-action-panel next-action-${posture.severity}`} aria-label="Next required action">
+          <span className="eyebrow">Next required action</span>
+          <AlertTriangle size={44} strokeWidth={1.7} aria-hidden="true" />
           <h2>{posture.label}</h2>
-          <p>{posture.summary}</p>
-          <div className="risk-driver">
-            <span>Primary driver</span>
+          <div className="next-action-driver">
+            <span className="eyebrow">Primary driver</span>
             <strong>{posture.driver}</strong>
           </div>
-        </div>
-        <div className="risk-score-card" aria-label={`Posture score ${posture.score} out of 100`}>
-          <strong>{posture.score}</strong>
-          <span>posture score</span>
-        </div>
-        <div className="risk-next-step">
-          <span>{humanize(posture.confidence)} confidence · {affectedCoinText(posture.affectedCount)}</span>
           <p>{posture.nextAction}</p>
           <button
             type="button"
-            className="primary-button"
+            className="primary-button next-action-button"
             onClick={revealSafestNextStep}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
@@ -119,9 +153,9 @@ export function Cockpit({ report, onNavigate, onDismissAction }: CockpitProps) {
               }
             }}
           >
-            Show highlighted action <ArrowRight size={16} />
+            Open highlighted action <ArrowRight size={22} />
           </button>
-        </div>
+        </section>
       </section>
 
       <section className="instrument-band" aria-label="Wallet posture instruments">
@@ -169,86 +203,81 @@ export function Cockpit({ report, onNavigate, onDismissAction }: CockpitProps) {
         />
       </section>
 
-      <section className="cockpit-grid risk-led-grid">
-        <section className="panel action-center-panel">
-          <div className="panel-heading cockpit-section-heading">
-            <div>
-              <span className="eyebrow">Priority queue</span>
-              <h2>Action center</h2>
-            </div>
-            <div className="panel-heading-actions">
-              <StatusPill label="ranked by risk" tone={topActions.length ? "warn" : "good"} />
-              <span className={`action-count-signal ${topActions.length ? "" : "action-count-clear"}`}>
-                {topActions.length ? `${topActions.length} grouped` : "clear"}
-              </span>
-            </div>
+      <section className="cockpit-panel triage-panel" aria-label="Action center">
+        <div className="triage-heading">
+          <div>
+            <span className="eyebrow">Triage inbox</span>
+            <p>Review the highest-impact actions first.</p>
           </div>
-          {topActions.length ? (
-            <div className="action-center-list">
-              {topActions.map((action) => (
-                <ActionCard
-                  key={action.id}
-                  action={action}
-                  highlighted={highlightedActionId === action.id}
-                  onNavigate={onNavigate}
-                  onDismissAction={onDismissAction}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="empty-state">No active operational actions. Keep labels and recovery metadata current.</p>
-          )}
-        </section>
-
-        <aside className="cockpit-support-stack">
-          <section className="panel cockpit-briefing">
-            <div className="panel-heading cockpit-section-heading">
-              <div>
-                <span className="eyebrow">Operating context</span>
-                <h2>Readiness</h2>
+          <StatusPill label={topActions.length ? "ranked by risk" : "clear"} tone={topActions.length ? "warn" : "good"} />
+        </div>
+        {topActions.length ? (
+          <>
+            <div className="triage-table" role="table" aria-label="Ranked action center">
+              <div className="triage-table-head" role="row">
+                <span role="columnheader">Priority</span>
+                <span role="columnheader">Review item</span>
+                <span role="columnheader">Next step</span>
+                <span role="columnheader" className="triage-action-header">Action</span>
               </div>
-              <StatusPill label="closed beta" tone="warn" />
+              <div className="triage-table-body">
+                {topActions.map((action) => (
+                  <ActionCard
+                    key={action.id}
+                    action={action}
+                    highlighted={highlightedActionId === action.id}
+                    onNavigate={onNavigate}
+                    onDismissAction={onDismissAction}
+                  />
+                ))}
+              </div>
             </div>
-            <div className="briefing-grid">
-              <BriefingChip label="Wallet mode" value="pre-sign only" />
-              <BriefingChip label="Storage" value="local metadata" />
-              <BriefingChip label="Known provenance" value={`${report.provenance_summary.assessed_count - unknownCount} coins`} />
-              <BriefingChip label="Unknown provenance" value={`${unknownCount} coins`} />
-              <BriefingChip label="Descriptors" value={`${report.descriptors.length} tracked`} />
-              <BriefingChip label="Derived addresses" value={`${report.derived_addresses.length} scanned`} />
-            </div>
-            <div className="button-row cockpit-shortcuts">
-              <button type="button" className="secondary-button" onClick={() => onNavigate("utxos")}>
-                Open Workbench <ArrowRight size={16} />
-              </button>
-              <button type="button" className="secondary-button" onClick={() => onNavigate("spend_preflight")}>
-                Run Preflight <ArrowRight size={16} />
-              </button>
-            </div>
-          </section>
-        </aside>
+            <p className="triage-count">Showing {topActions.length} of {topActions.length} items</p>
+          </>
+        ) : (
+          <p className="empty-state">No active operational actions. Keep labels and recovery metadata current.</p>
+        )}
       </section>
       <EvidenceDrawer item={activeEvidence} onClose={() => setActiveEvidence(null)} />
     </main>
   );
 }
 
-function CommandSignal({
+function MiniStatus({
+  icon: Icon,
   label,
   value,
-  detail,
-  tone
+  detail
 }: {
+  icon: typeof ShieldAlert;
   label: string;
   value: string;
   detail: string;
-  tone: "danger" | "warn" | "clear";
 }) {
   return (
-    <div className={`cockpit-command-signal cockpit-command-${tone}`}>
+    <div className="mini-status">
+      <Icon size={20} aria-hidden="true" />
       <span>{label}</span>
       <strong>{value}</strong>
-      <small>{detail}</small>
+      <em>{detail}</em>
+    </div>
+  );
+}
+
+function ContextLine({
+  icon: Icon,
+  label,
+  value
+}: {
+  icon: typeof ShieldAlert;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="context-line">
+      <Icon size={19} aria-hidden="true" />
+      <span>{label}</span>
+      <strong>{value}</strong>
     </div>
   );
 }
@@ -371,34 +400,31 @@ function ActionCard({
   const dismissActionId = action.dismissActionId;
 
   return (
-    <article id={actionDomId(action.id)} className={`action-card action-card-${action.severity} ${highlighted ? "action-card-highlight" : ""}`}>
-      <div className="action-card-topline">
-        <div className="finding-title action-card-meta">
-          <span className={`action-severity-text action-severity-${action.severity}`}>{humanize(action.severity)}</span>
+    <article id={actionDomId(action.id)} className={`triage-row triage-row-${action.severity} ${highlighted ? "action-card-highlight" : ""}`} role="row">
+      <div className="triage-priority" role="cell">
+        <span>{humanize(action.severity)}</span>
+      </div>
+      <div className="triage-review-item" role="cell">
+        <h3>{action.title}</h3>
+        <p>{action.summary}</p>
+        <div className="triage-meta">
           <span>{humanize(action.confidence)} confidence</span>
-          {action.source === "guided" ? <span className="action-source-text">Guided op</span> : null}
+          <span>{affectedCoinText(action.affectedCount)}</span>
+          {action.source === "guided" ? <span>Guided op</span> : null}
         </div>
+      </div>
+      <div className="triage-next-step" role="cell">
+        <p>{action.recommendedAction}</p>
+      </div>
+      <div className="triage-row-actions" role="cell">
+        <button type="button" className="secondary-button triage-open-button" onClick={() => onNavigate(action.ctaPage)}>
+          Open review <ArrowRight size={16} />
+        </button>
         {dismissActionId ? (
           <button type="button" className="icon-button action-dismiss" onClick={() => onDismissAction(dismissActionId)} aria-label={`Dismiss ${action.title}`}>
             <X size={14} />
           </button>
         ) : null}
-      </div>
-      <div className="action-card-copy">
-        <div className="action-card-heading">
-          <h3>{action.title}</h3>
-          <p>{action.summary}</p>
-        </div>
-        <div className="action-card-detail action-card-next">
-          <strong>Next</strong>
-          <span>{action.recommendedAction}</span>
-        </div>
-      </div>
-      <div className="action-card-footer">
-        <span>{affectedCoinText(action.affectedCount)}</span>
-        <button type="button" className="secondary-button" onClick={() => onNavigate(action.ctaPage)}>
-          {action.ctaLabel} <ArrowRight size={15} />
-        </button>
       </div>
     </article>
   );
@@ -567,11 +593,3 @@ function InstrumentTile({
   );
 }
 
-function BriefingChip({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="briefing-chip">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
