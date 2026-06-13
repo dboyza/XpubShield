@@ -311,6 +311,7 @@ export default function App() {
     });
     setTutorialOpen(false);
     setTutorialPromptOpen(false);
+    selectPage("cockpit");
   }
 
   function snoozeTutorialPrompt() {
