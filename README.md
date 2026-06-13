@@ -19,6 +19,22 @@ It helps operators review wallet posture, coin provenance, spend risk, recovery 
 
 XpubShield is **pre-sign only**: no private keys, no transaction construction, no signing, no finalization, no extraction, no broadcast, and no custody.
 
+![XpubShield Cockpit](docs/assets/xpubshield-cockpit.png)
+
+## What It Does
+
+- Reviews watch-only wallet posture
+- Helps identify risky coin merges
+- Checks recovery metadata
+- Reviews PSBTs before signing
+
+## What It Does Not Do
+
+- Does not hold private keys
+- Does not build transactions
+- Does not sign
+- Does not broadcast
+
 ## Why It Exists
 
 Bitcoin operations can fail before a signature is produced: unlabeled coins get merged, public backends leak wallet context, recovery metadata goes stale, tiny UTXOs become uneconomical, and PSBTs arrive with risks that are easy to miss.
