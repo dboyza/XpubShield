@@ -1,5 +1,10 @@
 # Codex Agent Notes
 
+## Learning Notes
+- When a task requires trial and error, add concise notes here for the exact command, workaround, verification step, or project-specific behavior that would make the same task faster next time.
+- Prefer durable, actionable notes over narration. Include symptoms and fixes when they are useful, such as the error text that identifies a known workaround.
+- Keep notes scoped to this project. Do not record secrets, personal data, or unrelated machine-wide preferences.
+
 ## App Startup
 - This is a Vite app. Start the local dev server with `npm.cmd run dev -- --host 127.0.0.1`.
 - The app serves at `http://127.0.0.1:5173/` when the default port is free.
