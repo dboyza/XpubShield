@@ -86,6 +86,21 @@ Build the desktop package:
 npm run tauri -- build
 ```
 
+## Installing Without npm
+
+End users should not need Node, npm, Rust, or the source repo.
+
+For a normal Windows install, share one of the packaged installers from a release:
+
+- `XpubShield_0.1.0_x64-setup.exe` for a setup wizard
+- `XpubShield_0.1.0_x64_en-US.msi` for an MSI installer
+
+For a portable-style run, share:
+
+- `xpubshield.exe`
+
+That executable can be opened directly, but the installer is usually nicer because it creates the standard app install experience. Until the app is code-signed, Windows may show a SmartScreen warning.
+
 ## Safety Boundary
 
 Never paste or import:
