@@ -2,7 +2,6 @@ import { ArrowLeft, ArrowRight, BookOpenCheck, Check, X } from "lucide-react";
 import { KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 
 export type TutorialPageId =
-  | "import"
   | "cockpit"
   | "utxos"
   | "spend_preflight"
@@ -21,15 +20,6 @@ export interface TutorialStep {
 }
 
 export const TUTORIAL_STEPS: TutorialStep[] = [
-  {
-    id: "import-watch-only",
-    page: "import",
-    targetSelector: "[data-tutorial-target='nav-import']",
-    title: "Import watch-only data",
-    body: "Start with a descriptor or xpub only. The app is designed to inspect wallet posture without ever asking for seed phrases or signing material.",
-    operatorCue: "Use the demo wallet if you want to learn the workflow before importing real metadata.",
-    ctaLabel: "Go to Import"
-  },
   {
     id: "read-cockpit",
     page: "cockpit",
@@ -195,8 +185,8 @@ export function SovereignOpsTutorial({
           </div>
           <h2 id="tutorial-prompt-title">Run the Sovereign Ops tutorial?</h2>
           <p>
-            Take a short guided pass through the workflow: import, Cockpit, coin provenance, spend preflight,
-            recovery, and PSBT safety.
+            Take a short guided pass through the workflow: Cockpit, coin provenance, spend preflight, recovery,
+            and PSBT safety.
           </p>
           <div className="tutorial-actions">
             <button type="button" className="primary-button" onClick={onStart}>
