@@ -1,6 +1,6 @@
 [package]
 name = "xpubshield"
-version = "0.1.2"
+version = "0.1.3"
 description = "Local-first watch-only Bitcoin xpub and UTXO observability desktop app"
 authors = ["XpubShield"]
 edition = "2021"

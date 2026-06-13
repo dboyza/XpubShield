@@ -92,12 +92,12 @@ End users should not need Node, npm, Rust, or the source repo.
 
 For a normal Windows install, share one of the packaged installers from the GitHub Releases page:
 
-- `XpubShield_0.1.2_x64-setup.exe` for a setup wizard
-- `XpubShield_0.1.2_x64_en-US.msi` for an MSI installer
+- `XpubShield_0.1.3_x64-setup.exe` for a setup wizard
+- `XpubShield_0.1.3_x64_en-US.msi` for an MSI installer
 
 For a portable-style run, share:
 
-- `xpubshield.exe`
+- `XpubShield_0.1.3_x64-portable.exe`
 
 That executable can be opened directly, but the installer is usually nicer because it creates the standard app install experience. Until the app is code-signed, Windows may show a SmartScreen warning.
 
