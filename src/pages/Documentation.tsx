@@ -46,7 +46,7 @@ const QUICK_START: QuickStartCard[] = [
   },
   {
     title: "4. Verify before signing",
-    body: "Use Recovery and PSBT Preflight before external signing. The app analyzes, warns, and explains; it does not construct, sign, or broadcast transactions.",
+    body: "Use Recovery to verify backup readiness, then use PSBT Preflight to review an already-created transaction before signer approval.",
     signal: "Preflight only"
   }
 ];
@@ -61,7 +61,8 @@ const DOC_SECTIONS: DocumentationSection[] = [
     bullets: [
       "Use it to inspect wallet posture, UTXO risk, provenance signals, fee exposure, recovery readiness, and PSBT warnings.",
       "It is deliberately preflight-only: it does not create transactions, sign transactions, broadcast transactions, or hold private keys.",
-      "The demo wallet is safe for learning the interface before importing real watch-only metadata."
+      "The demo wallet is safe for learning the interface before importing real watch-only metadata.",
+      "Guided workflow panels explain what each major preflight page is for, when to use it, and the next action."
     ],
     deepDive: [
       {
@@ -136,7 +137,7 @@ const DOC_SECTIONS: DocumentationSection[] = [
       },
       {
         title: "Module rhythm",
-        body: "Use Workbench for coin metadata, Spend Preflight for observer inference, Recovery for emergency-readiness checks, and PSBT Preflight before signer review."
+        body: "Use Workbench for coin metadata, Spend Preflight to plan a possible spend before a transaction exists, Recovery to check backup readiness, and PSBT Preflight to review a ready-to-sign transaction before signer approval."
       },
       {
         title: "Contextual explanations",
@@ -170,14 +171,19 @@ const DOC_SECTIONS: DocumentationSection[] = [
     id: "spend-preflight",
     group: "Sovereign Ops Workflow",
     title: "Spend Preflight",
-    summary: "Preview what an observer could infer before you sign somewhere else.",
+    summary: "Plan a possible spend before a transaction exists.",
     tags: ["spending", "preflight", "change", "common input", "fees"],
     bullets: [
-      "Select candidate coins and an amount to review common-input ownership, source mixing, toxic change, dust exposure, and fee efficiency.",
+      "Use Spend Preflight before building or signing elsewhere, especially when coins have different labels, sources, or quarantine states.",
+      "Select candidate coins and an amount to review common-input ownership, source mixing, toxic change, dust exposure, change output, and fee efficiency.",
       "Prefer coin groups with similar context and provenance when privacy matters.",
-      "Use warnings as decision support before external wallet construction and signing."
+      "Use the guided outcome, observer story, warning evidence, fee-rate details, and suggested alternatives as decision support before external wallet construction and signing."
     ],
     deepDive: [
+      {
+        title: "How it differs from PSBT Preflight",
+        body: "Spend Preflight is planning mode. It works before a transaction exists and helps you decide which coins should or should not be used together."
+      },
       {
         title: "Common-input ownership",
         body: "When multiple UTXOs are spent together, observers often infer they share an owner. This heuristic is not perfect, but it is common enough to matter."
@@ -192,17 +198,21 @@ const DOC_SECTIONS: DocumentationSection[] = [
     id: "recovery-psbt",
     group: "Sovereign Ops Workflow",
     title: "Recovery and PSBT review",
-    summary: "Verify recoverability and transaction safety before you need them under pressure.",
+    summary: "Separate backup readiness from ready-to-sign transaction review.",
     tags: ["recovery", "psbt", "descriptor", "fingerprint", "signer"],
     bullets: [
-      "Recovery checks descriptor completeness, derivation path coverage, fingerprints, gap risk, multisig metadata, and export readiness.",
-      "PSBT Preflight analyzes pasted PSBT text for suspicious inputs, outputs, warnings, and change assumptions.",
+      "Recovery is not a spending tool. It checks whether the watch-only wallet view can be restored or independently verified from descriptors, fingerprints, derivation paths, gap assumptions, and exports.",
+      "PSBT Preflight is for transactions that already exist. It analyzes pasted PSBT text for suspicious inputs, outputs, fees, warnings, and change assumptions.",
       "A clean PSBT lint result is useful, but it does not prove a transaction is safe."
     ],
     deepDive: [
       {
         title: "Recovery exports",
         body: "Exports are created locally. Review where you store them because descriptors, addresses, labels, and transaction history are sensitive metadata."
+      },
+      {
+        title: "Descriptor diff",
+        body: "Use descriptor diff when descriptor or xpub identity feels ambiguous. It helps compare previews without turning Recovery into a spending workflow."
       },
       {
         title: "Signer boundary",
@@ -295,7 +305,7 @@ const DOC_SECTIONS: DocumentationSection[] = [
       },
       {
         title: "Tutorial state",
-        body: "The tutorial uses local browser or WebView storage so it can be dismissed and restarted without affecting wallet data."
+        body: "The tutorial uses local browser or WebView storage so it can be dismissed and restarted without affecting wallet data. After import or demo setup, it starts at Cockpit, teaches the Spend Preflight / Recovery / PSBT distinction, and returns to Cockpit when finished."
       }
     ]
   },
@@ -309,6 +319,7 @@ const DOC_SECTIONS: DocumentationSection[] = [
       "Start fresh, load the demo wallet, and confirm Cockpit Risk Posture is the first obvious read.",
       "Try Private Electrum and Public Electrum import paths with test metadata; confirm Public Electrum requires the privacy acknowledgement.",
       "Enable Network Lock and confirm public or remote backends are blocked before import.",
+      "Restart the tutorial and confirm it begins at Cockpit, explains Spend Preflight, Recovery, and PSBT Preflight with What / When / Next guidance, then returns to Cockpit on Finish.",
       "Move through Workbench, Spend Preflight, Lineage, Recovery, PSBT Preflight, Documentation, and Settings without console errors.",
       "Restart or reload and confirm the last page, selected coins, filters, scenario inputs, graph viewport, and documentation search restore for the same wallet.",
       "Clear local cache and confirm wallet/workspace state resets while Tutorial can still be restarted separately."
