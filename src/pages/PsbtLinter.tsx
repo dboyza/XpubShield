@@ -1,9 +1,10 @@
-import { FileSearch, ShieldAlert } from "lucide-react";
+import { FileSearch } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { analyzePsbt } from "../api/tauri";
 import { EvidenceDrawer } from "../components/EvidenceDrawer";
 import { RiskBadge } from "../components/RiskBadge";
 import { StatusPill } from "../components/StatusPill";
+import { WorkflowGuide } from "../components/WorkflowGuide";
 import { compactSats, humanize, txidPrefix } from "../lib/format";
 import type { EvidenceItem } from "../lib/ops";
 import { analyzePsbtText, examplePsbtFixture, type PsbtAnalysisResult } from "../lib/phase3";
@@ -46,25 +47,22 @@ export function PsbtLinter({ report }: PsbtLinterProps) {
         <div>
           <p>{report.wallet.name}</p>
           <h1>PSBT preflight</h1>
+          <p className="page-header-copy">Review a ready-to-sign transaction before a signer touches it.</p>
         </div>
         <StatusPill label="No signing" tone="good" />
       </section>
 
-      <section className="privacy-warning">
-        <ShieldAlert size={20} aria-hidden="true" />
-        <div>
-          <strong>Local review only</strong>
-          <p>
-            This module never signs or broadcasts. Raw PSBT envelopes are parsed locally where
-            possible, then checked against wallet labels, provenance, change, and fee assumptions.
-          </p>
-        </div>
-      </section>
+      <WorkflowGuide
+        title="Review a ready-to-sign transaction"
+        purpose="Paste a PSBT, inspect inputs, outputs, fee, and change, then review warnings before external signing."
+        when="Use this after a wallet or coordinator has produced a PSBT but before a hardware signer or signing wallet approves it."
+        nextAction="Paste the PSBT or load the example, then resolve any warning before signing elsewhere."
+      />
 
       <section className="simulator-grid">
         <div className="panel">
           <div className="panel-heading">
-            <h2>Import PSBT for review</h2>
+            <h2>Paste PSBT</h2>
             <button type="button" className="secondary-button" onClick={() => setInput(examplePsbtFixture(report))}>
               <FileSearch size={16} /> Example
             </button>
@@ -82,7 +80,7 @@ export function PsbtLinter({ report }: PsbtLinterProps) {
 
         <div className="panel">
           <div className="panel-heading">
-            <h2>Analysis</h2>
+            <h2>Transaction summary</h2>
             <StatusPill label={humanize(analysis.format)} tone={analysis.format === "json_fixture" ? "good" : "warn"} />
           </div>
           <div className="shape-list">
@@ -97,12 +95,12 @@ export function PsbtLinter({ report }: PsbtLinterProps) {
       </section>
 
       <section className="dashboard-grid">
-        <div className="panel">
-          <div className="panel-heading">
-            <h2>Inputs</h2>
-            <StatusPill label={`${analysis.inputs.length} inputs`} />
-          </div>
-          <div className="stress-list">
+        <details className="advanced-section panel" open={analysis.inputs.length > 0}>
+          <summary>
+            <span>Input details</span>
+            <small>{analysis.inputs.length} inputs</small>
+          </summary>
+          <div className="stress-list workflow-detail-body">
             {analysis.inputs.map((input) => (
               <article className="stress-item" key={input.outpoint}>
                 <div>
@@ -113,14 +111,14 @@ export function PsbtLinter({ report }: PsbtLinterProps) {
               </article>
             ))}
           </div>
-        </div>
+        </details>
 
-        <div className="panel">
-          <div className="panel-heading">
-            <h2>Outputs</h2>
-            <StatusPill label={`${analysis.outputs.length} outputs`} />
-          </div>
-          <div className="stress-list">
+        <details className="advanced-section panel" open={analysis.outputs.length > 0}>
+          <summary>
+            <span>Output details</span>
+            <small>{analysis.outputs.length} outputs</small>
+          </summary>
+          <div className="stress-list workflow-detail-body">
             {analysis.outputs.map((output) => (
               <article className="stress-item" key={`${output.address}:${output.amount_sats}`}>
                 <div>
@@ -131,7 +129,7 @@ export function PsbtLinter({ report }: PsbtLinterProps) {
               </article>
             ))}
           </div>
-        </div>
+        </details>
       </section>
 
       <section className="panel">
