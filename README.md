@@ -15,7 +15,7 @@
 ![Rust](https://img.shields.io/badge/Rust-core-b7410e)
 ![SQLite](https://img.shields.io/badge/SQLite-local-003b57)
 
-XpubShield is a local-first Bitcoin operational security cockpit for watch-only wallet analysis. It helps sovereign operators understand wallet posture, coin provenance, UTXO risk, fee exposure, backend privacy, recovery readiness, and PSBT safety before signing anywhere else.
+XpubShield is a local-first Bitcoin operational security cockpit for watch-only wallet analysis. It helps sovereign operators understand wallet posture, coin provenance, UTXO risk, fee exposure, backend privacy, recovery readiness, and PSBT safety before signing anywhere else. The main workflow is intentionally plain: start in Cockpit, review coins, plan possible spends, verify recovery metadata, and review ready-to-sign PSBTs.
 
 It is intentionally **pre-sign only**: no private keys, no transaction construction, no signing, no finalization, no extraction, no broadcast, and no custody.
 
@@ -37,6 +37,7 @@ Current strengths:
 - Mock, Bitcoin Core RPC, Electrum, and Esplora-compatible scanning modes.
 - Network Lock for opt-in local-only import safety rails.
 - Local provenance, risk scoring, action ranking, labels, coin sets, recovery checks, PSBT analysis, and packaged desktop builds.
+- Guided workflow panels and tutorial copy that explain when to use Spend Preflight, PSBT Preflight, and Recovery.
 
 Not stable-release ready yet:
 
@@ -75,8 +76,8 @@ Descriptors, xpubs, addresses, labels, transaction history, and PSBTs are still 
 
 The Cockpit is the primary command surface. It summarizes wallet risk posture, the top risk driver, confidence, affected coins, and the safest next action.
 
-- Risk-led landing page
-- Prioritized Action Center
+- Risk-led landing page focused on wallet status and the next required action
+- Prioritized Action Center / triage inbox for the highest-impact items
 - Mission Queue for guided operations
 - Local alert signals folded into the command surface
 - Compact posture instruments for privacy, recovery, spend readiness, backend privacy, balance, and provenance
@@ -106,7 +107,7 @@ No remote chain-surveillance attribution service is used.
 
 ### Spend Preflight
 
-Spend Preflight models what an observer could learn if selected coins are spent together.
+Spend Preflight is for planning a possible spend before a transaction exists. It models what an observer could learn if selected coins are spent together.
 
 - Selected coin workflow
 - Destination amount and fee-rate inputs
@@ -116,6 +117,7 @@ Spend Preflight models what an observer could learn if selected coins are spent 
 - Toxic change and quarantine exposure checks
 - Safer alternative suggestions
 - Optional local simulation persistence
+- Guided "what / when / next" panel that keeps the workflow distinct from PSBT review
 
 Spend Preflight does not construct, sign, or broadcast transactions.
 
@@ -134,7 +136,7 @@ Lineage gives an interactive graph view of wallet activity and coin context.
 
 ### Recovery
 
-Recovery helps operators verify whether watch-only metadata is complete enough to rely on under pressure.
+Recovery helps operators verify whether watch-only metadata is complete enough to restore or independently verify the wallet view under pressure.
 
 - Descriptor completeness checks
 - Fingerprint and derivation-path review
@@ -142,15 +144,17 @@ Recovery helps operators verify whether watch-only metadata is complete enough t
 - Gap-risk signals
 - Multisig metadata readiness where available
 - Local recovery report export
+- Descriptor diff access for ambiguous descriptor or xpub identity checks
 
 ### PSBT Preflight
 
-PSBT Preflight analyzes proposed PSBTs before external signing.
+PSBT Preflight is for reviewing a ready-to-sign transaction before signer approval.
 
 - Local PSBT parsing/linting
 - Fee and input/output risk checks
 - Quarantined-input warnings
 - Change and descriptor-context review
+- Input/output detail sections that expand when PSBT data is present
 - No signing, finalization, extraction, or broadcast
 
 ### Import and Backends
@@ -174,6 +178,7 @@ The import flow accepts descriptor or xpub watch-only data.
 XpubShield keeps operator guidance and wallet context close to the work.
 
 - Optional Sovereign Ops tutorial
+- Tutorial starts after import/demo at Cockpit, explains the Spend Preflight / Recovery / PSBT distinction, and returns to Cockpit when finished
 - In-app Documentation tab
 - Bitcoin primer
 - Operator test script
@@ -438,9 +443,9 @@ Use Coin Workbench to turn raw UTXOs into operational decisions.
 4. Save coin sets for later preflight review.
 5. Open evidence drawers before clearing risk states.
 
-### 5. Run Spend Preflight
+### 5. Plan a Possible Spend
 
-Before signing elsewhere:
+Use Spend Preflight before a transaction is built or signed elsewhere:
 
 1. Select candidate coins.
 2. Enter the destination amount.
@@ -448,12 +453,23 @@ Before signing elsewhere:
 4. Read observer inferences and warning evidence.
 5. Adjust the coin group before using an external wallet or signer.
 
-### 6. Verify Recovery and PSBTs
+### 6. Verify Recovery Readiness
 
-Use Recovery and PSBT Preflight as final checks.
+Use Recovery to confirm the watch-only view can be restored or independently verified.
 
-- Recovery checks whether metadata is sufficient for future restoration.
-- PSBT Preflight checks a proposed PSBT before external signing.
+1. Review backup readiness.
+2. Export Markdown or JSON recovery notes to storage you control.
+3. Use descriptor diff if descriptor or xpub identity feels ambiguous.
+4. Resolve missing descriptor, fingerprint, path, gap, or export metadata.
+
+### 7. Review Ready-to-Sign PSBTs
+
+Use PSBT Preflight after a wallet or coordinator creates a PSBT, but before signer approval.
+
+1. Paste a base64 or hex PSBT, or load the local example fixture.
+2. Review the transaction summary, fee, inputs, outputs, and change detection.
+3. Open warning evidence and resolve issues before signing elsewhere.
+4. Remember that a clean lint result is useful, but it does not prove a transaction is safe.
 
 ## Backend Privacy
 
@@ -494,11 +510,12 @@ Recommended smoke test:
 - Demo wallet loads.
 - Cockpit Risk Posture is the first obvious read.
 - Mission Queue can collapse and reopen.
+- Tutorial begins at Cockpit, explains Spend Preflight / Recovery / PSBT usage, and returns to Cockpit after Finish.
 - Coin Workbench filters, selected coins, and drawers behave correctly.
-- Spend Preflight selections and scenario inputs persist after reload.
+- Spend Preflight selections and scenario inputs persist after reload and clearly stay in planning mode.
 - Lineage pan/zoom works.
 - Documentation is searchable and includes the operator script.
-- Recovery and PSBT Preflight render without console errors.
+- Recovery and PSBT Preflight render without console errors and explain when to use each workflow.
 - Clear local cache removes wallet/workspace state.
 
 ## Limitations

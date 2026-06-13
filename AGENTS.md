@@ -16,3 +16,6 @@
 - Cockpit-specific layout and visual overrides live in `src/cockpit.css`, which is imported after `src/styles.css`; prefer editing `src/cockpit.css` for cockpit-only restyling.
 - The Cockpit stat strip is the `instrument-band` in `src/pages/Cockpit.tsx`. Preserve all six visible stats: Balance, Privacy, Spend, Recovery, Provenance, and Backend.
 - The evidence drawer uses a `createPortal` body-level render because fixed positioning inside the animated page shell can drift when the page is scrolled. Keep overlay-style drawers out of transformed/animated containers.
+
+## Documentation Surfaces
+- Operator-facing docs live in both `README.md` and the in-app handbook data in `src/pages/Documentation.tsx`; update both when workflow names, tutorial behavior, or module purpose language changes.
