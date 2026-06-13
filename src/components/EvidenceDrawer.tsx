@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { humanize } from "../lib/format";
 import type { EvidenceItem } from "../lib/ops";
 import { severityToTone } from "../lib/ops";
@@ -25,7 +26,7 @@ export function EvidenceDrawer({ item, onClose }: EvidenceDrawerProps) {
 
   if (!item) return null;
 
-  return (
+  return createPortal(
     <aside
       className="detail-drawer evidence-drawer"
       role="dialog"
@@ -66,7 +67,8 @@ export function EvidenceDrawer({ item, onClose }: EvidenceDrawerProps) {
           ))}
         </ul>
       </section>
-    </aside>
+    </aside>,
+    document.body
   );
 }
 

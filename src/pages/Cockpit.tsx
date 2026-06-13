@@ -555,7 +555,7 @@ function buildInstrumentEvidence(report: WalletReport, key: InstrumentKey): Evid
     why: "The balance under watch is the sum of UTXOs in the current local wallet report.",
     action: "Use Coin Workbench to inspect individual UTXOs before using any balance number operationally.",
     evidence: [
-      `Balance: ${satsToBtc(report.totals.balance_sats)} BTC`,
+      `Balance: ${satsToBtc(report.totals.balance_sats)}`,
       `UTXO count: ${report.totals.utxo_count}`,
       `Largest coin: ${report.totals.largest_utxo_sats.toLocaleString()} sats`,
       `Smallest coin: ${report.totals.smallest_utxo_sats.toLocaleString()} sats`
