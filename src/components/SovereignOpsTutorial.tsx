@@ -16,6 +16,11 @@ export interface TutorialStep {
   body: string;
   operatorCue: string;
   ctaLabel: string;
+  guide?: {
+    what: string;
+    when: string;
+    next: string;
+  };
   requiresWallet?: boolean;
 }
 
@@ -53,31 +58,46 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "spend-preflight",
     page: "spend_preflight",
-    targetSelector: ".preflight-grid",
-    title: "Preflight before spending",
-    body: "Spend Preflight explains what an observer could infer from selected coins, including common-input ownership, toxic change, and fee exposure.",
-    operatorCue: "Use it before signing elsewhere. XpubShield does not build, sign, or broadcast transactions.",
+    targetSelector: ".workflow-guide",
+    title: "Plan a possible spend",
+    body: "Spend Preflight is for a transaction you have not built yet. It lets you choose candidate coins, estimate fee and change, and see what those inputs could reveal together.",
+    operatorCue: "Use Spend Preflight before building or signing elsewhere, especially when coins have different labels, sources, or quarantine states.",
     ctaLabel: "Run Preflight",
+    guide: {
+      what: "Choose coins, estimate fee/change, and review privacy or merge risk.",
+      when: "Before creating or signing a transaction.",
+      next: "Select candidate UTXOs, set amount and fee assumptions, then review the outcome."
+    },
     requiresWallet: true
   },
   {
     id: "verify-recovery",
     page: "recovery",
-    targetSelector: ".recovery-check",
-    title: "Verify recovery posture",
-    body: "Recovery checks help confirm descriptors, fingerprints, paths, gap assumptions, and export readiness before you need them under stress.",
-    operatorCue: "Export recovery notes only to storage you control because wallet metadata is sensitive.",
+    targetSelector: ".workflow-guide",
+    title: "Check recovery readiness",
+    body: "Recovery is not a spending tool. It checks whether your watch-only wallet can be restored or independently verified from descriptors, fingerprints, paths, gap assumptions, and exports.",
+    operatorCue: "Use Recovery after import, before relying on a watch-only setup, and whenever backup or signing-device metadata changes.",
     ctaLabel: "Open Recovery",
+    guide: {
+      what: "Verify the metadata needed to restore or audit this wallet view.",
+      when: "Before you need recovery under pressure.",
+      next: "Review backup readiness, export the report, and resolve missing metadata warnings."
+    },
     requiresWallet: true
   },
   {
     id: "psbt-safety",
     page: "psbt",
-    targetSelector: ".risk-list",
-    title: "Review PSBT safety",
-    body: "PSBT Preflight helps spot suspicious inputs, outputs, and change assumptions before a signer touches the transaction.",
-    operatorCue: "A clean lint result is useful, but it is not proof that a PSBT is safe.",
+    targetSelector: ".workflow-guide",
+    title: "Review a ready-to-sign PSBT",
+    body: "PSBT Preflight is for a transaction that already exists. Paste a PSBT to inspect inputs, outputs, fee, change, and signer warnings before approval.",
+    operatorCue: "Use PSBT Preflight after a wallet or coordinator creates a PSBT, but before a hardware signer or signing wallet approves it.",
     ctaLabel: "Open PSBT Preflight",
+    guide: {
+      what: "Review a ready-to-sign transaction without signing or broadcasting.",
+      when: "After PSBT creation and before signer approval.",
+      next: "Paste the PSBT or load the example, then resolve warnings before signing elsewhere."
+    },
     requiresWallet: true
   }
 ];
@@ -186,7 +206,7 @@ export function SovereignOpsTutorial({
           <h2 id="tutorial-prompt-title">Run the Sovereign Ops tutorial?</h2>
           <p>
             Take a short guided pass through the workflow: Cockpit, coin provenance, spend preflight, recovery,
-            and PSBT safety.
+            and PSBT safety. The preflight steps explain when to use each tool.
           </p>
           <div className="tutorial-actions">
             <button type="button" className="primary-button" onClick={onStart}>
@@ -238,6 +258,22 @@ export function SovereignOpsTutorial({
 
         <h2 id="tutorial-title">{activeStep.title}</h2>
         <p>{activeStep.body}</p>
+        {activeStep.guide ? (
+          <div className="tutorial-guide">
+            <div>
+              <span>What</span>
+              <strong>{activeStep.guide.what}</strong>
+            </div>
+            <div>
+              <span>When</span>
+              <strong>{activeStep.guide.when}</strong>
+            </div>
+            <div>
+              <span>Next</span>
+              <strong>{activeStep.guide.next}</strong>
+            </div>
+          </div>
+        ) : null}
         <div className="tutorial-cue">
           <span>Operator cue</span>
           <strong>{activeStep.operatorCue}</strong>

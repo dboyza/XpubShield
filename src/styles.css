@@ -3555,7 +3555,7 @@ td span {
 
 .tutorial-progress {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 6px;
 }
 
@@ -3568,6 +3568,36 @@ td span {
 
 .tutorial-progress button.active {
   background: var(--accent);
+}
+
+.tutorial-guide {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(255, 248, 232, 0.12);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  background: rgba(255, 248, 232, 0.035);
+}
+
+.tutorial-guide div {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.tutorial-guide span {
+  color: var(--accent-2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.tutorial-guide strong {
+  color: var(--text-soft);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .tutorial-cue {
