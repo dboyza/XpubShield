@@ -11,3 +11,7 @@
 - Before starting, check whether port `5173` is already listening and reuse the running server when possible.
 - In the Codex sandbox, Vite may fail with `EPERM` while writing `node_modules/.vite-temp/vite.config.ts.timestamp-*.mjs`. If that happens, rerun the same startup command with `require_escalated` and the safe prefix rule `["npm.cmd", "run", "dev"]`.
 - When starting in the background on Windows, write logs under `.codex-logs`, for example `.codex-logs/vite-dev.out.log` and `.codex-logs/vite-dev.err.log`.
+
+## Cockpit UI
+- Cockpit-specific layout and visual overrides live in `src/cockpit.css`, which is imported after `src/styles.css`; prefer editing `src/cockpit.css` for cockpit-only restyling.
+- The Cockpit stat strip is the `instrument-band` in `src/pages/Cockpit.tsx`. Preserve all six visible stats: Balance, Privacy, Spend, Recovery, Provenance, and Backend.
