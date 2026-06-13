@@ -90,7 +90,7 @@ npm run tauri -- build
 
 End users should not need Node, npm, Rust, or the source repo.
 
-For a normal Windows install, share one of the packaged installers from `releases/windows/0.1.0`:
+For a normal Windows install, share one of the packaged installers from the GitHub Releases page:
 
 - `XpubShield_0.1.0_x64-setup.exe` for a setup wizard
 - `XpubShield_0.1.0_x64_en-US.msi` for an MSI installer
@@ -100,6 +100,14 @@ For a portable-style run, share:
 - `xpubshield.exe`
 
 That executable can be opened directly, but the installer is usually nicer because it creates the standard app install experience. Until the app is code-signed, Windows may show a SmartScreen warning.
+
+To create these files locally, run:
+
+```bash
+npm run tauri -- build
+```
+
+Tauri writes the generated files under `src-tauri/target/release`. Upload the installer files and `SHA256SUMS.txt` to a GitHub Release instead of committing the binaries to Git.
 
 ## Safety Boundary
 

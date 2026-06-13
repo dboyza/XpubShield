@@ -9,3 +9,5 @@ src-tauri/gen/
 *.db
 *.sqlite
 *.sqlite3
+releases/windows/**/*.exe
+releases/windows/**/*.msi
