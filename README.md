@@ -90,7 +90,7 @@ npm run tauri -- build
 
 End users should not need Node, npm, Rust, or the source repo.
 
-For a normal Windows install, share one of the packaged installers from a release:
+For a normal Windows install, share one of the packaged installers from `releases/windows/0.1.0`:
 
 - `XpubShield_0.1.0_x64-setup.exe` for a setup wizard
 - `XpubShield_0.1.0_x64_en-US.msi` for an MSI installer
