@@ -92,8 +92,8 @@ End users should not need Node, npm, Rust, or the source repo.
 
 For a normal Windows install, share one of the packaged installers from the GitHub Releases page:
 
-- `XpubShield_0.1.1_x64-setup.exe` for a setup wizard
-- `XpubShield_0.1.1_x64_en-US.msi` for an MSI installer
+- `XpubShield_0.1.2_x64-setup.exe` for a setup wizard
+- `XpubShield_0.1.2_x64_en-US.msi` for an MSI installer
 
 For a portable-style run, share:
 
