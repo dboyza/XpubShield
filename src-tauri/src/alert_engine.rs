@@ -79,7 +79,13 @@ pub fn psbt_quarantine_alert(wallet_id: &str) -> Alert {
     )
 }
 
-fn alert(id: String, severity: Severity, title: &str, message: impl Into<String>, created_at: &str) -> Alert {
+fn alert(
+    id: String,
+    severity: Severity,
+    title: &str,
+    message: impl Into<String>,
+    created_at: &str,
+) -> Alert {
     Alert {
         id,
         severity,
@@ -101,7 +107,9 @@ mod tests {
         let report = MockBackend.scan_wallet(&build_demo_import());
         let alerts = generate_wallet_alerts(&report);
 
-        assert!(alerts.iter().any(|alert| alert.id.starts_with("address_reuse:")));
+        assert!(alerts
+            .iter()
+            .any(|alert| alert.id.starts_with("address_reuse:")));
     }
 
     #[test]
@@ -111,6 +119,8 @@ mod tests {
         let report = MockBackend.scan_wallet(&import);
         let alerts = generate_wallet_alerts(&report);
 
-        assert!(alerts.iter().any(|alert| alert.id.starts_with("public_api:")));
+        assert!(alerts
+            .iter()
+            .any(|alert| alert.id.starts_with("public_api:")));
     }
 }

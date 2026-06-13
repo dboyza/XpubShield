@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "check": "tsc --noEmit",
     "build": "tsc && vite build",
+    "lint": "npm run check",
     "preview": "vite preview",
     "tauri": "tauri"
   },

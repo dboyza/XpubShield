@@ -131,7 +131,7 @@ impl ElectrumBackend {
         )
         .map_err(|error| ElectrumError::Derivation(error.to_string()))?;
 
-        let tip_height = client.tip_height().unwrap_or(0);
+        let tip_height = client.tip_height()?;
         let mut utxos = Vec::new();
         for address in &addresses {
             let script_pubkey = script_pubkey_hex(&wallet.network, &address.address)?;
@@ -566,5 +566,60 @@ mod tests {
         assert_eq!(report.utxos[0].amount_sats, 50_000);
         assert_eq!(report.utxos[0].confirmations, 11);
         assert_eq!(report.wallet.backend, BackendKind::Electrum);
+    }
+
+    #[test]
+    fn tip_height_failure_is_reported() {
+        struct FailingTipClient;
+
+        impl ElectrumRpc for FailingTipClient {
+            fn tip_height(&mut self) -> Result<u32, ElectrumError> {
+                Err(ElectrumError::Parse("missing header".to_string()))
+            }
+
+            fn list_unspent(
+                &mut self,
+                _script_hash: &str,
+            ) -> Result<Vec<ElectrumUnspent>, ElectrumError> {
+                Ok(Vec::new())
+            }
+        }
+
+        let descriptor = "tr(xpub6BgBgsespWvERF3LHQu6CnqdvfEvtMcQjYrcRzx53QJjSxarj2afYWcLteoGVky7D3UKDP9QyrLprQ3VCECoY49yfdDEHGCtMMj92pReUsQ/0/*)";
+        let request = ImportRequest {
+            import_kind: ImportKind::Descriptor,
+            wallet_name: Some("Electrum test".to_string()),
+            descriptor: Some(descriptor.to_string()),
+            xpub: None,
+            network: Network::Mainnet,
+            script_type: Some(ScriptType::NativeSegwit),
+            account_path_guess: None,
+            gap_limit: Some(1),
+            backend: Some(BackendKind::Electrum),
+            bitcoin_core_rpc: None,
+            electrum: Some(ElectrumBackendConfig {
+                server_url: "tcp://127.0.0.1:50001".to_string(),
+                display_name: Some("Local".to_string()),
+                public_server_acknowledged: false,
+            }),
+            esplora: None,
+            public_api_acknowledged: false,
+            network_policy: None,
+        };
+        let import = validate_import(request).unwrap();
+        let backend = ElectrumBackend::new(
+            ElectrumBackendConfig {
+                server_url: "tcp://127.0.0.1:50001".to_string(),
+                display_name: Some("Local".to_string()),
+                public_server_acknowledged: false,
+            },
+            BackendKind::Electrum,
+        )
+        .unwrap();
+
+        assert!(matches!(
+            backend.scan_wallet_with_client(&import, &mut FailingTipClient),
+            Err(ElectrumError::Parse(_))
+        ));
     }
 }

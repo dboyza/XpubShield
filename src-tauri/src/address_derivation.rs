@@ -45,7 +45,7 @@ pub fn mock_derive_addresses(
                         index,
                         address: format!("{prefix}{branch}{index:04}phase1demo"),
                         derivation_path: format!("m/84h/0h/0h/{branch}/{index}"),
-                        script_type: script_type.clone(),
+                        script_type: *script_type,
                         used: matches!(index, 0..=6),
                         receive_count: if branch == 0 && index == 2 { 2 } else { 1 },
                     }
@@ -87,8 +87,9 @@ pub fn derive_descriptor_addresses(
     let descriptor = descriptor.trim();
     let parsed = parse_descriptor_metadata(descriptor);
     let account_path = parsed.account_path.unwrap_or_else(|| "m".to_string());
-    let miniscript_descriptor = MiniscriptDescriptor::<DescriptorPublicKey>::from_str(descriptor)
-        .map_err(|error| AddressDerivationError::DescriptorParse(error.to_string()))?;
+    let miniscript_descriptor =
+        MiniscriptDescriptor::<DescriptorPublicKey>::from_str(descriptor)
+            .map_err(|error| AddressDerivationError::DescriptorParse(error.to_string()))?;
     let secp = Secp256k1::verification_only();
     let network = bitcoin_network(network);
     let branch = match keychain {
@@ -131,8 +132,17 @@ fn bitcoin_network(network: &Network) -> BitcoinNetwork {
 fn reject_private_descriptor_material(descriptor: &str) -> Result<(), AddressDerivationError> {
     let lowered = descriptor.to_ascii_lowercase();
     let private_markers = [
-        "xprv", "tprv", "yprv", "zprv", "uprv", "vprv", "wif", "private key", "privkey",
-        "mnemonic", "seed phrase",
+        "xprv",
+        "tprv",
+        "yprv",
+        "zprv",
+        "uprv",
+        "vprv",
+        "wif",
+        "private key",
+        "privkey",
+        "mnemonic",
+        "seed phrase",
     ];
     if private_markers
         .iter()
@@ -153,8 +163,12 @@ mod tests {
             mock_derive_addresses("wallet", &Network::Mainnet, &ScriptType::NativeSegwit, 3);
 
         assert_eq!(addresses.len(), 6);
-        assert!(addresses.iter().any(|addr| addr.derivation_path.ends_with("/0/2")));
-        assert!(addresses.iter().any(|addr| addr.derivation_path.ends_with("/1/2")));
+        assert!(addresses
+            .iter()
+            .any(|addr| addr.derivation_path.ends_with("/0/2")));
+        assert!(addresses
+            .iter()
+            .any(|addr| addr.derivation_path.ends_with("/1/2")));
     }
 
     #[test]

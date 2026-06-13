@@ -43,7 +43,10 @@ fn address_reuse_findings(addresses: &[DerivedAddress], utxos: &mut [Utxo]) -> V
         return Vec::new();
     }
 
-    let reused_addresses: Vec<String> = reused.iter().map(|address| address.address.clone()).collect();
+    let reused_addresses: Vec<String> = reused
+        .iter()
+        .map(|address| address.address.clone())
+        .collect();
     let affected: Vec<String> = utxos
         .iter_mut()
         .filter(|utxo| reused_addresses.contains(&utxo.address))
@@ -142,7 +145,10 @@ fn utxo_fee_findings(utxos: &mut [Utxo]) -> Vec<AuditFinding> {
 }
 
 fn wallet_sprawl_findings(utxos: &[Utxo]) -> Vec<AuditFinding> {
-    let small_count = utxos.iter().filter(|utxo| utxo.amount_sats < 50_000).count();
+    let small_count = utxos
+        .iter()
+        .filter(|utxo| utxo.amount_sats < 50_000)
+        .count();
     if small_count < 4 {
         return Vec::new();
     }
@@ -236,7 +242,9 @@ fn unconfirmed_findings(utxos: &mut [Utxo]) -> Vec<AuditFinding> {
 fn gap_risk_findings(wallet: &Wallet, addresses: &[DerivedAddress]) -> Vec<AuditFinding> {
     let max_used_external = addresses
         .iter()
-        .filter(|address| address.used && matches!(address.keychain, crate::models::Keychain::External))
+        .filter(|address| {
+            address.used && matches!(address.keychain, crate::models::Keychain::External)
+        })
         .map(|address| address.index)
         .max()
         .unwrap_or(0);
@@ -265,7 +273,12 @@ fn gap_risk_findings(wallet: &Wallet, addresses: &[DerivedAddress]) -> Vec<Audit
 fn label_hygiene_findings(utxos: &mut [Utxo]) -> Vec<AuditFinding> {
     let affected: Vec<String> = utxos
         .iter_mut()
-        .filter(|utxo| utxo.label.as_ref().map(|label| label.trim().is_empty()).unwrap_or(true))
+        .filter(|utxo| {
+            utxo.label
+                .as_ref()
+                .map(|label| label.trim().is_empty())
+                .unwrap_or(true)
+        })
         .map(|utxo| {
             utxo.audit_flags.push("unlabeled".to_string());
             if matches!(utxo.quarantine_status, QuarantineStatus::None) {
@@ -482,7 +495,9 @@ mod tests {
         let (findings, _, _) = audit_wallet(&test_wallet(), &addresses, &mut utxos);
 
         assert!(findings.iter().any(|finding| finding.id == "tiny_utxo"));
-        assert!(findings.iter().any(|finding| finding.id == "uneconomical_to_spend"));
+        assert!(findings
+            .iter()
+            .any(|finding| finding.id == "uneconomical_to_spend"));
     }
 
     fn sample_utxo(address: &str, amount_sats: u64) -> Utxo {

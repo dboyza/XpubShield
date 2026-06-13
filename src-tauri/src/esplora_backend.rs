@@ -11,7 +11,10 @@ use crate::wallet_import::ValidatedImport;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
+use std::time::Duration;
 use thiserror::Error;
+
+const ESPLORA_REQUEST_TIMEOUT_SECONDS: u64 = 30;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EsploraBackendConfig {
@@ -63,6 +66,11 @@ impl EsploraBackend {
     }
 
     pub fn scan_wallet(&self, import: &ValidatedImport) -> Result<WalletReport, EsploraError> {
+        let agent = ureq::AgentBuilder::new()
+            .timeout_connect(Duration::from_secs(ESPLORA_REQUEST_TIMEOUT_SECONDS))
+            .timeout_read(Duration::from_secs(ESPLORA_REQUEST_TIMEOUT_SECONDS))
+            .timeout_write(Duration::from_secs(ESPLORA_REQUEST_TIMEOUT_SECONDS))
+            .build();
         let wallet_id = "wallet_esplora".to_string();
         let now = Utc::now().to_rfc3339();
         let backend = backend_kind_for_config(&self.config);
@@ -94,7 +102,8 @@ impl EsploraBackend {
 
         for address in &addresses {
             let url = address_utxo_url(&self.config.base_url, &address.address);
-            let response: Vec<EsploraUtxo> = ureq::get(&url)
+            let response: Vec<EsploraUtxo> = agent
+                .get(&url)
                 .call()
                 .map_err(|error| EsploraError::Request(error.to_string()))?
                 .into_json()
@@ -146,7 +155,39 @@ pub fn address_utxo_url(base_url: &str, address: &str) -> String {
 }
 
 pub fn is_public_esplora_url(base_url: &str) -> bool {
-    base_url.contains("mempool.space") || base_url.contains("blockstream.info")
+    let Some(host) = normalized_url_host(base_url) else {
+        return false;
+    };
+    matches!(
+        host.as_str(),
+        "mempool.space" | "blockstream.info" | "www.mempool.space" | "www.blockstream.info"
+    )
+}
+
+fn normalized_url_host(base_url: &str) -> Option<String> {
+    let (_, rest) = base_url.trim().split_once("://")?;
+    let authority = rest
+        .split(['/', '?', '#'])
+        .next()
+        .unwrap_or_default()
+        .rsplit('@')
+        .next()
+        .unwrap_or_default();
+    if authority.is_empty() {
+        return None;
+    }
+    if let Some(rest) = authority.strip_prefix('[') {
+        return rest
+            .split_once(']')
+            .map(|(host, _)| host.to_ascii_lowercase());
+    }
+    let host = authority
+        .rsplit_once(':')
+        .map(|(host, _)| host)
+        .unwrap_or(authority)
+        .trim()
+        .to_ascii_lowercase();
+    (!host.is_empty()).then_some(host)
 }
 
 pub fn utxo_from_esplora(
@@ -233,6 +274,18 @@ mod tests {
         };
 
         assert!(EsploraBackend::new(config).is_err());
+    }
+
+    #[test]
+    fn public_esplora_detection_uses_exact_hosts() {
+        assert!(is_public_esplora_url("https://mempool.space/api"));
+        assert!(is_public_esplora_url("https://blockstream.info/api"));
+        assert!(!is_public_esplora_url(
+            "https://mempool.space.evil.example/api"
+        ));
+        assert!(!is_public_esplora_url(
+            "https://private.example/mempool.space/api"
+        ));
     }
 
     #[test]

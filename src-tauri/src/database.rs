@@ -17,15 +17,39 @@ use std::path::Path;
 pub const INITIAL_SCHEMA: &str = include_str!("../migrations/001_initial_schema.sql");
 
 pub fn initialize_database(path: impl AsRef<Path>) -> Result<Connection> {
+    let path = path.as_ref();
     let connection = Connection::open(path)?;
+    harden_connection(&connection)?;
+    restrict_database_file_permissions(path)?;
     connection.execute_batch(INITIAL_SCHEMA)?;
     Ok(connection)
 }
 
 pub fn initialize_memory_database() -> Result<Connection> {
     let connection = Connection::open_in_memory()?;
+    harden_connection(&connection)?;
     connection.execute_batch(INITIAL_SCHEMA)?;
     Ok(connection)
+}
+
+fn harden_connection(connection: &Connection) -> Result<()> {
+    connection.pragma_update(None, "secure_delete", "ON")?;
+    Ok(())
+}
+
+#[cfg(unix)]
+fn restrict_database_file_permissions(path: &Path) -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let permissions = std::fs::Permissions::from_mode(0o600);
+    std::fs::set_permissions(path, permissions)
+        .map_err(|error| rusqlite::Error::ToSqlConversionFailure(Box::new(error)))?;
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn restrict_database_file_permissions(_path: &Path) -> Result<()> {
+    Ok(())
 }
 
 pub fn save_wallet_report(connection: &mut Connection, report: &WalletReport) -> Result<()> {

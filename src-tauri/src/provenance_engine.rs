@@ -113,8 +113,10 @@ fn assess_utxo(utxo: &Utxo, registry: &[RegistryEntry]) -> ProvenanceAssessment 
         };
     }
 
-    let mut unknown = ProvenanceAssessment::default();
-    unknown.updated_at = now;
+    let mut unknown = ProvenanceAssessment {
+        updated_at: now,
+        ..Default::default()
+    };
     if matches!(
         utxo.quarantine_status,
         QuarantineStatus::UnknownSource | QuarantineStatus::DustAttackSuspicion

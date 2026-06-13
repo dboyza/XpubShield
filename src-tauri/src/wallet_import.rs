@@ -16,17 +16,12 @@ pub enum ImportKind {
     Demo,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum NetworkPolicy {
+    #[default]
     Normal,
     LocalOnly,
-}
-
-impl Default for NetworkPolicy {
-    fn default() -> Self {
-        Self::Normal
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,7 +73,7 @@ pub enum ImportError {
 }
 
 pub fn validate_import(request: ImportRequest) -> Result<ValidatedImport, ImportError> {
-    let backend = request.backend.clone().unwrap_or_default();
+    let backend = request.backend.unwrap_or_default();
     let network_policy = request.network_policy.unwrap_or_default();
     validate_network_policy(&backend, network_policy, &request)?;
 
@@ -207,11 +202,23 @@ fn validate_network_policy(
 pub fn reject_private_material(input: &str) -> Result<(), ImportError> {
     let lowered = input.to_ascii_lowercase();
     let forbidden_markers = [
-        "xprv", "tprv", "yprv", "zprv", "uprv", "vprv", "wif", "mnemonic", "seed phrase",
-        "private key", "privkey",
+        "xprv",
+        "tprv",
+        "yprv",
+        "zprv",
+        "uprv",
+        "vprv",
+        "wif",
+        "mnemonic",
+        "seed phrase",
+        "private key",
+        "privkey",
     ];
 
-    if forbidden_markers.iter().any(|marker| lowered.contains(marker)) {
+    if forbidden_markers
+        .iter()
+        .any(|marker| lowered.contains(marker))
+    {
         return Err(ImportError::PrivateMaterial);
     }
 
@@ -233,7 +240,10 @@ fn validate_descriptor_shape(descriptor: &str) -> Result<(), ImportError> {
         "sortedmulti(",
     ];
 
-    if !supported.iter().any(|prefix| descriptor.starts_with(prefix)) {
+    if !supported
+        .iter()
+        .any(|prefix| descriptor.starts_with(prefix))
+    {
         Err(ImportError::UnsupportedDescriptor)
     } else {
         parse_public_descriptor(descriptor).map_err(|_| ImportError::UnsupportedDescriptor)?;
@@ -250,7 +260,11 @@ fn validate_public_extended_key(xpub: &str) -> Result<(), ImportError> {
     }
 }
 
-fn descriptor_rows_from_xpub(xpub: &str, script_type: &ScriptType, account_path: &str) -> Vec<Descriptor> {
+fn descriptor_rows_from_xpub(
+    xpub: &str,
+    script_type: &ScriptType,
+    account_path: &str,
+) -> Vec<Descriptor> {
     [Keychain::External, Keychain::Change]
         .into_iter()
         .map(|keychain| {
@@ -264,7 +278,7 @@ fn descriptor_rows_from_xpub(xpub: &str, script_type: &ScriptType, account_path:
                 keychain,
                 descriptor: descriptor_template(xpub, script_type, account_path, branch),
                 checksum: None,
-                script_type: script_type.clone(),
+                script_type: *script_type,
                 master_fingerprint: None,
                 account_path: Some(account_path.to_string()),
                 is_descriptor_based: false,
@@ -273,7 +287,12 @@ fn descriptor_rows_from_xpub(xpub: &str, script_type: &ScriptType, account_path:
         .collect()
 }
 
-fn descriptor_template(xpub: &str, script_type: &ScriptType, account_path: &str, branch: u8) -> String {
+fn descriptor_template(
+    xpub: &str,
+    script_type: &ScriptType,
+    account_path: &str,
+    branch: u8,
+) -> String {
     let key = format!("[unknown/{account_path}]{xpub}/{branch}/*");
     match script_type {
         ScriptType::Legacy => format!("pkh({key})"),
@@ -300,14 +319,15 @@ fn default_account_path(script_type: &ScriptType, network: &Network) -> String {
 }
 
 fn looks_like_wif(input: &str) -> bool {
-    input
-        .split_whitespace()
-        .any(|word| {
-            let len = word.len();
-            (len == 51 || len == 52)
-                && matches!(word.as_bytes().first(), Some(b'5' | b'K' | b'L' | b'c' | b'9'))
-                && word.chars().all(|c| c.is_ascii_alphanumeric())
-        })
+    input.split_whitespace().any(|word| {
+        let len = word.len();
+        (len == 51 || len == 52)
+            && matches!(
+                word.as_bytes().first(),
+                Some(b'5' | b'K' | b'L' | b'c' | b'9')
+            )
+            && word.chars().all(|c| c.is_ascii_alphanumeric())
+    })
 }
 
 fn looks_like_mnemonic(input: &str) -> bool {
@@ -343,13 +363,19 @@ mod tests {
 
     #[test]
     fn rejects_xprv_material() {
-        assert_eq!(reject_private_material("xprv9s21ZrQH143K").unwrap_err(), ImportError::PrivateMaterial);
+        assert_eq!(
+            reject_private_material("xprv9s21ZrQH143K").unwrap_err(),
+            ImportError::PrivateMaterial
+        );
     }
 
     #[test]
     fn rejects_wif_material() {
         let wif = "L1aW4aubDFB7yfras2S1mMEYCIh9TnD9A16dSq2czHP2KxbXX9T4";
-        assert_eq!(reject_private_material(wif).unwrap_err(), ImportError::PrivateMaterial);
+        assert_eq!(
+            reject_private_material(wif).unwrap_err(),
+            ImportError::PrivateMaterial
+        );
     }
 
     #[test]

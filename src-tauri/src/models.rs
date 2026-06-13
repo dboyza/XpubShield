@@ -1,24 +1,20 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Network {
+    #[default]
     Mainnet,
     Testnet,
     Signet,
     Regtest,
 }
 
-impl Default for Network {
-    fn default() -> Self {
-        Self::Mainnet
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum BackendKind {
+    #[default]
     Mock,
     BitcoinCoreRpc,
     Electrum,
@@ -27,27 +23,16 @@ pub enum BackendKind {
     PublicEsplora,
 }
 
-impl Default for BackendKind {
-    fn default() -> Self {
-        Self::Mock
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ScriptType {
     Legacy,
     NestedSegwit,
+    #[default]
     NativeSegwit,
     Taproot,
     Multisig,
     Unknown,
-}
-
-impl Default for ScriptType {
-    fn default() -> Self {
-        Self::NativeSegwit
-    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]

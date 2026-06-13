@@ -118,8 +118,17 @@ fn detect_keychain(descriptor: &str) -> Keychain {
 fn reject_private_descriptor_material(descriptor: &str) -> Result<(), DescriptorParseError> {
     let lowered = descriptor.to_ascii_lowercase();
     let private_markers = [
-        "xprv", "tprv", "yprv", "zprv", "uprv", "vprv", "wif", "private key", "privkey",
-        "mnemonic", "seed phrase",
+        "xprv",
+        "tprv",
+        "yprv",
+        "zprv",
+        "uprv",
+        "vprv",
+        "wif",
+        "private key",
+        "privkey",
+        "mnemonic",
+        "seed phrase",
     ];
     if private_markers
         .iter()
@@ -136,9 +145,8 @@ mod tests {
 
     #[test]
     fn parses_wpkh_descriptor_metadata() {
-        let parsed = parse_descriptor_metadata(
-            "wpkh([d34db33f/84h/0h/0h]xpub661MyMwAqRbc/0/*)#abcd1234",
-        );
+        let parsed =
+            parse_descriptor_metadata("wpkh([d34db33f/84h/0h/0h]xpub661MyMwAqRbc/0/*)#abcd1234");
 
         assert_eq!(parsed.script_type, ScriptType::NativeSegwit);
         assert_eq!(parsed.master_fingerprint.as_deref(), Some("d34db33f"));

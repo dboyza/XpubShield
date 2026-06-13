@@ -58,7 +58,11 @@ pub fn compare_descriptor_inputs(
         !left.address_preview.is_empty() && left.address_preview == right.address_preview;
     let rows = vec![
         row("Network", &left.network, &right.network),
-        row("Script type", &format!("{:?}", left.script_type), &format!("{:?}", right.script_type)),
+        row(
+            "Script type",
+            &format!("{:?}", left.script_type),
+            &format!("{:?}", right.script_type),
+        ),
         row(
             "Master fingerprint",
             optional_value(&left.master_fingerprint),
@@ -69,7 +73,11 @@ pub fn compare_descriptor_inputs(
             optional_value(&left.account_path),
             optional_value(&right.account_path),
         ),
-        row("Xpub", optional_value(&left.xpub), optional_value(&right.xpub)),
+        row(
+            "Xpub",
+            optional_value(&left.xpub),
+            optional_value(&right.xpub),
+        ),
         row("Branch", &left.branch, &right.branch),
         row(
             "Wildcard",

@@ -159,9 +159,12 @@ fn analyze_psbt(psbt: Psbt, format: &'static str, report: &WalletReport) -> Psbt
         .iter()
         .enumerate()
         .map(|(index, output)| {
-            let address = Address::from_script(&output.script_pubkey, bitcoin_network(&report.wallet.network))
-                .map(|address| address.to_string())
-                .unwrap_or_else(|_| format!("script_pubkey:{index}"));
+            let address = Address::from_script(
+                &output.script_pubkey,
+                bitcoin_network(&report.wallet.network),
+            )
+            .map(|address| address.to_string())
+            .unwrap_or_else(|_| format!("script_pubkey:{index}"));
             let wallet_owned = wallet_addresses.contains(&address);
             PsbtOutputAnalysis {
                 reused_wallet_address: reused_addresses.contains(&address),
@@ -258,11 +261,11 @@ fn lint_analysis(
         .iter()
         .filter_map(|input| input.wallet_utxo.as_ref())
         .collect();
-    let labels = distinct(
-        wallet_inputs
-            .iter()
-            .map(|utxo| utxo.label.clone().unwrap_or_else(|| "Unlabeled".to_string())),
-    );
+    let labels = distinct(wallet_inputs.iter().map(|utxo| {
+        utxo.label
+            .clone()
+            .unwrap_or_else(|| "Unlabeled".to_string())
+    }));
     let categories = distinct(
         wallet_inputs
             .iter()
@@ -304,10 +307,12 @@ fn lint_analysis(
         ));
     }
 
-    if wallet_inputs
-        .iter()
-        .any(|utxo| !matches!(utxo.quarantine_status, crate::models::QuarantineStatus::None))
-    {
+    if wallet_inputs.iter().any(|utxo| {
+        !matches!(
+            utxo.quarantine_status,
+            crate::models::QuarantineStatus::None
+        )
+    }) {
         warnings.push(warning(
             "quarantined_input",
             Severity::High,
@@ -365,9 +370,11 @@ fn lint_analysis(
         ));
     }
 
-    if psbt.inputs.iter().any(|input| {
-        input.bip32_derivation.is_empty() && input.tap_key_origins.is_empty()
-    }) {
+    if psbt
+        .inputs
+        .iter()
+        .any(|input| input.bip32_derivation.is_empty() && input.tap_key_origins.is_empty())
+    {
         warnings.push(missing_metadata_warning());
     }
 

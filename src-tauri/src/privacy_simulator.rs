@@ -39,6 +39,7 @@ pub fn finding_from_simulation(simulation: &PrivacySimulation) -> AuditFinding {
         affected_utxos: simulation.affected_utxos.clone(),
         affected_transactions: Vec::new(),
         confidence_level: simulation.confidence_level,
-        heuristic_notes: "Simulation only; no transaction is created, signed, or broadcast.".to_string(),
+        heuristic_notes: "Simulation only; no transaction is created, signed, or broadcast."
+            .to_string(),
     }
 }

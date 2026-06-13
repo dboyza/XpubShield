@@ -122,7 +122,10 @@ mod tests {
         let report = MockBackend.scan_wallet(&build_demo_import());
         let graph = build_wallet_graph(&report, 250);
 
-        assert!(graph.nodes.iter().any(|node| node.node_type == "transaction"));
+        assert!(graph
+            .nodes
+            .iter()
+            .any(|node| node.node_type == "transaction"));
         assert!(graph.nodes.iter().any(|node| node.node_type == "address"));
         assert!(graph.nodes.iter().any(|node| node.node_type == "utxo"));
         assert!(graph.edges.iter().any(|edge| edge.edge_type == "creates"));
@@ -135,10 +138,10 @@ mod tests {
 
         assert!(graph.limited);
         assert_eq!(graph.nodes.len(), 4);
-        assert!(graph
-            .edges
+        assert!(graph.edges.iter().all(|edge| graph
+            .nodes
             .iter()
-            .all(|edge| graph.nodes.iter().any(|node| node.id == edge.source)
-                && graph.nodes.iter().any(|node| node.id == edge.target)));
+            .any(|node| node.id == edge.source)
+            && graph.nodes.iter().any(|node| node.id == edge.target)));
     }
 }
