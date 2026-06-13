@@ -1,8 +1,9 @@
-import { Calculator, CircleDollarSign, ShieldAlert } from "lucide-react";
+import { Calculator, CircleDollarSign } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { EvidenceDrawer } from "../components/EvidenceDrawer";
 import { MetricCard } from "../components/MetricCard";
 import { StatusPill } from "../components/StatusPill";
+import { WorkflowGuide } from "../components/WorkflowGuide";
 import { simulateSpend } from "../api/tauri";
 import { compactSats, humanize, satsToBtc, txidPrefix } from "../lib/format";
 import {
@@ -97,35 +98,22 @@ export function SpendPreview({ report, workspaceState, onWorkspaceChange }: Spen
         <div>
           <p>{report.wallet.name}</p>
           <h1>Spend preflight</h1>
+          <p className="page-header-copy">Model a possible spend before you create or sign a transaction elsewhere.</p>
         </div>
         <StatusPill label="Simulation only" tone="good" />
       </section>
 
-      <section className="privacy-warning">
-        <ShieldAlert size={20} />
-        <div>
-          <strong>No transaction is created</strong>
-          <p>This preflight models what an observer could learn from selected coins. It does not sign, finalize, extract, construct, or broadcast a transaction.</p>
-        </div>
-      </section>
-
-      <section className="workflow-dock" aria-label="Spend preflight subviews">
-        <article className="workflow-lens-card">
-          <span>Observer inference</span>
-          <strong>Run the privacy model when the question is what selected coins reveal together.</strong>
-          <p>The observer narrative and evidence buttons below replace the old separate privacy page.</p>
-        </article>
-        <article className="workflow-lens-card">
-          <span>Consolidation</span>
-          <strong>Check fee savings against merge damage before batching coins.</strong>
-          <p>Use selected inputs, fee outcome, change policy, and safer alternatives as one guided workflow.</p>
-        </article>
-      </section>
+      <WorkflowGuide
+        title="Plan a possible spend before signing"
+        purpose="Choose coins, estimate fee and change, and see what those inputs could reveal when used together."
+        when="Use this before building or signing a transaction, especially when coins have different labels, sources, or quarantine states."
+        nextAction="Select candidate UTXOs, set amount and fee assumptions, then review the outcome before signing elsewhere."
+      />
 
       <section className="simulator-grid preflight-grid">
         <div className="panel preflight-input-panel">
           <div className="panel-heading">
-            <h2>Inputs</h2>
+            <h2>Choose coins</h2>
             <StatusPill label={`${selected.length} selected`} tone={selected.length ? "warn" : "neutral"} />
           </div>
           <div className="action-grid spend-controls">
@@ -174,7 +162,7 @@ export function SpendPreview({ report, workspaceState, onWorkspaceChange }: Spen
 
         <div className="panel preflight-result-panel">
           <div className="panel-heading">
-            <h2>Preview</h2>
+            <h2>Review outcome</h2>
             <StatusPill label={humanize(preview.privacyRisk)} tone={preview.privacyRisk === "high" ? "bad" : preview.privacyRisk === "medium" ? "warn" : "good"} />
           </div>
           <section className="metric-grid compact-metrics">
@@ -186,7 +174,7 @@ export function SpendPreview({ report, workspaceState, onWorkspaceChange }: Spen
 
           <section className="scenario-builder">
             <div className="panel-heading">
-              <h2>Spend scenario builder</h2>
+              <h2>Observer story</h2>
               <StatusPill label="observer narrative" tone={preview.privacyRisk === "high" ? "bad" : preview.privacyRisk === "medium" ? "warn" : "good"} />
             </div>
             <div className="scenario-grid">
@@ -343,12 +331,12 @@ export function SpendPreview({ report, workspaceState, onWorkspaceChange }: Spen
             ) : null}
           </div>
 
-          <div className="panel embedded-form">
-            <div className="panel-heading">
-              <h2>Fee rates</h2>
-              <StatusPill label="Local estimate" />
-            </div>
-            <div className="shape-list">
+          <details className="advanced-section panel embedded-form">
+            <summary>
+              <span>Fee-rate details</span>
+              <small>Local estimate</small>
+            </summary>
+            <div className="shape-list workflow-detail-body">
               {preview.feeCosts.map((row) => (
                 <div className="shape-row" key={row.feeRate}>
                   <span>{row.feeRate} sats/vB</span>
@@ -357,21 +345,21 @@ export function SpendPreview({ report, workspaceState, onWorkspaceChange }: Spen
                 </div>
               ))}
             </div>
-          </div>
+          </details>
 
-          <div className="panel embedded-form">
-            <div className="panel-heading">
-              <h2>Suggested alternatives</h2>
-              <StatusPill label={`${preview.betterUtxoSuggestions.length} items`} />
-            </div>
-            <div className="finding-list">
+          <details className="advanced-section panel embedded-form" open={preview.betterUtxoSuggestions.length > 0}>
+            <summary>
+              <span>Suggested alternatives</span>
+              <small>{preview.betterUtxoSuggestions.length} items</small>
+            </summary>
+            <div className="finding-list workflow-detail-body">
               {preview.betterUtxoSuggestions.map((suggestion) => (
                 <article className="finding-row" key={suggestion}>
                   <p>{suggestion}</p>
                 </article>
               ))}
             </div>
-          </div>
+          </details>
         </div>
       </section>
       <EvidenceDrawer item={activeEvidence} onClose={() => setActiveEvidence(null)} />

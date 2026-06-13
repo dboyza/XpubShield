@@ -988,6 +988,67 @@ label {
   overflow: hidden;
 }
 
+.page-header .page-header-copy {
+  max-width: 660px;
+  margin-top: 6px;
+  color: var(--text-soft);
+  line-height: 1.45;
+}
+
+.workflow-guide {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.05fr) repeat(3, minmax(150px, 0.7fr));
+  gap: 0;
+  border: 1px solid rgba(255, 248, 232, 0.16);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(135deg, rgba(246, 160, 45, 0.08), transparent 42%),
+    rgba(12, 11, 9, 0.82);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+}
+
+.workflow-guide-lead,
+.workflow-guide-item {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.workflow-guide-lead {
+  background: rgba(255, 248, 232, 0.035);
+}
+
+.workflow-guide-item {
+  border-left: 1px solid rgba(255, 248, 232, 0.1);
+}
+
+.workflow-guide span {
+  color: var(--accent-2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.workflow-guide h2 {
+  max-width: 28ch;
+  color: var(--text);
+  font-size: clamp(20px, 2vw, 30px);
+  line-height: 1.1;
+}
+
+.workflow-guide p {
+  color: var(--text-soft);
+  line-height: 1.45;
+}
+
+.workflow-detail-body {
+  margin: 0 14px 14px;
+}
+
 .section-heading {
   justify-content: flex-start;
   margin-bottom: 16px;
@@ -3679,8 +3740,14 @@ td span {
   .tray-grid,
   .tray-subgrid,
   .compact-metrics,
+  .workflow-guide,
   .workflow-dock {
     grid-template-columns: 1fr;
+  }
+
+  .workflow-guide-item {
+    border-left: 0;
+    border-top: 1px solid rgba(255, 248, 232, 0.1);
   }
 
   .workflow-lens-item + .workflow-lens-item {

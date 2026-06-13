@@ -1,8 +1,9 @@
-import { Download, FileJson, HeartPulse } from "lucide-react";
+import { Download, FileJson, GitCompare, HeartPulse } from "lucide-react";
 import { useMemo, useState } from "react";
 import { EvidenceDrawer } from "../components/EvidenceDrawer";
 import { MetricCard } from "../components/MetricCard";
 import { StatusPill } from "../components/StatusPill";
+import { WorkflowGuide } from "../components/WorkflowGuide";
 import { humanize } from "../lib/format";
 import { statusToSeverity, type EvidenceItem } from "../lib/ops";
 import { buildRecoveryHealth } from "../lib/phase3";
@@ -24,9 +25,17 @@ export function RecoveryHealth({ report, onNavigate }: RecoveryHealthProps) {
         <div>
           <p>{report.wallet.name}</p>
           <h1>Recovery drill</h1>
+          <p className="page-header-copy">Check whether your watch-only wallet can be restored or independently verified.</p>
         </div>
         <StatusPill label="Local report" tone="good" />
       </section>
+
+      <WorkflowGuide
+        title="Check whether your wallet view is recoverable"
+        purpose="Verify descriptors, fingerprints, derivation paths, gap assumptions, and export readiness before you need them under pressure."
+        when="Use this after import, before relying on a watch-only setup, and whenever backup or signing-device metadata changes."
+        nextAction="Review backup readiness, export the local report, and resolve missing descriptor or metadata warnings."
+      />
 
       <section className="metric-grid">
         <MetricCard icon={HeartPulse} label="Recovery score" value={`${health.score}/100`} score={health.score} />
@@ -40,22 +49,15 @@ export function RecoveryHealth({ report, onNavigate }: RecoveryHealthProps) {
         <button type="button" className="secondary-button" onClick={() => downloadText("xpubshield-recovery-report.json", health.json)}>
           <Download size={17} /> JSON
         </button>
-      </section>
-
-      <section className="workflow-dock" aria-label="Recovery diagnostics">
-        <article className="workflow-lens-card">
-          <span>Descriptor diagnostic</span>
-          <strong>Compare descriptor or xpub previews when recovery identity feels ambiguous.</strong>
-          <button type="button" className="secondary-button" onClick={() => onNavigate?.("descriptor_diff")}>
-            Open descriptor diff
-          </button>
-        </article>
+        <button type="button" className="secondary-button" onClick={() => onNavigate?.("descriptor_diff")}>
+          <GitCompare size={17} /> Descriptor diff
+        </button>
       </section>
 
       <section className="dashboard-grid">
         <div className="panel">
           <div className="panel-heading">
-            <h2>Operator checklist</h2>
+            <h2>Backup readiness</h2>
             <StatusPill label={`${checklist.filter((item) => item.status === "good").length}/${checklist.length} ready`} />
           </div>
           <div className="finding-list">
@@ -80,12 +82,12 @@ export function RecoveryHealth({ report, onNavigate }: RecoveryHealthProps) {
           </div>
         </div>
 
-        <div className="panel">
-          <div className="panel-heading">
-            <h2>Metadata</h2>
-            <StatusPill label={`${health.fields.length} fields`} />
-          </div>
-          <div className="shape-list">
+        <details className="advanced-section panel">
+          <summary>
+            <span>Recovery metadata</span>
+            <small>{health.fields.length} fields</small>
+          </summary>
+          <div className="shape-list workflow-detail-body">
             {health.fields.map((field) => (
               <div className="shape-row" key={field.label}>
                 <span>{field.label}</span>
@@ -94,11 +96,11 @@ export function RecoveryHealth({ report, onNavigate }: RecoveryHealthProps) {
               </div>
             ))}
           </div>
-        </div>
+        </details>
 
         <div className="panel">
           <div className="panel-heading">
-            <h2>Warnings</h2>
+            <h2>Recovery warnings</h2>
             <StatusPill label={`${health.warnings.length} items`} tone={health.warnings.length ? "warn" : "good"} />
           </div>
           {health.warnings.length ? (
